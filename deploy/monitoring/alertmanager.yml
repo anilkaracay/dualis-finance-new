@@ -1,0 +1,68 @@
+groups:
+  - name: dualis-critical
+    rules:
+      - alert: ProtocolPaused
+        expr: dualis_protocol_paused == 1
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Protocol is paused"
+
+      - alert: CantonDisconnected
+        expr: dualis_canton_connected == 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Canton disconnected for >5min"
+
+      - alert: HighErrorRate
+        expr: rate(http_requests_total{status=~"5.."}[5m]) / rate(http_requests_total[5m]) > 0.05
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "API error rate >5%"
+
+      - alert: DBPoolExhausted
+        expr: db_pool_active_connections >= db_pool_max_connections
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Database connection pool exhausted"
+
+  - name: dualis-warning
+    rules:
+      - alert: HighPoolUtilization
+        expr: dualis_utilization_ratio > 0.90
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Pool utilization >90%"
+
+      - alert: HighAPILatency
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m])) > 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "P95 API latency >1s"
+
+      - alert: LowCacheHitRate
+        expr: rate(cache_hits_total[5m]) / (rate(cache_hits_total[5m]) + rate(cache_misses_total[5m])) < 0.5
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Cache hit rate <50%"
+
+      - alert: WSConnectionSpike
+        expr: ws_active_connections > 1000
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "WebSocket connections >1000"

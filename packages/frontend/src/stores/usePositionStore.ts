@@ -1,6 +1,7 @@
 'use client';
 
 import { create } from 'zustand';
+import type { BorrowPositionItem, SecLendingDealItem } from '@dualis/shared';
 
 interface SupplyPosition {
   positionId: string;
@@ -41,10 +42,12 @@ interface PositionState {
   borrowPositions: BorrowPositionData[];
   secLendingDeals: SecLendingDealData[];
   isLoading: boolean;
+  isDemo: boolean;
 }
 
 interface PositionActions {
   fetchPositions: (partyId: string) => void;
+  fetchFromAPI: () => Promise<void>;
 }
 
 const MOCK_SUPPLY: SupplyPosition[] = [
@@ -124,11 +127,45 @@ const MOCK_SEC_LENDING: SecLendingDealData[] = [
   },
 ];
 
+/** Maps a BorrowPositionItem from the API to the local BorrowPositionData shape. */
+function mapBorrowPositionItem(item: BorrowPositionItem): BorrowPositionData {
+  return {
+    positionId: item.positionId,
+    poolId: item.lendingPoolId,
+    symbol: item.borrowedAsset.symbol,
+    borrowedAmountPrincipal: item.borrowedAmountPrincipal,
+    currentDebt: item.currentDebt,
+    healthFactor: item.healthFactor.value,
+    creditTier: item.creditTier,
+    isLiquidatable: item.isLiquidatable,
+    collateral: item.collateral.map((c) => ({
+      symbol: c.symbol,
+      amount: Number(c.amount),
+      valueUSD: c.valueUSD,
+    })),
+    borrowTimestamp: item.borrowTimestamp,
+  };
+}
+
+/** Maps a SecLendingDealItem from the API to the local SecLendingDealData shape. */
+function mapSecLendingDealItem(item: SecLendingDealItem): SecLendingDealData {
+  return {
+    dealId: item.dealId,
+    role: item.role,
+    security: item.security,
+    status: item.status,
+    feeAccrued: item.feeAccrued,
+    startDate: item.startDate,
+    expectedEndDate: item.expectedEndDate,
+  };
+}
+
 export const usePositionStore = create<PositionState & PositionActions>()((set) => ({
   supplyPositions: [],
   borrowPositions: [],
   secLendingDeals: [],
   isLoading: false,
+  isDemo: false,
 
   fetchPositions: (_partyId: string) => {
     set({ isLoading: true });
@@ -138,7 +175,51 @@ export const usePositionStore = create<PositionState & PositionActions>()((set) 
         borrowPositions: MOCK_BORROW,
         secLendingDeals: MOCK_SEC_LENDING,
         isLoading: false,
+        isDemo: true,
       });
     }, 500);
+  },
+
+  fetchFromAPI: async () => {
+    set({ isLoading: true });
+    try {
+      const { apiClient } = await import('@/lib/api/client');
+      const [borrowRes, dealsRes] = await Promise.all([
+        apiClient.get<BorrowPositionItem[]>('/borrow/positions'),
+        apiClient.get<SecLendingDealItem[]>('/sec-lending/deals'),
+      ]);
+
+      const borrowPositions = borrowRes.data;
+      const secLendingDeals = dealsRes.data;
+
+      if (
+        (Array.isArray(borrowPositions) && borrowPositions.length > 0) ||
+        (Array.isArray(secLendingDeals) && secLendingDeals.length > 0)
+      ) {
+        set({
+          borrowPositions: Array.isArray(borrowPositions)
+            ? borrowPositions.map(mapBorrowPositionItem)
+            : MOCK_BORROW,
+          secLendingDeals: Array.isArray(secLendingDeals)
+            ? secLendingDeals.map(mapSecLendingDealItem)
+            : MOCK_SEC_LENDING,
+          // Supply positions don't have a dedicated endpoint yet — keep mock
+          supplyPositions: MOCK_SUPPLY,
+          isLoading: false,
+          isDemo: false,
+        });
+      } else {
+        throw new Error('Empty response');
+      }
+    } catch {
+      // Fall back to mock data
+      set({
+        supplyPositions: MOCK_SUPPLY,
+        borrowPositions: MOCK_BORROW,
+        secLendingDeals: MOCK_SEC_LENDING,
+        isLoading: false,
+        isDemo: true,
+      });
+    }
   },
 }));

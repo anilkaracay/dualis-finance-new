@@ -1,6 +1,7 @@
 'use client';
 
 import { create } from 'zustand';
+import type { PoolListItem } from '@dualis/shared';
 
 interface PoolData {
   poolId: string;
@@ -19,11 +20,13 @@ interface PoolData {
 interface ProtocolState {
   pools: PoolData[];
   isLoading: boolean;
+  isDemo: boolean;
   error: string | null;
 }
 
 interface ProtocolActions {
   fetchPools: () => void;
+  fetchFromAPI: () => Promise<void>;
   updatePool: (poolId: string, data: Partial<PoolData>) => void;
 }
 
@@ -108,17 +111,56 @@ const MOCK_POOLS: PoolData[] = [
   },
 ];
 
+/** Maps a PoolListItem from the API to the local PoolData shape. */
+function mapPoolListItemToPoolData(p: PoolListItem): PoolData {
+  return {
+    poolId: p.poolId,
+    symbol: p.asset.symbol,
+    instrumentType: p.asset.type,
+    totalDeposits: p.totalSupply,
+    totalBorrows: p.totalBorrow,
+    totalReserves: p.totalReserves,
+    utilization: p.utilization,
+    supplyAPY: p.supplyAPY,
+    borrowAPY: p.borrowAPY,
+    priceUSD: p.asset.priceUSD,
+    isActive: p.isActive,
+  };
+}
+
 export const useProtocolStore = create<ProtocolState & ProtocolActions>()((set) => ({
   pools: [],
   isLoading: false,
+  isDemo: false,
   error: null,
 
   fetchPools: () => {
     set({ isLoading: true, error: null });
     // Simulate API call
     setTimeout(() => {
-      set({ pools: MOCK_POOLS, isLoading: false });
+      set({ pools: MOCK_POOLS, isLoading: false, isDemo: true });
     }, 500);
+  },
+
+  fetchFromAPI: async () => {
+    set({ isLoading: true, error: null });
+    try {
+      const { apiClient } = await import('@/lib/api/client');
+      const response = await apiClient.get<PoolListItem[]>('/pools');
+      const pools = response.data;
+      if (Array.isArray(pools) && pools.length > 0) {
+        set({
+          pools: pools.map(mapPoolListItemToPoolData),
+          isLoading: false,
+          isDemo: false,
+        });
+      } else {
+        throw new Error('Empty response');
+      }
+    } catch {
+      // Fall back to mock data
+      set({ pools: MOCK_POOLS, isLoading: false, isDemo: true });
+    }
   },
 
   updatePool: (poolId, data) =>
