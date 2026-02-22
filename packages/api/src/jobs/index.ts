@@ -12,4 +12,10 @@ import './creditRecalc.job.js';
 import './analytics.job.js';
 import './cleanup.job.js';
 
+// Innovation jobs
+import './compositeScoreRecalc.job.js';
+import './productiveMonitor.job.js';
+import './corporateActionProcessor.job.js';
+import './kybExpiryCheck.job.js';
+
 export { initScheduler, stopScheduler } from './scheduler.js';

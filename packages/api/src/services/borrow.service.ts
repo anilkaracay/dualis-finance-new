@@ -9,8 +9,12 @@ import type {
   CreditTier,
 } from '@dualis/shared';
 import { randomUUID } from 'node:crypto';
+import * as compositeCreditService from './compositeCredit.service.js';
 
 const log = createChildLogger('borrow-service');
+
+// Base APY before tier-based discounts
+const BASE_BORROW_APY = 0.068;
 
 function buildTransactionMeta(): TransactionMeta {
   return {
@@ -19,6 +23,23 @@ function buildTransactionMeta(): TransactionMeta {
     timestamp: new Date().toISOString(),
   };
 }
+
+// Hybrid collateral price map — includes crypto, project assets, and TIFA receivables
+const COLLATERAL_PRICES: Record<string, number> = {
+  USDC: 1.0,
+  ETH: 3_420,
+  wBTC: 62_450,
+  'T-BILL': 1.0,
+  'CC-REC': 1.0,
+  SPY: 478.5,
+  // Productive project assets
+  'SOLAR-ASSET': 1.0,
+  'WIND-ASSET': 1.0,
+  'INFRA-ASSET': 1.0,
+  // TIFA receivables
+  'TIFA-REC': 1.0,
+  'TIFA-INVOICE': 1.0,
+};
 
 const MOCK_POSITIONS: BorrowPositionItem[] = [
   {
@@ -95,17 +116,20 @@ export function requestBorrow(
 ): { data: BorrowResponse; transaction: TransactionMeta } {
   log.info({ partyId, params }, 'Processing borrow request');
 
+  // Look up composite score for tier-based rate discount
+  const compositeScore = compositeCreditService.getCompositeScore(partyId);
+  const rateDiscount = compositeScore.benefits.rateDiscount;
+  const discountedAPY = Number((BASE_BORROW_APY * (1 - rateDiscount)).toFixed(4));
+
+  log.debug(
+    { tier: compositeScore.tier, rateDiscount, baseAPY: BASE_BORROW_APY, discountedAPY },
+    'Applied tier-based rate discount',
+  );
+
   const borrowAmount = parseFloat(params.borrowAmount);
+  // Hybrid collateral: supports crypto, project assets, and TIFA receivables
   const collateralValueUSD = params.collateralAssets.reduce((acc, a) => {
-    const prices: Record<string, number> = {
-      USDC: 1.0,
-      ETH: 3_420,
-      wBTC: 62_450,
-      'T-BILL': 1.0,
-      'CC-REC': 1.0,
-      SPY: 478.5,
-    };
-    return acc + parseFloat(a.amount) * (prices[a.symbol] ?? 1);
+    return acc + parseFloat(a.amount) * (COLLATERAL_PRICES[a.symbol] ?? 1);
   }, 0);
 
   return {
@@ -119,8 +143,8 @@ export function requestBorrow(
         borrowValueUSD: borrowAmount,
         weightedLTV: Number((borrowAmount / collateralValueUSD).toFixed(4)),
       },
-      creditTier: 'Gold' as CreditTier,
-      borrowAPY: 0.0568,
+      creditTier: compositeScore.tier,
+      borrowAPY: discountedAPY,
     },
     transaction: buildTransactionMeta(),
   };
@@ -171,16 +195,7 @@ export function addCollateral(
     throw new Error(`Position ${positionId} not found`);
   }
 
-  const prices: Record<string, number> = {
-    USDC: 1.0,
-    ETH: 3_420,
-    wBTC: 62_450,
-    'T-BILL': 1.0,
-    'CC-REC': 1.0,
-    SPY: 478.5,
-  };
-
-  const addedValueUSD = parseFloat(asset.amount) * (prices[asset.symbol] ?? 1);
+  const addedValueUSD = parseFloat(asset.amount) * (COLLATERAL_PRICES[asset.symbol] ?? 1);
   const newCollateralValue = position.healthFactor.collateralValueUSD + addedValueUSD;
 
   return {

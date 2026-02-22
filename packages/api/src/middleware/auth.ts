@@ -6,6 +6,9 @@ import { createChildLogger } from '../config/logger.js';
 import { AppError } from './errorHandler.js';
 import { getDb, schema } from '../db/client.js';
 import { eq } from 'drizzle-orm';
+import type { PrivacyLevel } from '@dualis/shared';
+import * as institutionalService from '../services/institutional.service.js';
+import * as privacyService from '../services/privacy.service.js';
 
 const log = createChildLogger('auth');
 
@@ -20,6 +23,8 @@ declare module 'fastify' {
       walletAddress?: string;
       tier?: string;
       isOperator?: boolean;
+      isInstitutional?: boolean;
+      privacyLevel?: PrivacyLevel;
     };
   }
 }
@@ -144,4 +149,89 @@ export async function operatorMiddleware(
   if (!request.user?.isOperator) {
     throw new AppError('FORBIDDEN', 'Operator access required', 403);
   }
+}
+
+// ---------------------------------------------------------------------------
+// Institutional permission middleware
+// ---------------------------------------------------------------------------
+
+/**
+ * Fastify preHandler hook that verifies the caller is a verified institutional party.
+ * Must be used AFTER `authMiddleware`.
+ */
+export async function institutionalMiddleware(
+  request: FastifyRequest,
+  _reply: FastifyReply,
+): Promise<void> {
+  const partyId = request.user?.partyId;
+  if (!partyId) {
+    throw new AppError('UNAUTHORIZED', 'Authentication required', 401);
+  }
+
+  const institution = institutionalService.getInstitutionStatus(partyId);
+  if (!institution || institution.kybStatus !== 'Verified') {
+    throw new AppError('FORBIDDEN', 'Verified institutional access required', 403);
+  }
+
+  // Check KYB expiry
+  if (institution.expiresAt && new Date(institution.expiresAt) < new Date()) {
+    throw new AppError('FORBIDDEN', 'Institutional KYB verification has expired', 403);
+  }
+
+  // Augment request.user
+  if (request.user) {
+    request.user.isInstitutional = true;
+  }
+
+  log.debug({ partyId, kybLevel: institution.kybLevel }, 'Institutional access granted');
+}
+
+/**
+ * Creates a preHandler hook that checks institutional permission for a specific product.
+ * Must be used AFTER `authMiddleware` and `institutionalMiddleware`.
+ */
+export function requireInstitutionalProduct(product: string) {
+  return async (request: FastifyRequest, _reply: FastifyReply): Promise<void> => {
+    const partyId = request.user?.partyId;
+    if (!partyId) {
+      throw new AppError('UNAUTHORIZED', 'Authentication required', 401);
+    }
+
+    const institution = institutionalService.getInstitutionStatus(partyId);
+    if (!institution) {
+      throw new AppError('FORBIDDEN', 'Institutional access required', 403);
+    }
+
+    if (!institution.riskProfile.allowedProducts.includes(product)) {
+      throw new AppError(
+        'FORBIDDEN',
+        `Institutional access to "${product}" not permitted by risk profile`,
+        403,
+      );
+    }
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Privacy-level aware middleware
+// ---------------------------------------------------------------------------
+
+/**
+ * Fastify preHandler hook that attaches the user's privacy level to the request.
+ * Must be used AFTER `authMiddleware`.
+ * Routes can then use `request.user.privacyLevel` to filter response data.
+ */
+export async function privacyMiddleware(
+  request: FastifyRequest,
+  _reply: FastifyReply,
+): Promise<void> {
+  const partyId = request.user?.partyId;
+  if (!partyId) return;
+
+  const config = privacyService.getPrivacyConfig(partyId);
+  if (request.user) {
+    request.user.privacyLevel = config.privacyLevel;
+  }
+
+  log.debug({ partyId, privacyLevel: config.privacyLevel }, 'Privacy level attached');
 }

@@ -4,7 +4,9 @@ import type {
   CreditScoreResponse,
   CreditHistoryPoint,
   CreditTier,
+  CompositeScore,
 } from '@dualis/shared';
+import * as compositeCreditService from './compositeCredit.service.js';
 
 const log = createChildLogger('credit-service');
 
@@ -74,7 +76,32 @@ function generateCreditHistory(period: string): CreditHistoryPoint[] {
 
 export function getScore(partyId: string): CreditScoreResponse {
   log.debug({ partyId }, 'Getting credit score');
-  return MOCK_SCORE;
+
+  // Enrich with composite score data when available
+  const composite = compositeCreditService.getCompositeScore(partyId);
+  return {
+    ...MOCK_SCORE,
+    rawScore: composite.compositeScore,
+    creditTier: composite.tier,
+    tierBenefits: {
+      minCollateralRatio: composite.benefits.minCollateralRatio,
+      maxLTV: composite.benefits.maxLTV,
+      rateDiscount: composite.benefits.rateDiscount,
+    },
+    nextTier: composite.nextTier.pointsNeeded > 0
+      ? {
+          tier: composite.nextTier.name as CreditTier,
+          scoreRequired: composite.nextTier.threshold,
+          pointsNeeded: composite.nextTier.pointsNeeded,
+        }
+      : null,
+    lastUpdated: composite.lastCalculated,
+  };
+}
+
+export function getCompositeScoreForParty(partyId: string): CompositeScore {
+  log.debug({ partyId }, 'Getting composite score via credit service');
+  return compositeCreditService.getCompositeScore(partyId);
 }
 
 export function getHistory(

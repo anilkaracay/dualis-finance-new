@@ -299,6 +299,245 @@ async function seed(): Promise<void> {
     log(`  Inserted ${analyticsRows.length} analytics records`);
 
     // -----------------------------------------------------------------------
+    // 9. Credit Attestations — 5 entries
+    // -----------------------------------------------------------------------
+    log('Inserting credit attestations...');
+    const attestationProviders = ['findeks', 'experian', 'transunion', 'tifa', 'chainlink'] as const;
+    const attestationTypes = ['credit_bureau', 'income_verification', 'business_verification', 'kyc_completion', 'tifa_performance'] as const;
+    const claimedRanges = ['excellent', 'good', 'above_700', 'verified', 'high_performance'] as const;
+    const attestationRows: (typeof schema.creditAttestations.$inferInsert)[] = [];
+
+    for (let i = 0; i < 5; i++) {
+      const isExpired = i === 3;
+      const isRevoked = i === 4;
+      const futureDate = new Date();
+      futureDate.setDate(futureDate.getDate() + 90);
+      attestationRows.push({
+        attestationId: `att-${crypto.randomUUID().slice(0, 8)}`,
+        partyId: USERS[i % USERS.length]!,
+        attestationType: attestationTypes[i]!,
+        provider: attestationProviders[i]!,
+        claimedRange: claimedRanges[i]!,
+        proof: { proofData: `zkp-${i}-mock`, verifierKey: `vk-${i}`, publicInputs: ['inp1', 'inp2'], circuit: `circuit-v${i + 1}`, generatedAt: daysAgo(i + 1).toISOString() },
+        issuedAt: daysAgo(30 + i * 10),
+        expiresAt: isExpired ? daysAgo(1) : futureDate,
+        revoked: isRevoked,
+        verified: !isRevoked && !isExpired,
+      });
+    }
+    await db.insert(schema.creditAttestations).values(attestationRows);
+    log(`  Inserted ${attestationRows.length} credit attestations`);
+
+    // -----------------------------------------------------------------------
+    // 10. Composite Scores — 5 entries
+    // -----------------------------------------------------------------------
+    log('Inserting composite scores...');
+    const compScoreRows: (typeof schema.compositeScores.$inferInsert)[] = [];
+    for (let i = 0; i < USERS.length; i++) {
+      const onChain = Math.round(randomBetween(180, 360));
+      const offChain = Math.round(randomBetween(100, 300));
+      const ecosystem = Math.round(randomBetween(50, 200));
+      const total = onChain + offChain + ecosystem;
+      const tier = total >= 850 ? 'Diamond' : total >= 700 ? 'Gold' : total >= 500 ? 'Silver' : total >= 300 ? 'Bronze' : 'Unrated';
+      compScoreRows.push({
+        partyId: USERS[i]!,
+        compositeScore: total,
+        tier,
+        onChainScore: onChain,
+        offChainScore: offChain,
+        ecosystemScore: ecosystem,
+        onChainDetail: { loanCompletion: Math.round(onChain * 0.375), repaymentSpeed: Math.round(onChain * 0.25), collateralHealth: Math.round(onChain * 0.2), protocolHistory: Math.round(onChain * 0.1), secLendingRecord: Math.round(onChain * 0.075), total: onChain },
+        offChainDetail: { creditBureauScore: Math.round(offChain * 0.43), incomeVerification: Math.round(offChain * 0.29), businessVerification: Math.round(offChain * 0.14), kycCompletion: Math.round(offChain * 0.14), total: offChain },
+        ecosystemDetail: { tifaPerformance: Math.round(ecosystem * 0.4), crossProtocolRefs: Math.round(ecosystem * 0.32), governanceStaking: Math.round(ecosystem * 0.28), total: ecosystem },
+        benefits: tier === 'Diamond' ? { maxLTV: 0.85, rateDiscount: 0.25, minCollateralRatio: 1.15, liquidationBuffer: 0.05 } : tier === 'Gold' ? { maxLTV: 0.78, rateDiscount: 0.15, minCollateralRatio: 1.25, liquidationBuffer: 0.08 } : { maxLTV: 0.70, rateDiscount: 0.08, minCollateralRatio: 1.35, liquidationBuffer: 0.10 },
+        lastCalculated: new Date(),
+      });
+    }
+    await db.insert(schema.compositeScores).values(compScoreRows);
+    log(`  Inserted ${compScoreRows.length} composite scores`);
+
+    // -----------------------------------------------------------------------
+    // 11. Productive Projects — 6 projects
+    // -----------------------------------------------------------------------
+    log('Inserting productive projects...');
+    const projectCategories = ['SolarEnergy', 'SolarEnergy', 'WindEnergy', 'DataCenter', 'SupplyChain', 'EquipmentLeasing'] as const;
+    const projectStatuses = ['Operational', 'InConstruction', 'Funded', 'Approved', 'Proposed', 'UnderReview'] as const;
+    const projectLocations = ['Istanbul, TR', 'Antalya, TR', 'Izmir, TR', 'Frankfurt, DE', 'Dubai, AE', 'Zurich, CH'] as const;
+    const esgRatings = ['A', 'A', 'B', 'B', 'C', 'Unrated'] as const;
+    const projectRows: (typeof schema.productiveProjects.$inferInsert)[] = [];
+    for (let i = 0; i < 6; i++) {
+      projectRows.push({
+        projectId: `proj-${String(i + 1).padStart(3, '0')}`,
+        ownerPartyId: USERS[i % USERS.length]!,
+        category: projectCategories[i]!,
+        status: projectStatuses[i]!,
+        metadata: { location: projectLocations[i], capacity: i < 3 ? `${Math.round(randomBetween(5, 50))} MW` : null, offTaker: i < 2 ? 'National Grid Corp' : null, insurancePolicy: `POL-${crypto.randomUUID().slice(0, 6)}`, independentValue: randomBetween(1_000_000, 50_000_000).toFixed(2), expectedIRR: randomBetween(0.08, 0.18), constructionPeriod: Math.floor(randomBetween(6, 24)), operationalLife: Math.floor(randomBetween(15, 30)), esgRating: esgRatings[i], iotFeedId: i < 2 ? `iot-feed-${i + 1}` : null },
+        attestations: [`att-proj-${i}`],
+        requestedAmount: randomBetween(500_000, 20_000_000).toFixed(8),
+        fundedAmount: ['Operational', 'InConstruction', 'Funded'].includes(projectStatuses[i]!) ? randomBetween(500_000, 15_000_000).toFixed(8) : '0.00000000',
+      });
+    }
+    await db.insert(schema.productiveProjects).values(projectRows);
+    log(`  Inserted ${projectRows.length} productive projects`);
+
+    // -----------------------------------------------------------------------
+    // 12. Productive Borrows — 4 entries
+    // -----------------------------------------------------------------------
+    log('Inserting productive borrows...');
+    const prodBorrowStatuses = ['Active', 'Repaying', 'GracePeriod', 'Active'] as const;
+    const prodBorrowRows: (typeof schema.productiveBorrows.$inferInsert)[] = [];
+    for (let i = 0; i < 4; i++) {
+      const loanAmt = randomBetween(500_000, 10_000_000);
+      const outstanding = loanAmt * randomBetween(0.3, 0.95);
+      const futureGrace = new Date(); futureGrace.setDate(futureGrace.getDate() + 30);
+      const futureMaturity = new Date(); futureMaturity.setDate(futureMaturity.getDate() + 365);
+      prodBorrowRows.push({
+        borrowId: `pborrow-${String(i + 1).padStart(3, '0')}`,
+        borrowerParty: USERS[i % USERS.length]!,
+        projectId: `proj-${String(i + 1).padStart(3, '0')}`,
+        poolId: randomElement(POOLS).poolId,
+        loanAmount: loanAmt.toFixed(8),
+        outstandingDebt: outstanding.toFixed(8),
+        interestRate: randomBetween(0.04, 0.09),
+        collateral: { cryptoCollateral: (loanAmt * 0.3).toFixed(2), projectAssetValue: (loanAmt * 0.5).toFixed(2), tifaCollateral: (loanAmt * 0.2).toFixed(2), totalValue: loanAmt.toFixed(2), cryptoRatio: 0.3 },
+        gracePeriodEnd: futureGrace,
+        maturityDate: futureMaturity,
+        status: prodBorrowStatuses[i]!,
+      });
+    }
+    await db.insert(schema.productiveBorrows).values(prodBorrowRows);
+    log(`  Inserted ${prodBorrowRows.length} productive borrows`);
+
+    // -----------------------------------------------------------------------
+    // 13. Productive Cashflows — 12 months per borrow
+    // -----------------------------------------------------------------------
+    log('Inserting productive cashflows...');
+    const cashflowSources = ['energy_sales', 'lease_income', 'export_revenue', 'equipment_lease'] as const;
+    const cashflowRows: (typeof schema.productiveCashflows.$inferInsert)[] = [];
+    for (let b = 0; b < 4; b++) {
+      for (let m = 0; m < 12; m++) {
+        const isPast = m < 6;
+        const cfDate = new Date();
+        cfDate.setDate(cfDate.getDate() + (isPast ? (m - 6) * 30 : (m - 5) * 30));
+        cashflowRows.push({
+          borrowId: `pborrow-${String(b + 1).padStart(3, '0')}`,
+          expectedDate: cfDate,
+          expectedAmount: randomBetween(20_000, 200_000).toFixed(8),
+          actualAmount: isPast ? randomBetween(18_000, 210_000).toFixed(8) : null,
+          source: cashflowSources[b % cashflowSources.length]!,
+          status: isPast ? (Math.random() > 0.1 ? 'Received' : 'Partial') : 'Projected',
+        });
+      }
+    }
+    await db.insert(schema.productiveCashflows).values(cashflowRows);
+    log(`  Inserted ${cashflowRows.length} productive cashflows`);
+
+    // -----------------------------------------------------------------------
+    // 14. IoT Readings — every 4 hours for 30 days, 2 projects
+    // -----------------------------------------------------------------------
+    log('Inserting IoT readings...');
+    const iotRows: (typeof schema.iotReadings.$inferInsert)[] = [];
+    for (const projIdx of [0, 1]) {
+      for (let day = 29; day >= 0; day--) {
+        for (let hour = 0; hour < 24; hour += 4) {
+          const d = daysAgo(day);
+          d.setHours(hour, 0, 0, 0);
+          iotRows.push({
+            projectId: `proj-${String(projIdx + 1).padStart(3, '0')}`,
+            metricType: 'solar_output_kw',
+            value: hour >= 6 && hour <= 18 ? randomBetween(200, 800) : randomBetween(0, 50),
+            unit: 'kW',
+            timestamp: d,
+          });
+        }
+      }
+    }
+    await db.insert(schema.iotReadings).values(iotRows);
+    log(`  Inserted ${iotRows.length} IoT readings`);
+
+    // -----------------------------------------------------------------------
+    // 15. Fractional Offers — 3 entries
+    // -----------------------------------------------------------------------
+    log('Inserting fractional offers...');
+    const fracSecurities = ['AAPL', 'TSLA', 'SPY'] as const;
+    const fracOfferRows: (typeof schema.fractionalOffers.$inferInsert)[] = [];
+    for (let i = 0; i < 3; i++) {
+      const total = randomBetween(10_000, 100_000);
+      const remaining = total * randomBetween(0.2, 0.8);
+      fracOfferRows.push({
+        offerId: `frac-offer-${String(i + 1).padStart(3, '0')}`,
+        lender: USERS[i % USERS.length]!,
+        security: { symbol: fracSecurities[i], amount: total, type: 'TokenizedEquity' },
+        totalAmount: total.toFixed(8),
+        remainingAmount: remaining.toFixed(8),
+        minFillAmount: (total * 0.05).toFixed(8),
+        feeRate: randomBetween(0.15, 0.50),
+        fills: i > 0 ? [{ filledBy: USERS[(i + 1) % USERS.length], amount: (total - remaining).toFixed(8), filledAt: daysAgo(i).toISOString() }] : [],
+        isActive: true,
+      });
+    }
+    await db.insert(schema.fractionalOffers).values(fracOfferRows);
+    log(`  Inserted ${fracOfferRows.length} fractional offers`);
+
+    // -----------------------------------------------------------------------
+    // 16. Netting Agreements — 1 entry
+    // -----------------------------------------------------------------------
+    log('Inserting netting agreements...');
+    await db.insert(schema.nettingAgreements).values([{
+      agreementId: 'net-001',
+      partyA: USERS[0]!,
+      partyB: USERS[1]!,
+      dealIds: ['deal-001', 'deal-002'],
+      netAmount: randomBetween(5_000, 50_000).toFixed(8),
+      netDirection: 'partyA_owes',
+      status: 'proposed',
+    }]);
+    log('  Inserted 1 netting agreement');
+
+    // -----------------------------------------------------------------------
+    // 17. Corporate Actions — 2 entries
+    // -----------------------------------------------------------------------
+    log('Inserting corporate actions...');
+    await db.insert(schema.corporateActions).values([
+      { actionId: 'ca-001', dealId: 'deal-001', actionType: 'Dividend', security: 'AAPL', recordDate: daysAgo(5), paymentDate: daysAgo(2), amount: '2500.00000000', status: 'processed', processedAt: daysAgo(2) },
+      { actionId: 'ca-002', dealId: 'deal-003', actionType: 'CouponPayment', security: 'US-T10Y', recordDate: daysAgo(1), paymentDate: daysAgo(-5), amount: '12500.00000000', status: 'pending' },
+    ]);
+    log('  Inserted 2 corporate actions');
+
+    // -----------------------------------------------------------------------
+    // 18. Verified Institutions — 3 entries
+    // -----------------------------------------------------------------------
+    log('Inserting verified institutions...');
+    const futureExpiry = new Date(); futureExpiry.setDate(futureExpiry.getDate() + 305);
+    const futureExpiry2 = new Date(); futureExpiry2.setDate(futureExpiry2.getDate() + 335);
+    await db.insert(schema.verifiedInstitutions).values([
+      { institutionParty: 'party::institution-tr-001', legalName: 'Cayvox Capital A.Ş.', registrationNo: 'TR-MKK-2024-001', jurisdiction: 'TR', kybStatus: 'Verified', kybLevel: 'Full', riskProfile: { riskCategory: 'low', maxSingleExposure: '50000000', maxTotalExposure: '200000000', allowedProducts: ['lending', 'secLending', 'staking'], jurisdictionRules: ['TR', 'EU'] }, subAccounts: ['party::sub-tr-001', 'party::sub-tr-002'], verifiedAt: daysAgo(60), expiresAt: futureExpiry },
+      { institutionParty: 'party::institution-us-001', legalName: 'Canton Trust LLC', registrationNo: 'US-SEC-2024-001', jurisdiction: 'US', kybStatus: 'Verified', kybLevel: 'Enhanced', riskProfile: { riskCategory: 'medium', maxSingleExposure: '25000000', maxTotalExposure: '100000000', allowedProducts: ['lending', 'secLending'], jurisdictionRules: ['US'] }, subAccounts: [], verifiedAt: daysAgo(30), expiresAt: futureExpiry2 },
+      { institutionParty: 'party::institution-ch-001', legalName: 'Helvetia Digital AG', registrationNo: 'CH-FINMA-2024-001', jurisdiction: 'CH', kybStatus: 'InReview', kybLevel: 'Basic', riskProfile: { riskCategory: 'low', maxSingleExposure: '100000000', maxTotalExposure: '500000000', allowedProducts: ['lending'], jurisdictionRules: ['CH', 'EU'] }, subAccounts: [] },
+    ]);
+    log('  Inserted 3 verified institutions');
+
+    // -----------------------------------------------------------------------
+    // 19. Privacy Configs — 5 entries
+    // -----------------------------------------------------------------------
+    log('Inserting privacy configs...');
+    const privacyLevels = ['Public', 'Selective', 'Maximum', 'Public', 'Selective'] as const;
+    const privacyRows: (typeof schema.privacyConfigs.$inferInsert)[] = [];
+    for (let i = 0; i < USERS.length; i++) {
+      const rules = privacyLevels[i] === 'Selective' ? [
+        { id: `rule-${i}-1`, discloseTo: 'party::regulator::sec', displayName: 'SEC Reporting', dataScope: 'All', purpose: 'Regulatory compliance', expiresAt: null, isActive: true, createdAt: daysAgo(30).toISOString() },
+      ] : [];
+      privacyRows.push({
+        partyId: USERS[i]!,
+        privacyLevel: privacyLevels[i]!,
+        disclosureRules: rules,
+        auditTrailEnabled: true,
+      });
+    }
+    await db.insert(schema.privacyConfigs).values(privacyRows);
+    log(`  Inserted ${privacyRows.length} privacy configs`);
+
+    // -----------------------------------------------------------------------
     // Done
     // -----------------------------------------------------------------------
     log('Seed completed successfully!');

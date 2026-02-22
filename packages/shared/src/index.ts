@@ -71,6 +71,64 @@ export type {
   BridgeStatus,
 } from './types/protocol';
 
+// Attestation types
+export type {
+  AttestationType,
+  ZKProof,
+  OffChainAttestation,
+  AttestationBundle,
+} from './types/attestation';
+
+// Composite credit types
+export type {
+  OnChainBreakdown,
+  OffChainBreakdown,
+  EcosystemBreakdown,
+  ScoreLayer,
+  TierBenefits,
+  CompositeScore,
+} from './types/compositeCredit';
+
+// Productive lending types
+export type {
+  ProjectCategory,
+  ProjectStatus,
+  ESGRating,
+  CashflowStatus,
+  ProductiveBorrowStatus,
+  ProjectMetadata,
+  CashflowEntry,
+  HybridCollateral,
+  ProductiveProject,
+  ProductiveBorrow,
+  ProductivePool,
+  IoTReading,
+} from './types/productive';
+
+// Institutional types
+export type {
+  KYBStatus,
+  KYBLevel,
+  BulkStatus,
+  InstitutionalRiskProfile,
+  VerifiedInstitution,
+  InstitutionalAPIKey,
+  BulkOperation,
+  SingleOp,
+  BulkResult,
+  FeeSchedule,
+  FeeScheduleTier,
+} from './types/institutional';
+
+// Privacy types
+export type {
+  PrivacyLevel,
+  DataScope,
+  DisclosureRule,
+  PrivacyConfig,
+  PrivacyAuditEntry,
+} from './types/privacy';
+
 // API request types
 export type {
   ListPoolsParams,
@@ -193,3 +251,9 @@ export {
   PROTOCOL_DEFAULTS,
   SCORE_MAXES,
 } from './utils/constants';
+
+// Composite credit constants
+export { TIER_BENEFITS } from './types/compositeCredit';
+
+// Productive lending constants
+export { PRODUCTIVE_RATE_DISCOUNTS, ESG_BONUSES } from './types/productive';

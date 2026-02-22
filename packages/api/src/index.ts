@@ -32,6 +32,13 @@ import { stakingRoutes } from './routes/staking.js';
 import { analyticsRoutes } from './routes/analytics.js';
 import { adminRoutes } from './routes/admin.js';
 
+// Innovation route modules
+import { attestationRoutes } from './routes/attestation.js';
+import { productiveRoutes } from './routes/productive.js';
+import { advancedSecLendingRoutes } from './routes/advancedSecLending.js';
+import { institutionalRoutes } from './routes/institutional.js';
+import { privacyRoutes } from './routes/privacy.js';
+
 // WebSocket
 import { wsRoutes } from './ws/server.js';
 
@@ -135,6 +142,13 @@ async function main(): Promise<void> {
     await app.register(stakingRoutes);
     await app.register(analyticsRoutes);
     await app.register(adminRoutes);
+
+    // Innovation routes
+    await app.register(attestationRoutes);
+    await app.register(productiveRoutes);
+    await app.register(advancedSecLendingRoutes);
+    await app.register(institutionalRoutes);
+    await app.register(privacyRoutes);
   }, { prefix: '/v1' });
 
   // ---------------------------------------------------------------------------

@@ -61,3 +61,61 @@ export type {
   TIFACollateralBridge,
   BridgeStatus,
 } from './protocol';
+
+// Attestation types
+export type {
+  AttestationType,
+  ZKProof,
+  OffChainAttestation,
+  AttestationBundle,
+} from './attestation';
+
+// Composite credit types
+export type {
+  OnChainBreakdown,
+  OffChainBreakdown,
+  EcosystemBreakdown,
+  ScoreLayer,
+  TierBenefits,
+  CompositeScore,
+} from './compositeCredit';
+
+// Productive lending types
+export type {
+  ProjectCategory,
+  ProjectStatus,
+  ESGRating,
+  CashflowStatus,
+  ProductiveBorrowStatus,
+  ProjectMetadata,
+  CashflowEntry,
+  HybridCollateral,
+  ProductiveProject,
+  ProductiveBorrow,
+  ProductivePool,
+  IoTReading,
+} from './productive';
+
+// Institutional types
+export type {
+  KYBStatus,
+  KYBLevel,
+  BulkStatus,
+  InstitutionalRiskProfile,
+  VerifiedInstitution,
+  InstitutionalAPIKey,
+  BulkOperation,
+  SingleOp,
+  BulkResult,
+  FeeSchedule,
+  FeeScheduleTier,
+} from './institutional';
+
+// Privacy types
+export type {
+  PrivacyLevel,
+  DataScope,
+  DisclosureRule,
+  PrivacyConfig,
+  PrivacyAuditEntry,
+} from './privacy';

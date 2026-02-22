@@ -300,3 +300,184 @@ export function returnSecurities(
     transaction: buildTransactionMeta(),
   };
 }
+
+// ---------------------------------------------------------------------------
+// Fractional offer support
+// ---------------------------------------------------------------------------
+
+interface FractionalOffer {
+  offerId: string;
+  lender: string;
+  security: { symbol: string; amount: number; type: string };
+  totalAmount: number;
+  remainingAmount: number;
+  minFillAmount: number;
+  feeRate: number;
+  fills: Array<{ filledBy: string; amount: number; filledAt: string }>;
+  isActive: boolean;
+  createdAt: string;
+}
+
+const MOCK_FRACTIONAL_OFFERS: FractionalOffer[] = [
+  {
+    offerId: 'frac-offer-001',
+    lender: 'party::institutional-lender-1',
+    security: { symbol: 'AAPL', amount: 50_000, type: 'TokenizedEquity' },
+    totalAmount: 50_000,
+    remainingAmount: 35_000,
+    minFillAmount: 2_500,
+    feeRate: 0.28,
+    fills: [{ filledBy: 'party::hedge-fund-delta', amount: 15_000, filledAt: '2026-02-15T10:00:00.000Z' }],
+    isActive: true,
+    createdAt: '2026-02-10T08:00:00.000Z',
+  },
+];
+
+export function listFractionalOffers(): FractionalOffer[] {
+  log.debug('Listing fractional offers');
+  return MOCK_FRACTIONAL_OFFERS.filter((o) => o.isActive);
+}
+
+export function createFractionalOffer(
+  partyId: string,
+  params: { security: { symbol: string; amount: number; type: string }; minFillAmount: number; feeRate: number },
+): { data: FractionalOffer; transaction: TransactionMeta } {
+  log.info({ partyId, symbol: params.security.symbol }, 'Creating fractional offer');
+
+  const offer: FractionalOffer = {
+    offerId: `frac-offer-${randomUUID().slice(0, 8)}`,
+    lender: partyId,
+    security: params.security,
+    totalAmount: params.security.amount,
+    remainingAmount: params.security.amount,
+    minFillAmount: params.minFillAmount,
+    feeRate: params.feeRate,
+    fills: [],
+    isActive: true,
+    createdAt: new Date().toISOString(),
+  };
+
+  MOCK_FRACTIONAL_OFFERS.push(offer);
+  return { data: offer, transaction: buildTransactionMeta() };
+}
+
+export function fillFractionalOffer(
+  partyId: string,
+  offerId: string,
+  amount: number,
+): { data: { dealId: string; filledAmount: number; remainingAmount: number }; transaction: TransactionMeta } {
+  log.info({ partyId, offerId, amount }, 'Filling fractional offer');
+
+  const offer = MOCK_FRACTIONAL_OFFERS.find((o) => o.offerId === offerId);
+  if (!offer) throw new Error(`Fractional offer ${offerId} not found`);
+  if (amount < offer.minFillAmount) throw new Error(`Minimum fill is ${offer.minFillAmount}`);
+
+  offer.fills.push({ filledBy: partyId, amount, filledAt: new Date().toISOString() });
+  offer.remainingAmount -= amount;
+  if (offer.remainingAmount <= 0) offer.isActive = false;
+
+  return {
+    data: {
+      dealId: `deal-frac-${randomUUID().slice(0, 8)}`,
+      filledAmount: amount,
+      remainingAmount: Math.max(0, offer.remainingAmount),
+    },
+    transaction: buildTransactionMeta(),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Dynamic fee calculation
+// ---------------------------------------------------------------------------
+
+export function calculateDynamicFee(
+  security: string,
+  amount: number,
+  durationDays: number,
+): { suggestedFee: number; baseFee: number; demandMultiplier: number; durationFactor: number } {
+  log.debug({ security, amount, durationDays }, 'Calculating dynamic fee');
+
+  const baseFee = 0.25;
+  const demandMultiplier = Math.min(2, 1 + (amount / 50_000) * 0.5);
+  const durationFactor = 1 + (durationDays / 365) * 0.3;
+  const suggestedFee = Number((baseFee * demandMultiplier * durationFactor).toFixed(4));
+
+  return {
+    suggestedFee,
+    baseFee,
+    demandMultiplier: Number(demandMultiplier.toFixed(4)),
+    durationFactor: Number(durationFactor.toFixed(4)),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Netting proposals
+// ---------------------------------------------------------------------------
+
+interface NettingAgreement {
+  agreementId: string;
+  partyA: string;
+  partyB: string;
+  dealIds: string[];
+  netAmount: number;
+  netDirection: string;
+  status: string;
+  createdAt: string;
+}
+
+const MOCK_NETTING: NettingAgreement[] = [
+  {
+    agreementId: 'net-001',
+    partyA: 'party::alice::1',
+    partyB: 'party::bob::2',
+    dealIds: ['deal-001', 'deal-002'],
+    netAmount: 25_000,
+    netDirection: 'partyA_owes',
+    status: 'proposed',
+    createdAt: '2026-02-20T10:00:00.000Z',
+  },
+];
+
+export function proposeNetting(
+  partyId: string,
+  counterparty: string,
+  dealIds: string[],
+): { data: NettingAgreement; transaction: TransactionMeta } {
+  log.info({ partyId, counterparty, dealIds }, 'Proposing netting');
+
+  const agreement: NettingAgreement = {
+    agreementId: `net-${randomUUID().slice(0, 8)}`,
+    partyA: partyId,
+    partyB: counterparty,
+    dealIds,
+    netAmount: Math.round(Math.random() * 50_000),
+    netDirection: 'partyA_owes',
+    status: 'proposed',
+    createdAt: new Date().toISOString(),
+  };
+
+  MOCK_NETTING.push(agreement);
+  return { data: agreement, transaction: buildTransactionMeta() };
+}
+
+export function executeNetting(
+  partyId: string,
+  agreementId: string,
+): { data: { agreementId: string; status: string; settledAmount: number }; transaction: TransactionMeta } {
+  log.info({ partyId, agreementId }, 'Executing netting');
+
+  const agreement = MOCK_NETTING.find((n) => n.agreementId === agreementId);
+  if (!agreement) throw new Error(`Netting agreement ${agreementId} not found`);
+
+  agreement.status = 'settled';
+
+  return {
+    data: { agreementId, status: 'settled', settledAmount: agreement.netAmount },
+    transaction: buildTransactionMeta(),
+  };
+}
+
+export function getNettingAgreements(partyId: string): NettingAgreement[] {
+  log.debug({ partyId }, 'Getting netting agreements');
+  return MOCK_NETTING.filter((n) => n.partyA === partyId || n.partyB === partyId);
+}
