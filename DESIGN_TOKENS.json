@@ -1,0 +1,368 @@
+{
+  "$schema": "https://design-tokens.github.io/community-group/format/",
+  "$name": "Dualis Finance Design System",
+  "$version": "2.0.0",
+
+  "color": {
+    "bg": {
+      "primary":    { "$value": "#0A0E17", "$description": "Main background" },
+      "secondary":  { "$value": "#111827", "$description": "Card/panel background" },
+      "tertiary":   { "$value": "#1F2937", "$description": "Elevated surfaces" },
+      "hover":      { "$value": "#283041", "$description": "Hover state" },
+      "active":     { "$value": "#374151", "$description": "Active/pressed state" },
+      "overlay":    { "$value": "rgba(0,0,0,0.60)", "$description": "Modal overlay" }
+    },
+    "surface": {
+      "card":       { "$value": "#151B28", "$description": "Card background" },
+      "input":      { "$value": "#0D1321", "$description": "Input field bg" },
+      "selected":   { "$value": "rgba(0,212,170,0.08)", "$description": "Selected row" }
+    },
+    "border": {
+      "default":    { "$value": "#1E293B", "$description": "Default border" },
+      "subtle":     { "$value": "#162032", "$description": "Subtle dividers" },
+      "focus":      { "$value": "#00D4AA", "$description": "Focus ring" },
+      "error":      { "$value": "#EF4444", "$description": "Error state" }
+    },
+    "text": {
+      "primary":    { "$value": "#F9FAFB", "$description": "Primary text" },
+      "secondary":  { "$value": "#9CA3AF", "$description": "Secondary text" },
+      "tertiary":   { "$value": "#6B7280", "$description": "Timestamps, meta" },
+      "disabled":   { "$value": "#4B5563", "$description": "Disabled state" },
+      "inverse":    { "$value": "#0A0E17", "$description": "Text on light backgrounds" }
+    },
+    "accent": {
+      "teal":       { "$value": "#00D4AA", "$description": "Primary accent — Dualis signature" },
+      "tealHover":  { "$value": "#00F0C0", "$description": "Teal hover" },
+      "tealMuted":  { "$value": "rgba(0,212,170,0.15)", "$description": "Teal background tint" },
+      "indigo":     { "$value": "#6366F1", "$description": "Secondary accent" },
+      "indigoHover":{ "$value": "#818CF8", "$description": "Indigo hover" },
+      "indigoMuted":{ "$value": "rgba(99,102,241,0.15)", "$description": "Indigo background tint" }
+    },
+    "semantic": {
+      "positive":       { "$value": "#10B981", "$description": "Profit, healthy, success" },
+      "positiveMuted":  { "$value": "rgba(16,185,129,0.15)" },
+      "negative":       { "$value": "#EF4444", "$description": "Loss, danger, liquidation" },
+      "negativeMuted":  { "$value": "rgba(239,68,68,0.12)" },
+      "warning":        { "$value": "#F59E0B", "$description": "Caution, margin call" },
+      "warningMuted":   { "$value": "rgba(245,158,11,0.12)" },
+      "info":           { "$value": "#3B82F6", "$description": "Informational" },
+      "infoMuted":      { "$value": "rgba(59,130,246,0.12)" }
+    },
+    "tier": {
+      "diamond":  { "$value": "#B9F2FF", "$description": "Diamond tier — icy white-blue" },
+      "gold":     { "$value": "#FFD700", "$description": "Gold tier" },
+      "silver":   { "$value": "#C0C0C0", "$description": "Silver tier" },
+      "bronze":   { "$value": "#CD7F32", "$description": "Bronze tier" },
+      "unrated":  { "$value": "#6B7280", "$description": "Unrated tier" }
+    },
+    "light": {
+      "$description": "Light mode overrides — apply with [data-theme='light']",
+      "bg": {
+        "primary":    { "$value": "#FFFFFF" },
+        "secondary":  { "$value": "#F9FAFB" },
+        "tertiary":   { "$value": "#F3F4F6" },
+        "hover":      { "$value": "#E5E7EB" },
+        "active":     { "$value": "#D1D5DB" }
+      },
+      "surface": {
+        "card":       { "$value": "#FFFFFF" },
+        "input":      { "$value": "#F9FAFB" },
+        "selected":   { "$value": "rgba(0,212,170,0.06)" }
+      },
+      "border": {
+        "default":    { "$value": "#E5E7EB" },
+        "subtle":     { "$value": "#F3F4F6" }
+      },
+      "text": {
+        "primary":    { "$value": "#111827" },
+        "secondary":  { "$value": "#6B7280" },
+        "tertiary":   { "$value": "#9CA3AF" },
+        "disabled":   { "$value": "#D1D5DB" }
+      }
+    }
+  },
+
+  "typography": {
+    "fontFamily": {
+      "sans":     { "$value": "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" },
+      "mono":     { "$value": "'JetBrains Mono', 'SF Mono', 'Fira Code', 'Cascadia Code', monospace" },
+      "display":  { "$value": "'Inter', sans-serif" }
+    },
+    "fontSize": {
+      "$description": "Major Third scale (1.250 ratio), base 16px",
+      "xs":   { "$value": "0.694rem",  "$comment": "11.1px — timestamps, meta" },
+      "sm":   { "$value": "0.833rem",  "$comment": "13.3px — labels, captions" },
+      "base": { "$value": "1.000rem",  "$comment": "16px — body text" },
+      "lg":   { "$value": "1.125rem",  "$comment": "18px — emphasized body" },
+      "xl":   { "$value": "1.250rem",  "$comment": "20px — card titles" },
+      "2xl":  { "$value": "1.563rem",  "$comment": "25px — section headers" },
+      "3xl":  { "$value": "1.953rem",  "$comment": "31.3px — page titles" },
+      "4xl":  { "$value": "2.441rem",  "$comment": "39px — hero numbers" },
+      "5xl":  { "$value": "3.052rem",  "$comment": "48.8px — dashboard KPIs" }
+    },
+    "fontWeight": {
+      "normal":   { "$value": 400 },
+      "medium":   { "$value": 500 },
+      "semibold": { "$value": 600 },
+      "bold":     { "$value": 700 }
+    },
+    "lineHeight": {
+      "tight":    { "$value": 1.20, "$comment": "Headings, KPIs" },
+      "normal":   { "$value": 1.50, "$comment": "Body text" },
+      "relaxed":  { "$value": 1.75, "$comment": "Long-form reading" }
+    },
+    "letterSpacing": {
+      "tight":    { "$value": "-0.025em", "$comment": "Large headings" },
+      "normal":   { "$value": "0em" },
+      "wide":     { "$value": "0.05em",   "$comment": "All-caps labels" },
+      "wider":    { "$value": "0.1em",    "$comment": "Tiny all-caps" }
+    }
+  },
+
+  "spacing": {
+    "$description": "4px base unit",
+    "0":    { "$value": "0px" },
+    "0.5":  { "$value": "2px" },
+    "1":    { "$value": "4px" },
+    "1.5":  { "$value": "6px" },
+    "2":    { "$value": "8px" },
+    "3":    { "$value": "12px" },
+    "4":    { "$value": "16px" },
+    "5":    { "$value": "20px" },
+    "6":    { "$value": "24px" },
+    "8":    { "$value": "32px" },
+    "10":   { "$value": "40px" },
+    "12":   { "$value": "48px" },
+    "16":   { "$value": "64px" },
+    "20":   { "$value": "80px" },
+    "24":   { "$value": "96px" }
+  },
+
+  "layout": {
+    "pageGutter":      { "$value": "24px" },
+    "cardPadding":     { "$value": "24px" },
+    "cardGap":         { "$value": "16px" },
+    "sectionGap":      { "$value": "48px" },
+    "sidebarWidth":    { "$value": "260px" },
+    "sidebarCollapsed":{ "$value": "72px" },
+    "topbarHeight":    { "$value": "64px" },
+    "rightPanelWidth": { "$value": "360px" },
+    "contentMaxWidth": { "$value": "1440px" },
+    "mobileNavHeight": { "$value": "64px" }
+  },
+
+  "borderRadius": {
+    "sm":   { "$value": "6px",    "$comment": "Inputs, small buttons" },
+    "md":   { "$value": "8px",    "$comment": "Cards, dropdowns" },
+    "lg":   { "$value": "12px",   "$comment": "Modals, large panels" },
+    "xl":   { "$value": "16px",   "$comment": "Hero cards, feature blocks" },
+    "full": { "$value": "9999px", "$comment": "Pills, avatars, badges" }
+  },
+
+  "shadow": {
+    "sm":   { "$value": "0 1px 2px rgba(0,0,0,0.3), 0 1px 3px rgba(0,0,0,0.15)" },
+    "md":   { "$value": "0 4px 6px rgba(0,0,0,0.25), 0 2px 4px rgba(0,0,0,0.12)" },
+    "lg":   { "$value": "0 10px 15px rgba(0,0,0,0.3), 0 4px 6px rgba(0,0,0,0.15)" },
+    "xl":   { "$value": "0 20px 25px rgba(0,0,0,0.35), 0 8px 10px rgba(0,0,0,0.15)" },
+    "glowTeal":   { "$value": "0 0 20px rgba(0,212,170,0.25)" },
+    "glowDanger": { "$value": "0 0 20px rgba(239,68,68,0.25)" }
+  },
+
+  "glass": {
+    "bg":     { "$value": "rgba(17,24,39,0.80)" },
+    "blur":   { "$value": "16px" },
+    "saturate": { "$value": "180%" },
+    "border": { "$value": "1px solid rgba(255,255,255,0.08)" }
+  },
+
+  "breakpoint": {
+    "sm":   { "$value": "640px",  "$comment": "Mobile landscape" },
+    "md":   { "$value": "768px",  "$comment": "Tablet portrait" },
+    "lg":   { "$value": "1024px", "$comment": "Tablet landscape / small desktop" },
+    "xl":   { "$value": "1280px", "$comment": "Desktop" },
+    "2xl":  { "$value": "1536px", "$comment": "Wide desktop" }
+  },
+
+  "animation": {
+    "easing": {
+      "out":       { "$value": "cubic-bezier(0.16, 1, 0.3, 1)",     "$comment": "Default exit" },
+      "inOut":     { "$value": "cubic-bezier(0.65, 0, 0.35, 1)",    "$comment": "Emphasis" },
+      "spring":    { "$value": "cubic-bezier(0.34, 1.56, 0.64, 1)", "$comment": "Playful bounce" },
+      "linear":    { "$value": "linear" }
+    },
+    "duration": {
+      "instant":   { "$value": "50ms",   "$comment": "Hover color change" },
+      "fast":      { "$value": "100ms",  "$comment": "Button press" },
+      "normal":    { "$value": "200ms",  "$comment": "Most transitions" },
+      "slow":      { "$value": "300ms",  "$comment": "Panel slide" },
+      "slower":    { "$value": "500ms",  "$comment": "Page transitions" },
+      "draw":      { "$value": "800ms",  "$comment": "Chart draw animations" },
+      "counter":   { "$value": "1200ms", "$comment": "CountUp number animation" }
+    }
+  },
+
+  "icon": {
+    "size": {
+      "xs": { "$value": "14px", "$comment": "Inline with small text" },
+      "sm": { "$value": "16px", "$comment": "Table actions, input icons" },
+      "md": { "$value": "20px", "$comment": "Navigation, buttons" },
+      "lg": { "$value": "24px", "$comment": "Section headers, empty states" },
+      "xl": { "$value": "32px", "$comment": "Feature blocks" },
+      "2xl":{ "$value": "48px", "$comment": "Empty state illustrations" }
+    }
+  },
+
+  "component": {
+    "button": {
+      "sm":  { "height": "32px", "paddingX": "12px", "fontSize": "sm", "radius": "sm" },
+      "md":  { "height": "40px", "paddingX": "16px", "fontSize": "sm", "radius": "sm" },
+      "lg":  { "height": "48px", "paddingX": "24px", "fontSize": "base", "radius": "md" },
+      "xl":  { "height": "56px", "paddingX": "32px", "fontSize": "lg", "radius": "md" }
+    },
+    "table": {
+      "headerHeight":  "44px",
+      "rowHeight":     "48px",
+      "rowHeightCompact": "36px",
+      "headerBg":      "bg.secondary",
+      "headerText":    "text.tertiary",
+      "cellPadding":   "10px 16px",
+      "headerPadding": "12px 16px"
+    },
+    "input": {
+      "height":     "40px",
+      "heightLg":   "48px",
+      "paddingX":   "12px",
+      "bg":         "surface.input",
+      "border":     "border.default",
+      "focusBorder":"border.focus",
+      "radius":     "sm",
+      "fontSize":   "sm"
+    },
+    "card": {
+      "paddingSm":  "16px",
+      "paddingMd":  "24px",
+      "paddingLg":  "32px",
+      "bg":         "surface.card",
+      "border":     "border.default",
+      "radius":     "md"
+    },
+    "sidebar": {
+      "width":          "260px",
+      "collapsedWidth": "72px",
+      "itemHeight":     "40px",
+      "itemPaddingX":   "16px",
+      "itemRadius":     "6px",
+      "activeBorderWidth": "3px",
+      "activeBg":       "accent.tealMuted",
+      "activeBorderColor": "accent.teal"
+    },
+    "toast": {
+      "width":      "360px",
+      "padding":    "16px",
+      "radius":     "md",
+      "duration":   "5000ms"
+    },
+    "modal": {
+      "smWidth":    "400px",
+      "mdWidth":    "540px",
+      "lgWidth":    "720px",
+      "padding":    "24px",
+      "radius":     "lg"
+    },
+    "commandPalette": {
+      "width":       "640px",
+      "maxHeight":   "480px",
+      "inputHeight": "56px",
+      "itemHeight":  "44px",
+      "radius":      "lg"
+    }
+  },
+
+  "tailwindConfig": {
+    "$description": "Direct Tailwind theme.extend mapping — copy this into tailwind.config.ts",
+    "colors": {
+      "bg-primary":       "#0A0E17",
+      "bg-secondary":     "#111827",
+      "bg-tertiary":      "#1F2937",
+      "bg-hover":         "#283041",
+      "surface-card":     "#151B28",
+      "surface-input":    "#0D1321",
+      "border-default":   "#1E293B",
+      "border-subtle":    "#162032",
+      "text-primary":     "#F9FAFB",
+      "text-secondary":   "#9CA3AF",
+      "text-tertiary":    "#6B7280",
+      "text-disabled":    "#4B5563",
+      "accent-teal":      "#00D4AA",
+      "accent-teal-hover":"#00F0C0",
+      "accent-indigo":    "#6366F1",
+      "positive":         "#10B981",
+      "negative":         "#EF4444",
+      "warning":          "#F59E0B",
+      "info":             "#3B82F6",
+      "tier-diamond":     "#B9F2FF",
+      "tier-gold":        "#FFD700",
+      "tier-silver":      "#C0C0C0",
+      "tier-bronze":      "#CD7F32"
+    },
+    "fontFamily": {
+      "sans":  ["Inter", "-apple-system", "BlinkMacSystemFont", "Segoe UI", "sans-serif"],
+      "mono":  ["JetBrains Mono", "SF Mono", "Fira Code", "monospace"]
+    },
+    "fontSize": {
+      "xs":  ["0.694rem", { "lineHeight": "1.5" }],
+      "sm":  ["0.833rem", { "lineHeight": "1.5" }],
+      "base":["1rem",     { "lineHeight": "1.5" }],
+      "lg":  ["1.125rem", { "lineHeight": "1.5" }],
+      "xl":  ["1.25rem",  { "lineHeight": "1.2" }],
+      "2xl": ["1.563rem", { "lineHeight": "1.2" }],
+      "3xl": ["1.953rem", { "lineHeight": "1.2" }],
+      "4xl": ["2.441rem", { "lineHeight": "1.2" }],
+      "5xl": ["3.052rem", { "lineHeight": "1.2" }]
+    },
+    "borderRadius": {
+      "sm":   "6px",
+      "md":   "8px",
+      "lg":   "12px",
+      "xl":   "16px",
+      "full": "9999px"
+    },
+    "boxShadow": {
+      "sm":         "0 1px 2px rgba(0,0,0,0.3), 0 1px 3px rgba(0,0,0,0.15)",
+      "md":         "0 4px 6px rgba(0,0,0,0.25), 0 2px 4px rgba(0,0,0,0.12)",
+      "lg":         "0 10px 15px rgba(0,0,0,0.3), 0 4px 6px rgba(0,0,0,0.15)",
+      "xl":         "0 20px 25px rgba(0,0,0,0.35), 0 8px 10px rgba(0,0,0,0.15)",
+      "glow-teal":  "0 0 20px rgba(0,212,170,0.25)",
+      "glow-danger":"0 0 20px rgba(239,68,68,0.25)"
+    },
+    "animation": {
+      "shimmer":      "shimmer 1.5s ease-in-out infinite",
+      "pulse-danger": "pulse-danger 1s ease-in-out infinite",
+      "fade-in":      "fadeIn 0.3s ease-out",
+      "slide-up":     "slideUp 0.3s ease-out",
+      "draw-line":    "drawLine 0.8s ease-in-out"
+    },
+    "keyframes": {
+      "shimmer": {
+        "0%":   { "background-position": "-200% 0" },
+        "100%": { "background-position": "200% 0" }
+      },
+      "pulse-danger": {
+        "0%, 100%": { "box-shadow": "0 0 0 0 rgba(239,68,68,0.4)" },
+        "50%":      { "box-shadow": "0 0 20px 4px rgba(239,68,68,0.25)" }
+      },
+      "fadeIn": {
+        "from": { "opacity": "0", "transform": "translateY(8px)" },
+        "to":   { "opacity": "1", "transform": "translateY(0)" }
+      },
+      "slideUp": {
+        "from": { "opacity": "0", "transform": "translateY(16px)" },
+        "to":   { "opacity": "1", "transform": "translateY(0)" }
+      },
+      "drawLine": {
+        "from": { "stroke-dashoffset": "1000" },
+        "to":   { "stroke-dashoffset": "0" }
+      }
+    }
+  }
+}
