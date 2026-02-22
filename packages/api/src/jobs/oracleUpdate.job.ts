@@ -1,91 +1,50 @@
-import type { WsPricePayload } from '@dualis/shared';
+// ============================================================================
+// Oracle Update Background Job
+// ============================================================================
+// Runs the oracle pipeline on a configurable interval.
+// Replaces the previous mock random-jitter price generator.
+
 import { env } from '../config/env.js';
 import { createChildLogger } from '../config/logger.js';
-import { channelManager } from '../ws/channels.js';
-import { getDb, schema } from '../db/client.js';
 import { registerJob } from './scheduler.js';
+import { initOracle, runOracleCycle } from '../oracle/oracle.service.js';
 
 const log = createChildLogger('oracle-update');
 
-// ---------------------------------------------------------------------------
-// Mock base prices
-// ---------------------------------------------------------------------------
+/** Shutdown handle from oracle init */
+let oracleShutdown: (() => Promise<void>) | null = null;
 
-interface AssetPriceConfig {
-  /** Base price in USD. */
-  basePrice: number;
-  /**
-   * Maximum random deviation per tick, expressed as a proportion.
-   * e.g. 0.001 means +/- 0.1 %
-   */
-  maxDeviation: number;
-  /** Source attribution for DB records. */
-  source: string;
+/**
+ * Initialize the oracle pipeline and register the update job.
+ */
+function initOracleJob(): void {
+  const handle = initOracle();
+  oracleShutdown = handle.shutdown;
+  log.info('Oracle pipeline initialized');
 }
 
-const ASSET_CONFIGS: Record<string, AssetPriceConfig> = {
-  USDC:        { basePrice: 1.0,       maxDeviation: 0.001,  source: 'Chainlink PoR' },
-  wBTC:        { basePrice: 97_234.56, maxDeviation: 0.005,  source: 'Chainlink Data Streams' },
-  ETH:         { basePrice: 3_456.78,  maxDeviation: 0.005,  source: 'Chainlink Data Streams' },
-  CC:          { basePrice: 2.30,      maxDeviation: 0.004,  source: 'Chainlink Data Streams' },
-  'T-BILL-2026': { basePrice: 99.87,  maxDeviation: 0.0005, source: 'Chainlink NAVLink + DTCC' },
-  'SPY-2026':  { basePrice: 512.45,   maxDeviation: 0.003,  source: 'Chainlink + market data' },
-  DUAL:        { basePrice: 1.23,      maxDeviation: 0.006,  source: 'Dualis Oracle' },
-};
-
-/** Track the last emitted price so change percentages are meaningful. */
-const lastPrices = new Map<string, number>();
-
-// ---------------------------------------------------------------------------
-// Job handler
-// ---------------------------------------------------------------------------
-
+/**
+ * Job handler: runs a single oracle cycle.
+ */
 async function oracleUpdateHandler(): Promise<void> {
-  const now = new Date().toISOString();
-  const db = getDb();
-
-  for (const [asset, config] of Object.entries(ASSET_CONFIGS)) {
-    // Randomise price: basePrice * (1 + random jitter within maxDeviation)
-    const jitter = (Math.random() - 0.5) * 2 * config.maxDeviation;
-    const price = Number((config.basePrice * (1 + jitter)).toFixed(8));
-
-    // Compute delta against previous tick
-    const prev = lastPrices.get(asset) ?? config.basePrice;
-    const change = prev !== 0 ? (price - prev) / prev : 0;
-    lastPrices.set(asset, price);
-
-    // Build typed payload
-    const payload: WsPricePayload = {
-      asset,
-      price,
-      change: Number(change.toFixed(6)),
-      ts: now,
-    };
-
-    // Broadcast to subscribers of the price channel
-    channelManager.broadcast(`prices:${asset}`, payload);
-
-    // Persist to DB if available
-    if (db) {
-      try {
-        await db.insert(schema.priceHistory).values({
-          asset,
-          price: price.toString(),
-          confidence: 0.99,
-          source: config.source,
-        });
-      } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : String(err);
-        log.warn({ err: message, asset }, 'Failed to insert price history');
-      }
-    }
+  // Lazy init on first tick
+  if (!oracleShutdown) {
+    initOracleJob();
   }
 
-  log.debug({ assets: Object.keys(ASSET_CONFIGS).length }, 'Oracle prices updated');
+  await runOracleCycle();
 }
 
-// ---------------------------------------------------------------------------
-// Registration
-// ---------------------------------------------------------------------------
+/**
+ * Gracefully shut down the oracle pipeline (Binance WS, etc.).
+ * Called during server shutdown.
+ */
+export async function shutdownOracle(): Promise<void> {
+  if (oracleShutdown) {
+    await oracleShutdown();
+    oracleShutdown = null;
+  }
+}
 
+// Register with the scheduler
 registerJob('oracle-update', env.ORACLE_UPDATE_INTERVAL_MS, oracleUpdateHandler);

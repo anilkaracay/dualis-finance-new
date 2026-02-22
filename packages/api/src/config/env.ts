@@ -39,6 +39,14 @@ const envSchema = z.object({
 
   // Oracle
   ORACLE_UPDATE_INTERVAL_MS: z.coerce.number().default(30000),
+  COINGECKO_API_KEY: z.string().optional(),
+  COINGECKO_BASE_URL: z.string().default('https://api.coingecko.com/api/v3'),
+  BINANCE_WS_URL: z.string().default('wss://stream.binance.com:9443/ws'),
+  BINANCE_WS_ENABLED: z.coerce.boolean().default(false),
+  ORACLE_CIRCUIT_BREAKER_THRESHOLD: z.coerce.number().default(0.10),
+  ORACLE_TWAP_WINDOW_MS: z.coerce.number().default(300000),
+  ORACLE_CANTON_SYNC_ENABLED: z.coerce.boolean().default(false),
+  ORACLE_MIN_SOURCES: z.coerce.number().default(1),
 
   // Features
   FEATURE_FLASH_LOANS: z.coerce.boolean().default(true),

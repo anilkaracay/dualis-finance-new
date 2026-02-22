@@ -41,3 +41,56 @@ export interface AggregatedPriceFeed {
   /** Last aggregation timestamp (ISO 8601) */
   lastAggregated: string;
 }
+
+// ============================================================================
+// Oracle Pipeline Shared Types (MP16)
+// ============================================================================
+
+/** Oracle pipeline status response (GET /oracle/status) */
+export interface OracleStatusResponse {
+  isHealthy: boolean;
+  lastCycleTs: number | null;
+  lastCycleDurationMs: number | null;
+  sourceStatuses: OracleSourceStatus[];
+  assetCount: number;
+  circuitBreakers: OracleCircuitBreakerInfo[];
+}
+
+/** Individual oracle source adapter status */
+export interface OracleSourceStatus {
+  source: string;
+  isConnected: boolean;
+  lastFetchTs: number | null;
+  lastError: string | null;
+  assetCount: number;
+}
+
+/** Circuit breaker info for a single asset */
+export interface OracleCircuitBreakerInfo {
+  asset: string;
+  isTripped: boolean;
+  reason: string | null;
+  trippedAt: number | null;
+  recoversAt: number | null;
+}
+
+/** TWAP response (GET /oracle/twap/:asset) */
+export interface TWAPResponse {
+  asset: string;
+  price5m: number | null;
+  price15m: number | null;
+  price1h: number | null;
+  sampleCount: number;
+  lastSampleTs: number;
+}
+
+/** Oracle alert item (GET /oracle/alerts) */
+export interface OracleAlertItem {
+  id: string;
+  type: string;
+  asset: string | null;
+  message: string;
+  severity: 'info' | 'warning' | 'critical';
+  metadata: Record<string, unknown>;
+  timestamp: number;
+}

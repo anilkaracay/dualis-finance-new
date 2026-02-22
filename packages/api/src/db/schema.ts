@@ -554,3 +554,31 @@ export const complianceDocuments = pgTable('compliance_documents', {
   uploadedAt: timestamp('uploaded_at', { withTimezone: true }).defaultNow().notNull(),
   reviewedAt: timestamp('reviewed_at', { withTimezone: true }),
 });
+
+// ---------------------------------------------------------------------------
+// 33. Price Snapshots — aggregated oracle price snapshots
+// ---------------------------------------------------------------------------
+export const priceSnapshots = pgTable('price_snapshots', {
+  id: serial('id').primaryKey(),
+  asset: varchar('asset', { length: 64 }).notNull(),
+  medianPrice: decimal('median_price', { precision: 28, scale: 8 }).notNull(),
+  sources: jsonb('sources').$type<Array<Record<string, unknown>>>().notNull(),
+  confidence: real('confidence').notNull(),
+  twapData: jsonb('twap_data').$type<Record<string, unknown>>(),
+  circuitBreakerActive: boolean('circuit_breaker_active').default(false).notNull(),
+  timestamp: timestamp('timestamp', { withTimezone: true }).defaultNow().notNull(),
+});
+
+// ---------------------------------------------------------------------------
+// 34. Oracle Alerts — circuit breaker trips, source failures, etc.
+// ---------------------------------------------------------------------------
+export const oracleAlerts = pgTable('oracle_alerts', {
+  id: serial('id').primaryKey(),
+  alertType: varchar('alert_type', { length: 64 }).notNull(),
+  asset: varchar('asset', { length: 64 }),
+  message: text('message').notNull(),
+  severity: varchar('severity', { length: 16 }).notNull(),
+  metadata: jsonb('metadata').$type<Record<string, unknown>>(),
+  resolvedAt: timestamp('resolved_at', { withTimezone: true }),
+  timestamp: timestamp('timestamp', { withTimezone: true }).defaultNow().notNull(),
+});

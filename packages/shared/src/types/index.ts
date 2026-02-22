@@ -39,6 +39,11 @@ export type {
 export type {
   PriceFeed,
   AggregatedPriceFeed,
+  OracleStatusResponse,
+  OracleSourceStatus,
+  OracleCircuitBreakerInfo,
+  TWAPResponse,
+  OracleAlertItem,
 } from './oracle';
 
 export type {

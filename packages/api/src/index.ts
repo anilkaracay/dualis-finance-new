@@ -49,6 +49,9 @@ import { wsRoutes } from './ws/server.js';
 // Background jobs
 import { initScheduler, stopScheduler } from './jobs/index.js';
 
+// Oracle shutdown
+import { shutdownOracle } from './jobs/oracleUpdate.job.js';
+
 // Canton bootstrap
 import { initializeCanton } from './canton/startup.js';
 
@@ -177,6 +180,7 @@ async function main(): Promise<void> {
     process.on(signal, async () => {
       logger.info(`${signal} received, shutting down`);
       stopScheduler();
+      await shutdownOracle();
       await server.close();
       await closeDb();
       await closeRedis();

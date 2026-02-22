@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 
-// Mock the logger before importing the service
+// Mock the logger
 vi.mock('../../config/logger.js', () => ({
   createChildLogger: () => ({
     debug: vi.fn(),
@@ -9,6 +9,44 @@ vi.mock('../../config/logger.js', () => ({
     error: vi.fn(),
   }),
 }));
+
+// Mock the oracle pipeline module to return test data
+vi.mock('../../oracle/oracle.service.js', () => {
+  const mockPrices = [
+    {
+      asset: 'BTC',
+      medianPrice: 62450,
+      sources: [{ source: 'CoinGecko', price: 62450, confidence: 0.95, timestamp: Date.now() }],
+      twap: null,
+      confidence: 0.95,
+      timestamp: Date.now(),
+    },
+    {
+      asset: 'ETH',
+      medianPrice: 3420,
+      sources: [{ source: 'CoinGecko', price: 3420, confidence: 0.95, timestamp: Date.now() }],
+      twap: null,
+      confidence: 0.95,
+      timestamp: Date.now(),
+    },
+    {
+      asset: 'USDC',
+      medianPrice: 1.0,
+      sources: [{ source: 'ManualNAV', price: 1.0, confidence: 0.99, timestamp: Date.now() }],
+      twap: null,
+      confidence: 0.99,
+      timestamp: Date.now(),
+    },
+  ];
+
+  return {
+    getLatestPrices: vi.fn(() => mockPrices),
+    getAssetPrice: vi.fn((asset: string) => {
+      const found = mockPrices.find((p) => p.asset.toLowerCase() === asset.toLowerCase());
+      return found ?? null;
+    }),
+  };
+});
 
 import { getAllPrices, getAssetPrice } from '../oracle.service';
 
