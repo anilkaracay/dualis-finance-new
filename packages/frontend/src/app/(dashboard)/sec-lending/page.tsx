@@ -1,9 +1,11 @@
 'use client';
 
 import { useState, useCallback } from 'react';
+import Link from 'next/link';
 import {
   Plus,
   ArrowRight,
+  ArrowRightLeft,
   X,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
@@ -526,7 +528,13 @@ export default function SecLendingPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <h1 className="text-lg font-medium text-text-primary">Securities Lending</h1>
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <div className="flex items-center gap-3">
+          <Link href="/sec-lending/netting">
+            <Button variant="secondary" size="sm" icon={<ArrowRightLeft className="h-4 w-4" />}>
+              Bilateral Netting
+            </Button>
+          </Link>
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
             <Button variant="primary" size="sm" icon={<Plus className="h-4 w-4" />}>
               New Offer
@@ -542,6 +550,7 @@ export default function SecLendingPage() {
             <NewOfferForm onClose={() => setDialogOpen(false)} />
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       {/* Tabs */}

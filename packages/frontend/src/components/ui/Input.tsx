@@ -3,13 +3,13 @@ import { cn } from '@/lib/utils/cn';
 
 interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   /** Input label */
-  label?: string;
+  label?: string | undefined;
   /** Error message */
-  error?: string;
+  error?: string | undefined;
   /** Icon on the left side */
-  iconLeft?: React.ReactNode;
+  iconLeft?: React.ReactNode | undefined;
   /** Icon on the right side */
-  iconRight?: React.ReactNode;
+  iconRight?: React.ReactNode | undefined;
 }
 
 const Input = forwardRef<HTMLInputElement, InputProps>(

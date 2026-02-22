@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import {
   Sun,
   Moon,
@@ -8,6 +9,8 @@ import {
   ExternalLink,
   Key,
   Languages,
+  ShieldCheck,
+  ArrowRight,
 } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 import { Button } from '@/components/ui/Button';
@@ -308,6 +311,33 @@ export default function SettingsPage() {
               </p>
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      {/* ------------------------------------------------------------------- */}
+      {/* Privacy & Compliance Card                                            */}
+      {/* ------------------------------------------------------------------- */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Privacy &amp; Compliance</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="h-4 w-4 text-text-tertiary" />
+                <p className="text-sm font-medium text-text-primary">Privacy Settings</p>
+              </div>
+              <p className="mt-0.5 text-xs text-text-tertiary">
+                Manage your privacy level, selective disclosures, and audit log
+              </p>
+            </div>
+            <Link href="/settings/privacy">
+              <Button variant="secondary" size="sm" icon={<ArrowRight className="h-3 w-3" />}>
+                Manage
+              </Button>
+            </Link>
+          </div>
         </CardContent>
       </Card>
 

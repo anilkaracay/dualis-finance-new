@@ -30,4 +30,37 @@ export const ENDPOINTS = {
   ADMIN_PAUSE: '/admin/pause',
   ADMIN_RESUME: '/admin/resume',
   ADMIN_CONFIG: '/admin/config',
+  // Attestation & Composite Credit
+  ATTESTATIONS: '/attestations',
+  ATTESTATION_SUBMIT: '/attestations/submit',
+  ATTESTATION_REVOKE: (id: string) => `/attestations/${id}/revoke`,
+  COMPOSITE_SCORE: '/credit/composite',
+  COMPOSITE_SIMULATE: '/credit/composite/simulate',
+  // Productive Lending
+  PRODUCTIVE_PROJECTS: '/productive/projects',
+  PRODUCTIVE_PROJECT_DETAIL: (id: string) => `/productive/projects/${id}`,
+  PRODUCTIVE_PROJECT_SUBMIT: '/productive/projects/submit',
+  PRODUCTIVE_POOLS: '/productive/pools',
+  PRODUCTIVE_BORROWS: '/productive/borrows',
+  PRODUCTIVE_IOT: (id: string) => `/productive/projects/${id}/iot`,
+  // Institutional
+  INSTITUTIONAL_STATUS: '/institutional/status',
+  INSTITUTIONAL_ONBOARD: '/institutional/onboard',
+  INSTITUTIONAL_KYB: '/institutional/kyb',
+  INSTITUTIONAL_API_KEYS: '/institutional/api-keys',
+  INSTITUTIONAL_API_KEY_CREATE: '/institutional/api-keys',
+  INSTITUTIONAL_API_KEY_REVOKE: (id: string) => `/institutional/api-keys/${id}/revoke`,
+  INSTITUTIONAL_BULK_OPERATIONS: '/institutional/bulk-operations',
+  // Privacy
+  PRIVACY_CONFIG: '/privacy/config',
+  PRIVACY_LEVEL: '/privacy/level',
+  PRIVACY_DISCLOSURES: '/privacy/disclosures',
+  PRIVACY_DISCLOSURE_ADD: '/privacy/disclosures',
+  PRIVACY_DISCLOSURE_REMOVE: (id: string) => `/privacy/disclosures/${id}`,
+  PRIVACY_AUDIT_LOG: '/privacy/audit-log',
+  // Advanced Sec-Lending
+  SEC_LENDING_FRACTIONAL: '/sec-lending/fractional',
+  SEC_LENDING_NETTING: '/sec-lending/netting',
+  SEC_LENDING_NETTING_PROPOSE: '/sec-lending/netting/propose',
+  SEC_LENDING_NETTING_EXECUTE: (id: string) => `/sec-lending/netting/${id}/execute`,
 } as const;

@@ -11,6 +11,9 @@ import {
   CheckCircle,
   ArrowRight,
   ChevronDown,
+  Factory,
+  Fingerprint,
+  ShieldCheck,
 } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 import { Button } from '@/components/ui/Button';
@@ -95,22 +98,34 @@ interface FeatureItem {
 
 const FEATURES: readonly FeatureItem[] = [
   {
-    icon: Shield,
-    title: 'Privacy-First Lending',
+    icon: ShieldCheck,
+    title: 'Composite Credit Scoring',
     description:
-      'Sub-transaction privacy via Canton Network. Your positions, your business.',
+      'Three-layer ZK-powered credit scoring — on-chain history, off-chain attestations, and ecosystem participation.',
+  },
+  {
+    icon: Factory,
+    title: 'Productive Lending',
+    description:
+      'Finance real-world infrastructure projects. IoT-verified cashflows, ESG ratings, and hybrid collateral.',
   },
   {
     icon: Handshake,
-    title: 'Securities Lending',
+    title: 'Advanced Securities Lending',
     description:
-      'First tokenized securities lending protocol. Borrow and lend institutional securities on-chain.',
+      'Fractional offers, dynamic fee curves, bilateral netting, and automated corporate action processing.',
   },
   {
     icon: Building2,
-    title: 'RWA Collateral',
+    title: 'Institutional Track',
     description:
-      'Use TIFA receivables as collateral. Bridge real-world assets to DeFi yields.',
+      'Full KYB onboarding, compliance controls, API key management, and bulk operations for institutions.',
+  },
+  {
+    icon: Fingerprint,
+    title: 'Privacy Toggle',
+    description:
+      'Granular privacy controls with selective disclosure rules, audit logging, and Canton sub-transaction privacy.',
   },
 ] as const;
 
@@ -384,6 +399,8 @@ export default function LandingPage() {
             <AnimatedStat end={2.4} label="Total Value Locked" prefix="$" suffix="B" decimals={1} />
             <AnimatedStat end={1.8} label="Total Borrowed" prefix="$" suffix="B" decimals={1} />
             <AnimatedStat end={3.2} label="Active Users" suffix="K" decimals={1} />
+            <AnimatedStat end={142} label="Productive Projects" />
+            <AnimatedStat end={5} label="Innovations" />
           </div>
         </div>
 
@@ -417,9 +434,9 @@ export default function LandingPage() {
       {/* ----------------------------------------------------------------- */}
       <ScrollSection className="mx-auto max-w-5xl px-4 py-20 md:px-8">
         <h2 className="text-heading mb-14 text-center text-2xl">
-          Built for Institutional Finance
+          What Makes Dualis Different
         </h2>
-        <div className="grid grid-cols-1 gap-12 md:grid-cols-3">
+        <div className="grid grid-cols-1 gap-12 md:grid-cols-3 lg:grid-cols-5">
           {FEATURES.map((feature) => {
             const Icon = feature.icon;
             return (

@@ -12,6 +12,8 @@ import {
   Landmark,
   Coins,
   PieChart,
+  Factory,
+  Building2,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -23,11 +25,13 @@ const navItems = [
   { href: '/overview', icon: LayoutDashboard, label: 'Dashboard' },
   { href: '/markets', icon: TrendingUp, label: 'Markets' },
   { href: '/borrow', icon: Wallet, label: 'Borrow' },
+  { href: '/productive', icon: Factory, label: 'Productive' },
   { href: '/sec-lending', icon: Handshake, label: 'Sec Lending' },
   { href: '/credit', icon: Star, label: 'Credit Score' },
   { href: '/governance', icon: Landmark, label: 'Governance' },
   { href: '/staking', icon: Coins, label: 'Staking' },
   { href: '/portfolio', icon: PieChart, label: 'Portfolio' },
+  { href: '/institutional', icon: Building2, label: 'Institutional' },
 ] as const;
 
 const bottomLinks = [
