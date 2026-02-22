@@ -1,0 +1,239 @@
+-- ============================================================================
+-- DUALIS FINANCE — Lending Pool & Supply Position Test Suite
+-- ============================================================================
+
+module Test.PoolTest where
+
+import Dualis.Types
+import Dualis.Lending.Math
+import Dualis.Lending.Pool
+
+-- ─── Test Fixtures ─────────────────────────────────────────────────────────
+
+usdcAsset : AssetInfo
+usdcAsset = AssetInfo with
+  symbol = "USDC"
+  instrumentType = Stablecoin
+  priceUSD = 1.0
+  decimals = 6
+
+usdcModel : InterestRateModel
+usdcModel = InterestRateModel with
+  modelType = VariableRate
+  baseRate = 0.02
+  multiplier = 0.05
+  kink = 0.80
+  jumpMultiplier = 0.50
+  reserveFactor = 0.10
+
+usdcCollParams : CollateralParams
+usdcCollParams = CollateralParams with
+  loanToValue = 0.85
+  liquidationThreshold = 0.90
+  liquidationPenalty = 0.03
+  borrowCap = None
+  supplyCap = Some 500000000.0
+  isCollateralEnabled = True
+  isBorrowEnabled = True
+  collateralTier = CryptoTier
+
+-- ─── Pool Creation Test ────────────────────────────────────────────────────
+
+testCreatePool : Script ()
+testCreatePool = script do
+  operator <- allocateParty "Operator"
+
+  poolCid <- submit operator do
+    createCmd LendingPool with
+      operator
+      poolId = "usdc-main"
+      asset = usdcAsset
+      rateModel = usdcModel
+      collateralParams = usdcCollParams
+      totalSupply = 0.0
+      totalBorrow = 0.0
+      totalReserves = 0.0
+      accrual = AccrualState with
+        borrowIndex = 1.0
+        supplyIndex = 1.0
+        lastAccrualTs = 1000000
+      isActive = True
+      contractRef = "canton::pool::usdc-main::001"
+
+  pool <- queryContractId operator poolCid
+  case pool of
+    Some p -> do
+      assertMsg "Pool ID matches" (p.poolId == "usdc-main")
+      assertMsg "Pool is active" p.isActive
+      assertMsg "Initial supply is 0" (p.totalSupply == 0.0)
+    None -> abort "Pool not found"
+
+-- ─── Deposit Test ──────────────────────────────────────────────────────────
+
+testDeposit : Script ()
+testDeposit = script do
+  operator <- allocateParty "Operator"
+  alice <- allocateParty "Alice"
+
+  poolCid <- submit operator do
+    createCmd LendingPool with
+      operator
+      poolId = "usdc-main"
+      asset = usdcAsset
+      rateModel = usdcModel
+      collateralParams = usdcCollParams
+      totalSupply = 0.0
+      totalBorrow = 0.0
+      totalReserves = 0.0
+      accrual = AccrualState with borrowIndex = 1.0; supplyIndex = 1.0; lastAccrualTs = 1000000
+      isActive = True
+      contractRef = "canton::pool::usdc-main::001"
+
+  -- Alice deposits 10,000 USDC
+  (newPoolCid, supplyPosCid) <- submit alice do
+    exerciseCmd poolCid Deposit with
+      depositor = alice
+      amount = 10000.0
+      depositTime = "2026-01-15T10:00:00Z"
+
+  -- Verify pool state
+  pool <- queryContractId operator newPoolCid
+  case pool of
+    Some p -> assertMsg "Total supply should be 10000" (p.totalSupply == 10000.0)
+    None -> abort "Pool not found after deposit"
+
+  -- Verify supply position
+  pos <- queryContractId alice supplyPosCid
+  case pos of
+    Some p -> do
+      assertMsg "Principal should be 10000" (p.principal == 10000.0)
+      assertMsg "Supply index at entry should be 1.0" (p.supplyIndexAtEntry == 1.0)
+    None -> abort "Supply position not found"
+
+-- ─── Interest Accrual Test ─────────────────────────────────────────────────
+
+testPoolAccrual : Script ()
+testPoolAccrual = script do
+  operator <- allocateParty "Operator"
+
+  poolCid <- submit operator do
+    createCmd LendingPool with
+      operator
+      poolId = "usdc-main"
+      asset = usdcAsset
+      rateModel = usdcModel
+      collateralParams = usdcCollParams
+      totalSupply = 200000.0
+      totalBorrow = 150000.0
+      totalReserves = 5000.0
+      accrual = AccrualState with borrowIndex = 1.0; supplyIndex = 1.0; lastAccrualTs = 1000000
+      isActive = True
+      contractRef = "canton::pool::usdc-main::001"
+
+  -- Accrue 1 day of interest
+  newPoolCid <- submit operator do
+    exerciseCmd poolCid AccrueInterest with
+      currentTs = 1000000 + 86400
+
+  pool <- queryContractId operator newPoolCid
+  case pool of
+    Some p -> do
+      assertMsg "Borrow index should increase" (p.accrual.borrowIndex > 1.0)
+      assertMsg "Supply index should increase" (p.accrual.supplyIndex > 1.0)
+      assertMsg "Total borrows should increase" (p.totalBorrow > 150000.0)
+      assertMsg "Reserves should increase" (p.totalReserves > 5000.0)
+    None -> abort "Pool not found after accrual"
+
+-- ─── Pool Metrics Test ─────────────────────────────────────────────────────
+
+testPoolMetrics : Script ()
+testPoolMetrics = script do
+  operator <- allocateParty "Operator"
+
+  poolCid <- submit operator do
+    createCmd LendingPool with
+      operator
+      poolId = "usdc-main"
+      asset = usdcAsset
+      rateModel = usdcModel
+      collateralParams = usdcCollParams
+      totalSupply = 200000.0
+      totalBorrow = 150000.0
+      totalReserves = 5000.0
+      accrual = AccrualState with borrowIndex = 1.0; supplyIndex = 1.0; lastAccrualTs = 1000000
+      isActive = True
+      contractRef = "canton::pool::usdc-main::001"
+
+  (util, sAPY, bAPY) <- submit operator do
+    exerciseCmd poolCid GetPoolMetrics
+
+  assertMsg "Utilization should be 0.75" (util == 0.75)
+  assertMsg "Supply APY should be positive" (sAPY > 0.0)
+  assertMsg "Borrow APY should be positive" (bAPY > 0.0)
+  assertMsg "Borrow APY > Supply APY" (bAPY > sAPY)
+
+-- ─── Withdraw Test ─────────────────────────────────────────────────────────
+
+testSupplyPositionWithdraw : Script ()
+testSupplyPositionWithdraw = script do
+  operator <- allocateParty "Operator"
+  alice <- allocateParty "Alice"
+
+  -- Create supply position directly
+  posCid <- submit operator do
+    createCmd SupplyPosition with
+      operator
+      depositor = alice
+      positionId = "usdc-main-supply-alice"
+      poolId = "usdc-main"
+      asset = usdcAsset
+      principal = 10000.0
+      supplyIndexAtEntry = 1.0
+      depositTimestamp = "2026-01-15T10:00:00Z"
+      isActive = True
+
+  -- Partial withdraw after some interest accrual (index grew to 1.05)
+  result <- submit alice do
+    exerciseCmd posCid Withdraw with
+      currentSupplyIndex = 1.05
+      withdrawAmount = 5000.0
+      withdrawTime = "2026-02-15T10:00:00Z"
+
+  case result of
+    Some newPosCid -> do
+      newPos <- queryContractId alice newPosCid
+      case newPos of
+        Some p -> do
+          -- Current balance was 10000 * 1.05 = 10500, withdrew 5000, remaining = 5500
+          assertMsg "Remaining principal should be 5500" (p.principal == 5500.0)
+          assertMsg "Index at entry should update to current" (p.supplyIndexAtEntry == 1.05)
+        None -> abort "New position not found"
+    None -> abort "Expected partial withdrawal, got full"
+
+-- ─── Pause Pool Test ───────────────────────────────────────────────────────
+
+testPausePool : Script ()
+testPausePool = script do
+  operator <- allocateParty "Operator"
+  alice <- allocateParty "Alice"
+
+  poolCid <- submit operator do
+    createCmd LendingPool with
+      operator
+      poolId = "usdc-main"
+      asset = usdcAsset
+      rateModel = usdcModel
+      collateralParams = usdcCollParams
+      totalSupply = 0.0; totalBorrow = 0.0; totalReserves = 0.0
+      accrual = AccrualState with borrowIndex = 1.0; supplyIndex = 1.0; lastAccrualTs = 1000000
+      isActive = False
+      contractRef = "canton::pool::usdc-main::001"
+
+  -- Try to deposit into paused pool — should fail
+  submitMustFail alice do
+    exerciseCmd poolCid Deposit with
+      depositor = alice
+      amount = 10000.0
+      depositTime = "2026-01-15T10:00:00Z"
+
+  pure ()

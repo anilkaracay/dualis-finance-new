@@ -1,0 +1,214 @@
+-- ============================================================================
+-- DUALIS FINANCE — Collateral Vault Template
+-- ============================================================================
+-- Manages locked collateral assets backing borrow positions.
+-- Supports multi-asset collateral with tier-based haircuts.
+-- ============================================================================
+
+module Dualis.Lending.Collateral where
+
+import Dualis.Types
+import Dualis.Lending.Math
+
+-- ─── Collateral Entry ──────────────────────────────────────────────────────
+
+data CollateralEntry = CollateralEntry
+  with
+    symbol : AssetSymbol
+    amount : Decimal
+    priceUSD : Decimal          -- Price at time of deposit
+    collateralTier : CollateralTier
+    loanToValue : Decimal
+    liquidationThreshold : Decimal
+    liquidationPenalty : Decimal
+    depositTime : Timestamp
+  deriving (Eq, Show)
+
+-- ─── Collateral Vault Template ─────────────────────────────────────────────
+
+template CollateralVault
+  with
+    operator : Party
+    owner : Party
+    vaultId : Text
+    borrowPositionId : PositionId    -- The borrow position this vault backs
+    entries : [CollateralEntry]
+    totalValueUSD : Decimal          -- Cached total value
+    weightedValueUSD : Decimal       -- Cached weighted value (after tier haircuts)
+    createdAt : Timestamp
+    lastUpdated : Timestamp
+  where
+    signatory operator, owner
+
+    key (operator, vaultId) : (Party, Text)
+    maintainer key._1
+
+    -- ─── Deposit Collateral ─────────────────────────────────────────
+
+    -- | Add a new collateral asset to the vault
+    choice DepositCollateral : ContractId CollateralVault
+      with
+        entry : CollateralEntry
+        depositTime : Timestamp
+      controller owner
+      do
+        let newEntries = entry :: this.entries
+        let (newTotal, newWeighted) = recalcValues newEntries
+        create this with
+          entries = newEntries
+          totalValueUSD = newTotal
+          weightedValueUSD = newWeighted
+          lastUpdated = depositTime
+
+    -- | Add more of an existing collateral asset
+    choice TopUpCollateral : ContractId CollateralVault
+      with
+        symbol : AssetSymbol
+        additionalAmount : Decimal
+        currentPrice : Decimal
+        updateTime : Timestamp
+      controller owner
+      do
+        assertMsg "Amount must be positive" (additionalAmount > 0.0)
+        let updatedEntries = map (\e ->
+              if e.symbol == symbol
+              then e with
+                amount = e.amount + additionalAmount
+                priceUSD = currentPrice
+              else e
+              ) this.entries
+        let (newTotal, newWeighted) = recalcValues updatedEntries
+        create this with
+          entries = updatedEntries
+          totalValueUSD = newTotal
+          weightedValueUSD = newWeighted
+          lastUpdated = updateTime
+
+    -- ─── Withdraw Collateral ────────────────────────────────────────
+
+    -- | Withdraw collateral (requires HF check externally)
+    choice WithdrawCollateral : ContractId CollateralVault
+      with
+        symbol : AssetSymbol
+        withdrawAmount : Decimal
+        updateTime : Timestamp
+      controller owner
+      do
+        let entry = findEntry symbol this.entries
+        case entry of
+          None -> abort ("Collateral asset " <> symbol <> " not found in vault")
+          Some e -> do
+            assertMsg "Withdraw exceeds deposited amount" (withdrawAmount <= e.amount)
+            let newAmount = e.amount - withdrawAmount
+            let updatedEntries = if newAmount <= 0.0
+                  then filter (\x -> x.symbol /= symbol) this.entries
+                  else map (\x -> if x.symbol == symbol
+                                  then x with amount = newAmount
+                                  else x) this.entries
+            let (newTotal, newWeighted) = recalcValues updatedEntries
+            create this with
+              entries = updatedEntries
+              totalValueUSD = newTotal
+              weightedValueUSD = newWeighted
+              lastUpdated = updateTime
+
+    -- ─── Liquidation Seizure ────────────────────────────────────────
+
+    -- | Seize collateral during liquidation (operator only)
+    choice SeizeCollateral : ContractId CollateralVault
+      with
+        symbol : AssetSymbol
+        seizeAmount : Decimal
+        seizureTime : Timestamp
+      controller operator
+      do
+        let entry = findEntry symbol this.entries
+        case entry of
+          None -> abort ("Cannot seize: asset " <> symbol <> " not in vault")
+          Some e -> do
+            let newAmount = max 0.0 (e.amount - seizeAmount)
+            let updatedEntries = if newAmount <= 0.0
+                  then filter (\x -> x.symbol /= symbol) this.entries
+                  else map (\x -> if x.symbol == symbol
+                                  then x with amount = newAmount
+                                  else x) this.entries
+            let (newTotal, newWeighted) = recalcValues updatedEntries
+            create this with
+              entries = updatedEntries
+              totalValueUSD = newTotal
+              weightedValueUSD = newWeighted
+              lastUpdated = seizureTime
+
+    -- ─── Price Update ───────────────────────────────────────────────
+
+    -- | Update prices for all collateral entries (operator/trigger)
+    choice UpdateCollateralPrices : ContractId CollateralVault
+      with
+        priceUpdates : [(AssetSymbol, Decimal)]  -- [(symbol, newPriceUSD)]
+        updateTime : Timestamp
+      controller operator
+      do
+        let updatedEntries = map (\e ->
+              case findPrice e.symbol priceUpdates of
+                Some newPrice -> e with priceUSD = newPrice
+                None -> e
+              ) this.entries
+        let (newTotal, newWeighted) = recalcValues updatedEntries
+        create this with
+          entries = updatedEntries
+          totalValueUSD = newTotal
+          weightedValueUSD = newWeighted
+          lastUpdated = updateTime
+
+    -- ─── Non-consuming Queries ──────────────────────────────────────
+
+    -- | Build CollateralInput list for health factor calculation
+    nonconsuming choice GetCollateralInputs : [CollateralInput]
+      controller operator
+      do return (map entryToInput this.entries)
+
+    nonconsuming choice GetTotalValueUSD : Decimal
+      controller operator
+      do return this.totalValueUSD
+
+    nonconsuming choice GetWeightedValueUSD : Decimal
+      controller operator
+      do return this.weightedValueUSD
+
+
+-- ─── Helper Functions ──────────────────────────────────────────────────────
+
+-- | Find a collateral entry by symbol
+findEntry : AssetSymbol -> [CollateralEntry] -> Optional CollateralEntry
+findEntry _ [] = None
+findEntry sym (e :: rest)
+  | e.symbol == sym = Some e
+  | otherwise = findEntry sym rest
+
+-- | Find a price update by symbol
+findPrice : AssetSymbol -> [(AssetSymbol, Decimal)] -> Optional Decimal
+findPrice _ [] = None
+findPrice sym ((s, p) :: rest)
+  | s == sym = Some p
+  | otherwise = findPrice sym rest
+
+-- | Recalculate total and weighted collateral values
+recalcValues : [CollateralEntry] -> (Decimal, Decimal)
+recalcValues entries =
+  let total = foldl (\acc e -> acc + e.amount * e.priceUSD) 0.0 entries
+      weighted = foldl (\acc e ->
+        let haircut = getCollateralHaircut e.collateralTier
+        in acc + e.amount * e.priceUSD * e.liquidationThreshold * haircut
+        ) 0.0 entries
+  in (total, weighted)
+
+-- | Convert CollateralEntry to CollateralInput for math calculations
+entryToInput : CollateralEntry -> CollateralInput
+entryToInput e = CollateralInput with
+  symbol = e.symbol
+  amount = e.amount
+  priceUSD = e.priceUSD
+  ltv = e.loanToValue
+  liqThreshold = e.liquidationThreshold
+  liqPenalty = e.liquidationPenalty
+  tier = e.collateralTier

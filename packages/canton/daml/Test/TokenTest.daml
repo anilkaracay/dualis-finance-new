@@ -1,0 +1,283 @@
+-- ============================================================================
+-- DUALIS FINANCE — DUAL Token & Staking Test Suite
+-- ============================================================================
+
+module Test.TokenTest where
+
+import Dualis.Types
+import Dualis.Token.DUAL
+
+-- ─── Token Creation Test ───────────────────────────────────────────────────
+
+testCreateDUALToken : Script ()
+testCreateDUALToken = script do
+  operator <- allocateParty "Operator"
+
+  tokenCid <- submit operator do
+    createCmd DUALToken with
+      operator
+      totalSupply = 1000000000.0   -- 1B DUAL
+      circulatingSupply = 0.0
+      totalStaked = 0.0
+      allocations = [
+        (CommunityRewards, 300000000.0),
+        (TeamAdvisors, 150000000.0),
+        (TreasuryReserve, 200000000.0),
+        (LiquidityMining, 200000000.0),
+        (EcosystemGrants, 100000000.0),
+        (StrategicSale, 50000000.0)
+        ]
+      tokenAddress = "canton::token::dual::001"
+      createdAt = "2026-01-01T00:00:00Z"
+
+  token <- queryContractId operator tokenCid
+  case token of
+    Some t -> do
+      assertMsg "Total supply is 1B" (t.totalSupply == 1000000000.0)
+      assertMsg "Circulating is 0" (t.circulatingSupply == 0.0)
+      assertMsg "6 allocations" (length t.allocations == 6)
+    None -> abort "Token not found"
+
+-- ─── Mint Test ─────────────────────────────────────────────────────────────
+
+testMintTokens : Script ()
+testMintTokens = script do
+  operator <- allocateParty "Operator"
+
+  tokenCid <- submit operator do
+    createCmd DUALToken with
+      operator
+      totalSupply = 1000000000.0
+      circulatingSupply = 0.0
+      totalStaked = 0.0
+      allocations = []
+      tokenAddress = "canton::token::dual::001"
+      createdAt = "2026-01-01T00:00:00Z"
+
+  -- Mint 100M tokens
+  newTokenCid <- submit operator do
+    exerciseCmd tokenCid MintTokens with
+      amount = 100000000.0
+      recipient = "party::treasury"
+      mintTime = "2026-01-15T00:00:00Z"
+
+  token <- queryContractId operator newTokenCid
+  case token of
+    Some t -> assertMsg "Circulating should be 100M" (t.circulatingSupply == 100000000.0)
+    None -> abort "Token not found after mint"
+
+-- ─── Burn Test ─────────────────────────────────────────────────────────────
+
+testBurnTokens : Script ()
+testBurnTokens = script do
+  operator <- allocateParty "Operator"
+
+  tokenCid <- submit operator do
+    createCmd DUALToken with
+      operator
+      totalSupply = 1000000000.0
+      circulatingSupply = 100000000.0
+      totalStaked = 0.0
+      allocations = []
+      tokenAddress = "canton::token::dual::001"
+      createdAt = "2026-01-01T00:00:00Z"
+
+  -- Burn 10M tokens
+  newTokenCid <- submit operator do
+    exerciseCmd tokenCid BurnTokens with
+      amount = 10000000.0
+      burnTime = "2026-02-01T00:00:00Z"
+
+  token <- queryContractId operator newTokenCid
+  case token of
+    Some t -> do
+      assertMsg "Circulating should be 90M" (t.circulatingSupply == 90000000.0)
+      assertMsg "Total supply should be 990M" (t.totalSupply == 990000000.0)
+    None -> abort "Token not found after burn"
+
+-- ─── Staking Position Test ─────────────────────────────────────────────────
+
+testCreateStakingPosition : Script ()
+testCreateStakingPosition = script do
+  operator <- allocateParty "Operator"
+  alice <- allocateParty "Alice"
+
+  posCid <- submit operator do
+    createCmd StakingPosition with
+      operator
+      staker = alice
+      positionId = "stake-001"
+      stakedAmount = 30000.0
+      stakingTier = GoldStake
+      lockPeriodDays = 90
+      startDate = "2026-01-15T00:00:00Z"
+      unlockDate = "2026-04-15T00:00:00Z"
+      accruedRewards = 0.0
+      lastRewardClaim = "2026-01-15T00:00:00Z"
+      isLocked = True
+      votingPower = 30000.0 * 1.25  -- Gold bonus
+
+  pos <- queryContractId alice posCid
+  case pos of
+    Some p -> do
+      assertMsg "Staked 30000" (p.stakedAmount == 30000.0)
+      assertMsg "Gold tier" (p.stakingTier == GoldStake)
+      assertMsg "Voting power with 25% bonus" (p.votingPower == 37500.0)
+      assertMsg "Is locked" p.isLocked
+    None -> abort "Staking position not found"
+
+-- ─── Add Stake Test ────────────────────────────────────────────────────────
+
+testAddStake : Script ()
+testAddStake = script do
+  operator <- allocateParty "Operator"
+  alice <- allocateParty "Alice"
+
+  posCid <- submit operator do
+    createCmd StakingPosition with
+      operator; staker = alice
+      positionId = "stake-002"; stakedAmount = 3000.0
+      stakingTier = StandardStake; lockPeriodDays = 30
+      startDate = "2026-01-15T00:00:00Z"; unlockDate = "2026-02-14T00:00:00Z"
+      accruedRewards = 0.0; lastRewardClaim = "2026-01-15T00:00:00Z"
+      isLocked = True; votingPower = 3000.0
+
+  -- Add more to cross Silver threshold (5000)
+  newPosCid <- submit alice do
+    exerciseCmd posCid AddStake with
+      additionalAmount = 3000.0
+      stakeTime = "2026-01-20T00:00:00Z"
+
+  pos <- queryContractId alice newPosCid
+  case pos of
+    Some p -> do
+      assertMsg "Total staked should be 6000" (p.stakedAmount == 6000.0)
+      assertMsg "Should upgrade to Silver" (p.stakingTier == SilverStake)
+      -- Voting power: 6000 * 1.10 = 6600
+      assertMsg "Voting power with 10% bonus" (p.votingPower == 6600.0)
+    None -> abort "Updated staking position not found"
+
+-- ─── Unstake Test ──────────────────────────────────────────────────────────
+
+testUnstakeLocked : Script ()
+testUnstakeLocked = script do
+  operator <- allocateParty "Operator"
+  alice <- allocateParty "Alice"
+
+  posCid <- submit operator do
+    createCmd StakingPosition with
+      operator; staker = alice
+      positionId = "stake-003"; stakedAmount = 10000.0
+      stakingTier = SilverStake; lockPeriodDays = 30
+      startDate = "2026-01-15T00:00:00Z"; unlockDate = "2026-02-14T00:00:00Z"
+      accruedRewards = 0.0; lastRewardClaim = "2026-01-15T00:00:00Z"
+      isLocked = True; votingPower = 11000.0
+
+  -- Try to unstake while locked — should fail
+  submitMustFail alice do
+    exerciseCmd posCid Unstake with
+      unstakeAmount = 5000.0
+      unstakeTime = "2026-01-20T00:00:00Z"
+
+  pure ()
+
+testUnstakePartial : Script ()
+testUnstakePartial = script do
+  operator <- allocateParty "Operator"
+  alice <- allocateParty "Alice"
+
+  posCid <- submit operator do
+    createCmd StakingPosition with
+      operator; staker = alice
+      positionId = "stake-004"; stakedAmount = 10000.0
+      stakingTier = SilverStake; lockPeriodDays = 30
+      startDate = "2026-01-15T00:00:00Z"; unlockDate = "2026-02-14T00:00:00Z"
+      accruedRewards = 0.0; lastRewardClaim = "2026-01-15T00:00:00Z"
+      isLocked = False  -- Unlocked
+      votingPower = 11000.0
+
+  -- Partial unstake
+  result <- submit alice do
+    exerciseCmd posCid Unstake with
+      unstakeAmount = 4000.0
+      unstakeTime = "2026-02-20T00:00:00Z"
+
+  case result of
+    Some newPosCid -> do
+      pos <- queryContractId alice newPosCid
+      case pos of
+        Some p -> do
+          assertMsg "Remaining should be 6000" (p.stakedAmount == 6000.0)
+          assertMsg "Should remain Silver" (p.stakingTier == SilverStake)
+        None -> abort "New position not found"
+    None -> abort "Expected partial unstake, got full"
+
+-- ─── Claim Rewards Test ────────────────────────────────────────────────────
+
+testClaimRewards : Script ()
+testClaimRewards = script do
+  operator <- allocateParty "Operator"
+  alice <- allocateParty "Alice"
+
+  posCid <- submit operator do
+    createCmd StakingPosition with
+      operator; staker = alice
+      positionId = "stake-005"; stakedAmount = 10000.0
+      stakingTier = SilverStake; lockPeriodDays = 30
+      startDate = "2026-01-15T00:00:00Z"; unlockDate = "2026-02-14T00:00:00Z"
+      accruedRewards = 500.0; lastRewardClaim = "2026-01-15T00:00:00Z"
+      isLocked = True; votingPower = 11000.0
+
+  -- Claim rewards
+  newPosCid <- submit alice do
+    exerciseCmd posCid ClaimRewards with
+      claimTime = "2026-02-01T00:00:00Z"
+
+  pos <- queryContractId alice newPosCid
+  case pos of
+    Some p -> do
+      assertMsg "Rewards should be 0 after claim" (p.accruedRewards == 0.0)
+      assertMsg "Last claim updated" (p.lastRewardClaim == "2026-02-01T00:00:00Z")
+    None -> abort "Position not found after claim"
+
+-- ─── Staking Tier Classification ───────────────────────────────────────────
+
+testStakingTiers : Script ()
+testStakingTiers = script do
+  assertMsg "1000 = Standard" (getStakingTier 1000.0 == StandardStake)
+  assertMsg "5000 = Silver" (getStakingTier 5000.0 == SilverStake)
+  assertMsg "25000 = Gold" (getStakingTier 25000.0 == GoldStake)
+  assertMsg "100000 = Diamond" (getStakingTier 100000.0 == DiamondStake)
+
+-- ─── Token Vesting Test ───────────────────────────────────────────────────
+
+testTokenVesting : Script ()
+testTokenVesting = script do
+  operator <- allocateParty "Operator"
+  teamMember <- allocateParty "TeamMember"
+
+  vestCid <- submit operator do
+    createCmd TokenVesting with
+      operator
+      beneficiary = teamMember
+      vestingId = "vest-001"
+      schedule = VestingSchedule with
+        totalAmount = 1000000.0
+        claimedAmount = 0.0
+        startDate = "2026-01-01T00:00:00Z"
+        cliffDate = "2027-01-01T00:00:00Z"
+        endDate = "2030-01-01T00:00:00Z"
+        vestingPeriodMonths = 48
+        category = TeamAdvisors
+      isRevoked = False
+
+  -- Claim some vested tokens
+  newVestCid <- submit teamMember do
+    exerciseCmd vestCid ClaimVested with
+      claimAmount = 100000.0
+      claimTime = "2027-06-01T00:00:00Z"
+
+  vest <- queryContractId teamMember newVestCid
+  case vest of
+    Some v -> assertMsg "Claimed 100000" (v.schedule.claimedAmount == 100000.0)
+    None -> abort "Vesting not found"

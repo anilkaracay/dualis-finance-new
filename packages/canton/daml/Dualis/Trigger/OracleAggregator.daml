@@ -1,0 +1,96 @@
+-- ============================================================================
+-- DUALIS FINANCE — Oracle Aggregator Trigger
+-- ============================================================================
+-- Aggregates prices from multiple oracle sources and updates PriceFeed
+-- contracts. Implements median-based aggregation with outlier detection.
+-- ============================================================================
+
+module Dualis.Trigger.OracleAggregator where
+
+import Dualis.Types
+
+-- ─── Aggregator Configuration ──────────────────────────────────────────────
+
+data AggregatorConfig = AggregatorConfig
+  with
+    updateIntervalSeconds : Int     -- How often to aggregate (default: 60)
+    maxDeviation : Decimal          -- Max price deviation before flagging (0.05 = 5%)
+    minSources : Int                -- Minimum sources required for valid price
+    targetAssets : [AssetSymbol]    -- Assets to aggregate
+    isEnabled : Bool
+  deriving (Eq, Show)
+
+-- ─── Aggregation Result ───────────────────────────────────────────────────
+
+data AggregationEntry = AggregationEntry
+  with
+    asset : AssetSymbol
+    aggregatedPrice : Decimal
+    sourceCount : Int
+    maxDeviation : Decimal        -- Largest deviation from median
+    isValid : Bool
+  deriving (Eq, Show)
+
+-- ─── Oracle Aggregator Template ───────────────────────────────────────────
+
+template OracleAggregator
+  with
+    operator : Party
+    aggregatorId : Text
+    config : AggregatorConfig
+    lastAggregationTs : Int         -- Unix seconds
+    totalAggregations : Int
+    lastResults : [AggregationEntry]
+    outlierCount : Int              -- Total outliers detected
+  where
+    signatory operator
+
+    key (operator, aggregatorId) : (Party, Text)
+    maintainer key._1
+
+    -- | Run an aggregation cycle
+    choice RunAggregation : ContractId OracleAggregator
+      with
+        currentTs : Int
+        results : [AggregationEntry]
+      controller operator
+      do
+        assertMsg "Aggregator is disabled" this.config.isEnabled
+
+        let elapsed = currentTs - this.lastAggregationTs
+        assertMsg "Aggregation interval not reached"
+          (elapsed >= this.config.updateIntervalSeconds)
+
+        -- Count new outliers (entries with deviation above threshold)
+        let newOutliers = length (filter (\r ->
+              r.maxDeviation > this.config.maxDeviation) results)
+
+        create this with
+          lastAggregationTs = currentTs
+          totalAggregations = this.totalAggregations + 1
+          lastResults = results
+          outlierCount = this.outlierCount + newOutliers
+
+    -- | Update configuration
+    choice UpdateAggregatorConfig : ContractId OracleAggregator
+      with
+        newConfig : AggregatorConfig
+      controller operator
+      do create this with config = newConfig
+
+    -- | Enable/disable
+    choice SetAggregatorEnabled : ContractId OracleAggregator
+      with
+        enabled : Bool
+      controller operator
+      do create this with
+          config = this.config with isEnabled = enabled
+
+    -- | Non-consuming: check if aggregation is due
+    nonconsuming choice IsAggregationDue : Bool
+      with
+        currentTs : Int
+      controller operator
+      do
+        let elapsed = currentTs - this.lastAggregationTs
+        return (this.config.isEnabled && elapsed >= this.config.updateIntervalSeconds)

@@ -1,0 +1,113 @@
+-- ============================================================================
+-- DUALIS FINANCE — Staleness Checker Trigger
+-- ============================================================================
+-- Monitors oracle price feeds for staleness and marks them invalid
+-- when they haven't been updated within the configured threshold.
+-- ============================================================================
+
+module Dualis.Trigger.StalenessChecker where
+
+import Dualis.Types
+
+-- ─── Checker Configuration ─────────────────────────────────────────────────
+
+data StalenessConfig = StalenessConfig
+  with
+    checkIntervalSeconds : Int      -- How often to check (default: 60)
+    defaultMaxStaleness : Int       -- Default max age in seconds (300 = 5 min)
+    assetOverrides : [(AssetSymbol, Int)]  -- Per-asset staleness overrides
+    isEnabled : Bool
+  deriving (Eq, Show)
+
+-- ─── Staleness Report ─────────────────────────────────────────────────────
+
+data StalenessEntry = StalenessEntry
+  with
+    asset : AssetSymbol
+    lastUpdateAge : Int            -- Seconds since last price update
+    maxAllowedAge : Int
+    isStale : Bool
+  deriving (Eq, Show)
+
+-- ─── Staleness Checker Template ───────────────────────────────────────────
+
+template StalenessChecker
+  with
+    operator : Party
+    checkerId : Text
+    config : StalenessConfig
+    lastCheckTs : Int               -- Unix seconds
+    totalChecks : Int
+    staleFeeds : [AssetSymbol]      -- Currently stale feeds
+    lastReport : [StalenessEntry]
+  where
+    signatory operator
+
+    key (operator, checkerId) : (Party, Text)
+    maintainer key._1
+
+    -- | Run a staleness check
+    choice RunStalenessCheck : ContractId StalenessChecker
+      with
+        currentTs : Int
+        report : [StalenessEntry]
+      controller operator
+      do
+        assertMsg "Checker is disabled" this.config.isEnabled
+
+        let elapsed = currentTs - this.lastCheckTs
+        assertMsg "Check interval not reached"
+          (elapsed >= this.config.checkIntervalSeconds)
+
+        let nowStale = map (\e -> e.asset) (filter (\e -> e.isStale) report)
+
+        create this with
+          lastCheckTs = currentTs
+          totalChecks = this.totalChecks + 1
+          staleFeeds = nowStale
+          lastReport = report
+
+    -- | Update configuration
+    choice UpdateStalenessConfig : ContractId StalenessChecker
+      with
+        newConfig : StalenessConfig
+      controller operator
+      do create this with config = newConfig
+
+    -- | Enable/disable
+    choice SetCheckerEnabled : ContractId StalenessChecker
+      with
+        enabled : Bool
+      controller operator
+      do create this with
+          config = this.config with isEnabled = enabled
+
+    -- | Non-consuming: get max staleness for an asset
+    nonconsuming choice GetMaxStaleness : Int
+      with
+        asset : AssetSymbol
+      controller operator
+      do
+        case findOverride asset this.config.assetOverrides of
+          Some maxAge -> return maxAge
+          None -> return this.config.defaultMaxStaleness
+
+    -- | Non-consuming: check if a specific feed age is stale
+    nonconsuming choice IsFeedStale : Bool
+      with
+        asset : AssetSymbol
+        feedAgeSeconds : Int
+      controller operator
+      do
+        maxAge <- exercise self GetMaxStaleness with asset
+        return (feedAgeSeconds > maxAge)
+
+
+-- ─── Helpers ──────────────────────────────────────────────────────────────
+
+-- | Find per-asset staleness override
+findOverride : AssetSymbol -> [(AssetSymbol, Int)] -> Optional Int
+findOverride _ [] = None
+findOverride target ((sym, val) :: rest)
+  | sym == target = Some val
+  | otherwise = findOverride target rest

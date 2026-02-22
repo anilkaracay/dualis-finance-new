@@ -1,0 +1,211 @@
+-- ============================================================================
+-- DUALIS FINANCE — Borrow Position Template
+-- ============================================================================
+-- Tracks individual borrow positions with index-based interest accrual,
+-- collateral references, credit tier adjustments, and liquidation eligibility.
+-- ============================================================================
+
+module Dualis.Lending.Borrow where
+
+import Dualis.Types
+import Dualis.Lending.Math
+
+-- ─── Collateral Reference ──────────────────────────────────────────────────
+
+-- | Reference to a collateral asset backing this borrow
+data CollateralRef = CollateralRef
+  with
+    vaultId : Text            -- References CollateralVault contract
+    symbol : AssetSymbol
+    amount : Decimal
+    valueUSD : Decimal
+  deriving (Eq, Show)
+
+-- ─── Borrow Position Template ──────────────────────────────────────────────
+
+template BorrowPosition
+  with
+    operator : Party
+    borrower : Party
+    positionId : PositionId
+    poolId : PoolId
+    borrowedAsset : AssetInfo
+
+    -- Borrow amounts
+    borrowedAmountPrincipal : Decimal  -- Original borrow amount
+    borrowIndexAtEntry : Decimal       -- Borrow index when loan originated
+
+    -- Collateral
+    collateralRefs : [CollateralRef]
+
+    -- Credit tier at origination
+    creditTier : CreditTier
+    tierParams : TierLendingParams
+
+    -- Health factor snapshot (updated by trigger)
+    lastHealthFactor : HealthFactorInfo
+
+    -- Timestamps
+    borrowTimestamp : Timestamp
+    lastUpdateTimestamp : Timestamp
+
+    -- Status
+    isActive : Bool
+    isLiquidatable : Bool
+  where
+    signatory operator, borrower
+
+    key (operator, positionId) : (Party, PositionId)
+    maintainer key._1
+
+    -- ─── Repayment ───────────────────────────────────────────────────
+
+    -- | Repay part or all of the borrow
+    choice Repay : Optional (ContractId BorrowPosition)
+      with
+        repayAmount : Decimal       -- Amount to repay (in borrowed asset units)
+        currentBorrowIndex : Decimal
+        repayTime : Timestamp
+      controller borrower
+      do
+        let currentDebt = calculateCurrentBalance
+              this.borrowedAmountPrincipal
+              this.borrowIndexAtEntry
+              currentBorrowIndex
+        assertMsg "Repay amount exceeds current debt" (repayAmount <= currentDebt)
+
+        if repayAmount >= currentDebt
+          then do
+            -- Full repayment — archive position
+            return None
+          else do
+            -- Partial repayment — adjust principal at current index
+            let remainingDebt = currentDebt - repayAmount
+            newPos <- create this with
+              borrowedAmountPrincipal = remainingDebt
+              borrowIndexAtEntry = currentBorrowIndex
+              lastUpdateTimestamp = repayTime
+            return (Some newPos)
+
+    -- ─── Collateral Management ───────────────────────────────────────
+
+    -- | Add collateral to this borrow position
+    choice AddCollateral : ContractId BorrowPosition
+      with
+        newCollateralRef : CollateralRef
+        updateTime : Timestamp
+      controller borrower
+      do
+        create this with
+          collateralRefs = newCollateralRef :: this.collateralRefs
+          lastUpdateTimestamp = updateTime
+
+    -- | Remove collateral (only if HF remains above minimum)
+    choice RemoveCollateral : ContractId BorrowPosition
+      with
+        vaultId : Text
+        currentBorrowIndex : Decimal
+        currentPrices : [PriceData]  -- Current prices for HF check
+        updateTime : Timestamp
+      controller borrower
+      do
+        let remaining = filter (\c -> c.vaultId /= vaultId) this.collateralRefs
+        assertMsg "Cannot remove all collateral from active borrow" (not (null remaining))
+
+        -- Recalculate HF without the removed collateral
+        let collInputs = map (\c -> CollateralInput with
+              symbol = c.symbol
+              amount = c.amount
+              priceUSD = c.valueUSD / c.amount  -- derive price
+              ltv = this.tierParams.maxLTV
+              liqThreshold = 0.82  -- default
+              liqPenalty = 0.05
+              tier = CryptoTier
+              ) remaining
+        let currentDebt = calculateCurrentBalance
+              this.borrowedAmountPrincipal
+              this.borrowIndexAtEntry
+              currentBorrowIndex
+        let debtInputs = [DebtInput with
+              symbol = this.borrowedAsset.symbol
+              amount = currentDebt
+              priceUSD = this.borrowedAsset.priceUSD]
+        let newHF = calculateHealthFactor collInputs debtInputs
+        assertMsg "Health factor would drop below minimum (1.20)"
+          (newHF.value >= 1.2)
+
+        create this with
+          collateralRefs = remaining
+          lastHealthFactor = newHF
+          lastUpdateTimestamp = updateTime
+
+    -- ─── Health Factor Update (by operator/trigger) ─────────────────
+
+    -- | Update health factor snapshot
+    choice UpdateHealthFactor : ContractId BorrowPosition
+      with
+        newHealthFactor : HealthFactorInfo
+        updateTime : Timestamp
+      controller operator
+      do
+        let liquidatable = newHealthFactor.value < 1.0
+        create this with
+          lastHealthFactor = newHealthFactor
+          isLiquidatable = liquidatable
+          lastUpdateTimestamp = updateTime
+
+    -- ─── Liquidation (operator-initiated) ───────────────────────────
+
+    -- | Mark position as liquidated (called by liquidation engine)
+    choice MarkLiquidated : ContractId BorrowPosition
+      with
+        remainingDebt : Decimal
+        remainingCollateral : [CollateralRef]
+        newBorrowIndex : Decimal
+        liquidationTime : Timestamp
+      controller operator
+      do
+        if remainingDebt <= 0.0
+          then do
+            -- Fully liquidated — archive
+            create this with
+              borrowedAmountPrincipal = 0.0
+              collateralRefs = remainingCollateral
+              isActive = False
+              isLiquidatable = False
+              lastUpdateTimestamp = liquidationTime
+          else do
+            -- Partially liquidated
+            create this with
+              borrowedAmountPrincipal = remainingDebt
+              borrowIndexAtEntry = newBorrowIndex
+              collateralRefs = remainingCollateral
+              isLiquidatable = False
+              lastUpdateTimestamp = liquidationTime
+
+    -- ─── Non-consuming Queries ───────────────────────────────────────
+
+    -- | Get current debt including accrued interest
+    nonconsuming choice GetCurrentDebt : Decimal
+      with
+        currentBorrowIndex : Decimal
+      controller borrower
+      do return (calculateCurrentBalance
+            this.borrowedAmountPrincipal
+            this.borrowIndexAtEntry
+            currentBorrowIndex)
+
+    -- | Get interest accrued since origination
+    nonconsuming choice GetInterestOwed : Decimal
+      with
+        currentBorrowIndex : Decimal
+      controller borrower
+      do return (calculateInterestDelta
+            this.borrowedAmountPrincipal
+            this.borrowIndexAtEntry
+            currentBorrowIndex)
+
+    -- | Get total collateral value in USD
+    nonconsuming choice GetCollateralValueUSD : Decimal
+      controller borrower
+      do return (foldl (\acc c -> acc + c.valueUSD) 0.0 this.collateralRefs)

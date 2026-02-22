@@ -1,0 +1,212 @@
+-- ============================================================================
+-- DUALIS FINANCE — Oracle Price Feed
+-- ============================================================================
+-- On-ledger price feed management for the Dualis protocol.
+-- Supports multiple oracle sources with aggregation and staleness checks.
+-- ============================================================================
+
+module Dualis.Oracle.PriceFeed where
+
+import Dualis.Types
+
+-- ─── Price Source Entry ────────────────────────────────────────────────────
+
+data PriceSourceEntry = PriceSourceEntry
+  with
+    source : OracleSource
+    priceUSD : Decimal
+    timestamp : Timestamp
+    confidence : Decimal
+    isActive : Bool
+  deriving (Eq, Show)
+
+-- ─── Price Feed Template ───────────────────────────────────────────────────
+
+-- | Stores aggregated price data for a single asset
+template PriceFeed
+  with
+    operator : Party
+    asset : AssetSymbol
+    aggregatedPrice : Decimal        -- Median/weighted price
+    sources : [PriceSourceEntry]     -- Individual source prices
+    lastUpdated : Timestamp
+    maxStaleness : Int               -- Max age in seconds before considered stale
+    minSources : Int                 -- Minimum required sources for validity
+    isValid : Bool                   -- Whether the price is considered valid
+  where
+    signatory operator
+
+    key (operator, asset) : (Party, AssetSymbol)
+    maintainer key._1
+
+    -- ─── Price Updates ──────────────────────────────────────────────
+
+    -- | Submit a new price from a single source
+    choice SubmitPrice : ContractId PriceFeed
+      with
+        newSource : PriceSourceEntry
+        submissionTime : Timestamp
+      controller operator
+      do
+        -- Update or add the source entry
+        let updatedSources = upsertSource newSource this.sources
+
+        -- Re-aggregate
+        let activePrices = map (\s -> s.priceUSD) (filter (\s -> s.isActive) updatedSources)
+        let newAggregated = if null activePrices
+              then this.aggregatedPrice
+              else medianPrice activePrices
+        let valid = length activePrices >= this.minSources
+
+        create this with
+          aggregatedPrice = newAggregated
+          sources = updatedSources
+          lastUpdated = submissionTime
+          isValid = valid
+
+    -- | Batch update all sources at once
+    choice BatchUpdatePrices : ContractId PriceFeed
+      with
+        newSources : [PriceSourceEntry]
+        updateTime : Timestamp
+      controller operator
+      do
+        let activePrices = map (\s -> s.priceUSD) (filter (\s -> s.isActive) newSources)
+        let newAggregated = if null activePrices
+              then this.aggregatedPrice
+              else medianPrice activePrices
+        let valid = length activePrices >= this.minSources
+
+        create this with
+          aggregatedPrice = newAggregated
+          sources = newSources
+          lastUpdated = updateTime
+          isValid = valid
+
+    -- ─── Staleness Management ───────────────────────────────────────
+
+    -- | Mark feed as stale if no update within threshold
+    choice MarkStale : ContractId PriceFeed
+      controller operator
+      do
+        create this with isValid = False
+
+    -- ─── Configuration ──────────────────────────────────────────────
+
+    -- | Update staleness and source parameters
+    choice UpdateFeedConfig : ContractId PriceFeed
+      with
+        newMaxStaleness : Int
+        newMinSources : Int
+      controller operator
+      do
+        create this with
+          maxStaleness = newMaxStaleness
+          minSources = newMinSources
+
+    -- ─── Non-consuming Queries ──────────────────────────────────────
+
+    nonconsuming choice GetPrice : Decimal
+      controller operator
+      do
+        assertMsg "Price feed is not valid" this.isValid
+        return this.aggregatedPrice
+
+    nonconsuming choice GetPriceData : PriceData
+      controller operator
+      do return PriceData with
+            asset = this.asset
+            priceUSD = this.aggregatedPrice
+            source = InternalFeed  -- aggregated
+            timestamp = this.lastUpdated
+            confidence = if this.isValid then 0.95 else 0.0
+
+    nonconsuming choice IsStale : Bool
+      controller operator
+      do return (not this.isValid)
+
+-- ─── Multi-Asset Price Oracle ──────────────────────────────────────────────
+
+-- | Aggregated oracle that references multiple PriceFeed contracts
+template PriceOracle
+  with
+    operator : Party
+    oracleId : Text
+    supportedAssets : [AssetSymbol]
+    lastAggregation : Timestamp
+  where
+    signatory operator
+
+    key (operator, oracleId) : (Party, Text)
+    maintainer key._1
+
+    -- | Add a new supported asset
+    choice AddSupportedAsset : ContractId PriceOracle
+      with
+        asset : AssetSymbol
+      controller operator
+      do
+        let exists = elem asset this.supportedAssets
+        assertMsg "Asset already supported" (not exists)
+        create this with
+          supportedAssets = asset :: this.supportedAssets
+
+    -- | Remove a supported asset
+    choice RemoveSupportedAsset : ContractId PriceOracle
+      with
+        asset : AssetSymbol
+      controller operator
+      do
+        create this with
+          supportedAssets = filter (/= asset) this.supportedAssets
+
+    -- | Update aggregation timestamp
+    choice RecordAggregation : ContractId PriceOracle
+      with
+        aggregationTime : Timestamp
+      controller operator
+      do
+        create this with lastAggregation = aggregationTime
+
+-- ─── Helper Functions ──────────────────────────────────────────────────────
+
+-- | Upsert a source entry into the source list
+upsertSource : PriceSourceEntry -> [PriceSourceEntry] -> [PriceSourceEntry]
+upsertSource newEntry [] = [newEntry]
+upsertSource newEntry (s :: rest)
+  | s.source == newEntry.source = newEntry :: rest
+  | otherwise = s :: upsertSource newEntry rest
+
+-- | Calculate median price from a list of prices
+-- For even-length lists, uses average of two middle values
+medianPrice : [Decimal] -> Decimal
+medianPrice [] = 0.0
+medianPrice [x] = x
+medianPrice prices =
+  let sorted = sortPrices prices
+      n = length sorted
+      mid = n / 2
+  in if n `mod` 2 == 0
+     then (indexList sorted (mid - 1) + indexList sorted mid) / 2.0
+     else indexList sorted mid
+
+-- | Simple insertion sort for small price lists
+sortPrices : [Decimal] -> [Decimal]
+sortPrices [] = []
+sortPrices (x :: xs) = insertSorted x (sortPrices xs)
+
+insertSorted : Decimal -> [Decimal] -> [Decimal]
+insertSorted x [] = [x]
+insertSorted x (y :: ys)
+  | x <= y = x :: y :: ys
+  | otherwise = y :: insertSorted x ys
+
+-- | Safe index into a list
+indexList : [Decimal] -> Int -> Decimal
+indexList [] _ = 0.0
+indexList (x :: _) 0 = x
+indexList (_ :: xs) n = indexList xs (n - 1)
+
+-- | Integer modulo
+mod : Int -> Int -> Int
+mod a b = a - (a / b) * b

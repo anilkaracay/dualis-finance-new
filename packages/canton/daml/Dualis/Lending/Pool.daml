@@ -1,0 +1,235 @@
+-- ============================================================================
+-- DUALIS FINANCE — Lending Pool & Supply Position Templates
+-- ============================================================================
+-- The LendingPool template is the core contract for each lending market.
+-- SupplyPosition tracks individual depositor positions using index-based accrual.
+-- ============================================================================
+
+module Dualis.Lending.Pool where
+
+import Dualis.Types
+import Dualis.Lending.Math
+
+-- ─── Lending Pool Template ─────────────────────────────────────────────────
+
+template LendingPool
+  with
+    operator : Party
+    poolId : PoolId
+    asset : AssetInfo
+    rateModel : InterestRateModel
+    collateralParams : CollateralParams
+
+    -- Pool state
+    totalSupply : Decimal        -- Total deposited (in asset units)
+    totalBorrow : Decimal        -- Total borrowed (in asset units)
+    totalReserves : Decimal      -- Protocol reserves (in asset units)
+
+    -- Index-based accrual state
+    accrual : AccrualState
+
+    -- Status
+    isActive : Bool
+    contractRef : ContractRef
+  where
+    signatory operator
+
+    key (operator, poolId) : (Party, PoolId)
+    maintainer key._1
+
+    -- ─── Accrual ─────────────────────────────────────────────────────
+
+    -- | Accrue interest and update pool indices
+    choice AccrueInterest : ContractId LendingPool
+      with
+        currentTs : Int          -- Current Unix timestamp in seconds
+      controller operator
+      do
+        let result = accrueInterest
+              this.rateModel
+              this.totalBorrow
+              this.totalSupply
+              this.totalReserves
+              this.accrual.borrowIndex
+              this.accrual.supplyIndex
+              this.accrual.lastAccrualTs
+              currentTs
+        create this with
+          totalBorrow = result.newTotalBorrows
+          totalReserves = result.newTotalReserves
+          accrual = AccrualState with
+            borrowIndex = result.newBorrowIndex
+            supplyIndex = result.newSupplyIndex
+            lastAccrualTs = currentTs
+
+    -- ─── Deposits ────────────────────────────────────────────────────
+
+    -- | Deposit assets and create a supply position
+    choice Deposit : (ContractId LendingPool, ContractId SupplyPosition)
+      with
+        depositor : Party
+        amount : Decimal
+        depositTime : Timestamp
+      controller depositor
+      do
+        assertMsg "Pool is not active" this.isActive
+        assertMsg "Deposit amount must be positive" (amount > 0.0)
+
+        -- Check supply cap
+        case this.collateralParams.supplyCap of
+          Some cap -> assertMsg "Supply cap exceeded" (this.totalSupply + amount <= cap)
+          None -> pure ()
+
+        -- Create supply position
+        let positionId = this.poolId <> "-supply-" <> show depositor
+        supplyPos <- create SupplyPosition with
+          operator = this.operator
+          depositor
+          positionId
+          poolId = this.poolId
+          asset = this.asset
+          principal = amount
+          supplyIndexAtEntry = this.accrual.supplyIndex
+          depositTimestamp = depositTime
+          isActive = True
+
+        -- Update pool state
+        newPool <- create this with
+          totalSupply = this.totalSupply + amount
+
+        return (newPool, supplyPos)
+
+    -- | Process a withdrawal
+    choice ProcessWithdraw : ContractId LendingPool
+      with
+        withdrawAmount : Decimal  -- Amount in underlying asset units
+      controller operator
+      do
+        let available = this.totalSupply - this.totalBorrow
+        assertMsg "Insufficient liquidity for withdrawal" (withdrawAmount <= available)
+        create this with
+          totalSupply = this.totalSupply - withdrawAmount
+
+    -- ─── Borrows ─────────────────────────────────────────────────────
+
+    -- | Record a new borrow against this pool
+    choice RecordBorrow : ContractId LendingPool
+      with
+        borrowAmount : Decimal
+      controller operator
+      do
+        let available = this.totalSupply - this.totalBorrow
+        assertMsg "Insufficient liquidity for borrow" (borrowAmount <= available)
+
+        -- Check borrow cap
+        case this.collateralParams.borrowCap of
+          Some cap -> assertMsg "Borrow cap exceeded" (this.totalBorrow + borrowAmount <= cap)
+          None -> pure ()
+
+        create this with
+          totalBorrow = this.totalBorrow + borrowAmount
+
+    -- | Record a repayment
+    choice RecordRepay : ContractId LendingPool
+      with
+        repayAmount : Decimal
+      controller operator
+      do
+        create this with
+          totalBorrow = this.totalBorrow - min repayAmount this.totalBorrow
+
+    -- ─── Admin ───────────────────────────────────────────────────────
+
+    -- | Update the interest rate model
+    choice UpdateRateModel : ContractId LendingPool
+      with
+        newModel : InterestRateModel
+      controller operator
+      do create this with rateModel = newModel
+
+    -- | Pause/unpause the pool
+    choice SetPoolActive : ContractId LendingPool
+      with
+        active : Bool
+      controller operator
+      do create this with isActive = active
+
+    -- | Withdraw protocol reserves
+    choice WithdrawReserves : ContractId LendingPool
+      with
+        amount : Decimal
+      controller operator
+      do
+        assertMsg "Insufficient reserves" (amount <= this.totalReserves)
+        create this with
+          totalReserves = this.totalReserves - amount
+
+    -- ─── Non-consuming queries ───────────────────────────────────────
+
+    nonconsuming choice GetPoolMetrics : (Decimal, Decimal, Decimal)
+      controller operator
+      do
+        let util = calculateUtilization this.totalBorrow this.totalSupply
+        let sAPY = calculatePoolAPY this.rateModel util True 0.0
+        let bAPY = calculatePoolAPY this.rateModel util False 0.0
+        return (util, sAPY, bAPY)
+
+    nonconsuming choice GetAvailableLiquidity : Decimal
+      controller operator
+      do return (this.totalSupply - this.totalBorrow)
+
+-- ─── Supply Position Template ──────────────────────────────────────────────
+
+template SupplyPosition
+  with
+    operator : Party
+    depositor : Party
+    positionId : PositionId
+    poolId : PoolId
+    asset : AssetInfo
+    principal : Decimal              -- Original deposit amount
+    supplyIndexAtEntry : Decimal     -- Supply index when deposit was made
+    depositTimestamp : Timestamp
+    isActive : Bool
+  where
+    signatory operator, depositor
+
+    key (operator, positionId) : (Party, PositionId)
+    maintainer key._1
+
+    -- | Withdraw from this supply position (full or partial)
+    choice Withdraw : Optional (ContractId SupplyPosition)
+      with
+        currentSupplyIndex : Decimal
+        withdrawAmount : Decimal     -- Amount to withdraw (in underlying)
+        withdrawTime : Timestamp
+      controller depositor
+      do
+        let currentBalance = calculateCurrentBalance this.principal this.supplyIndexAtEntry currentSupplyIndex
+        assertMsg "Withdraw amount exceeds balance" (withdrawAmount <= currentBalance)
+
+        if withdrawAmount >= currentBalance
+          then do
+            -- Full withdrawal — archive position
+            return None
+          else do
+            -- Partial withdrawal — adjust principal
+            let newPrincipal = currentBalance - withdrawAmount
+            newPos <- create this with
+              principal = newPrincipal
+              supplyIndexAtEntry = currentSupplyIndex
+            return (Some newPos)
+
+    -- | Non-consuming: get current balance including accrued interest
+    nonconsuming choice GetCurrentBalance : Decimal
+      with
+        currentSupplyIndex : Decimal
+      controller depositor
+      do return (calculateCurrentBalance this.principal this.supplyIndexAtEntry currentSupplyIndex)
+
+    -- | Non-consuming: get interest earned
+    nonconsuming choice GetInterestEarned : Decimal
+      with
+        currentSupplyIndex : Decimal
+      controller depositor
+      do return (calculateInterestDelta this.principal this.supplyIndexAtEntry currentSupplyIndex)

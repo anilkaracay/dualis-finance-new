@@ -1,0 +1,141 @@
+-- ============================================================================
+-- DUALIS FINANCE — Protocol Configuration Template
+-- ============================================================================
+-- Global protocol configuration stored on-ledger.
+-- Only the operator can modify protocol parameters.
+-- ============================================================================
+
+module Dualis.Core.Config where
+
+import Dualis.Types
+
+-- ─── Protocol-Wide Configuration ────────────────────────────────────────────
+
+data ProtocolParams = ProtocolParams
+  with
+    -- Liquidation parameters
+    closeFactorNormal : Decimal      -- 0.50 — fraction of debt liquidatable (normal)
+    closeFactorCritical : Decimal    -- 1.00 — fraction of debt liquidatable (critical)
+    criticalHFThreshold : Decimal    -- 0.50 — HF below which 100% close factor applies
+    liquidatorIncentive : Decimal    -- 0.90 — liquidator's share of penalty
+    protocolIncentive : Decimal      -- 0.10 — protocol's share of penalty
+
+    -- Oracle parameters
+    maxPriceStaleness : Int          -- Maximum age of price data (seconds)
+    minOracleSources : Int           -- Minimum oracle sources for price validity
+
+    -- Global caps
+    maxFlashLoanAmount : Decimal     -- Maximum flash loan amount (USD)
+    flashLoanFee : Decimal           -- Flash loan fee rate (e.g., 0.0009 = 0.09%)
+
+    -- Safety circuit breaker
+    globalBorrowCap : Decimal        -- Total protocol borrow cap (USD)
+    globalSupplyCap : Decimal        -- Total protocol supply cap (USD)
+    isPaused : Bool                  -- Emergency pause flag
+  deriving (Eq, Show)
+
+-- | Default protocol parameters matching TypeScript PROTOCOL_DEFAULTS
+defaultProtocolParams : ProtocolParams
+defaultProtocolParams = ProtocolParams with
+  closeFactorNormal = 0.50
+  closeFactorCritical = 1.00
+  criticalHFThreshold = 0.50
+  liquidatorIncentive = 0.90
+  protocolIncentive = 0.10
+  maxPriceStaleness = 300       -- 5 minutes
+  minOracleSources = 2
+  maxFlashLoanAmount = 50000000.0  -- $50M
+  flashLoanFee = 0.0009
+  globalBorrowCap = 5000000000.0   -- $5B
+  globalSupplyCap = 10000000000.0  -- $10B
+  isPaused = False
+
+-- ─── Asset Configuration (per-asset on-ledger) ────────────────────────────
+
+data AssetConfig = AssetConfig
+  with
+    symbol : AssetSymbol
+    instrumentType : InstrumentType
+    rateModel : InterestRateModel
+    collateralParams : CollateralParams
+    isActive : Bool
+  deriving (Eq, Show)
+
+-- ─── Protocol Config Template ─────────────────────────────────────────────
+
+template ProtocolConfig
+  with
+    operator : Party
+    protocolParams : ProtocolParams
+    supportedAssets : [AssetConfig]
+    version : Text
+    lastUpdated : Timestamp
+  where
+    signatory operator
+
+    key operator : Party
+    maintainer key
+
+    -- Update global protocol parameters
+    choice UpdateProtocolParams : ContractId ProtocolConfig
+      with
+        newParams : ProtocolParams
+        updateTime : Timestamp
+      controller operator
+      do
+        assertMsg "Protocol cannot be unpaused while global caps are zero"
+          (not (not newParams.isPaused && newParams.globalBorrowCap <= 0.0))
+        create this with
+          protocolParams = newParams
+          lastUpdated = updateTime
+
+    -- Add or update an asset configuration
+    choice UpsertAssetConfig : ContractId ProtocolConfig
+      with
+        assetConfig : AssetConfig
+        updateTime : Timestamp
+      controller operator
+      do
+        let existing = filter (\a -> a.symbol /= assetConfig.symbol) this.supportedAssets
+        create this with
+          supportedAssets = assetConfig :: existing
+          lastUpdated = updateTime
+
+    -- Remove an asset from the protocol
+    choice RemoveAssetConfig : ContractId ProtocolConfig
+      with
+        assetSymbol : AssetSymbol
+        updateTime : Timestamp
+      controller operator
+      do
+        let remaining = filter (\a -> a.symbol /= assetSymbol) this.supportedAssets
+        create this with
+          supportedAssets = remaining
+          lastUpdated = updateTime
+
+    -- Emergency pause/unpause the protocol
+    choice SetPauseStatus : ContractId ProtocolConfig
+      with
+        paused : Bool
+        updateTime : Timestamp
+      controller operator
+      do
+        create this with
+          protocolParams = this.protocolParams with isPaused = paused
+          lastUpdated = updateTime
+
+    -- Non-consuming: query if protocol is paused
+    nonconsuming choice IsProtocolPaused : Bool
+      controller operator
+      do return this.protocolParams.isPaused
+
+    -- Non-consuming: get asset config
+    nonconsuming choice GetAssetConfig : Optional AssetConfig
+      with
+        assetSymbol : AssetSymbol
+      controller operator
+      do
+        let matches = filter (\a -> a.symbol == assetSymbol) this.supportedAssets
+        case matches of
+          []    -> return None
+          (x :: _) -> return (Some x)

@@ -1,0 +1,208 @@
+-- ============================================================================
+-- DUALIS FINANCE — Liquidation Engine
+-- ============================================================================
+-- Handles liquidation of underwater borrow positions.
+-- Implements close factors, penalty splits, and batch liquidation.
+-- ============================================================================
+
+module Dualis.Liquidation.Engine where
+
+import Dualis.Types
+import Dualis.Lending.Math
+
+-- ─── Liquidation Trigger ───────────────────────────────────────────────────
+
+-- | A trigger record created when a position becomes eligible for liquidation
+data LiquidationTriggerData = LiquidationTriggerData
+  with
+    positionId : PositionId
+    borrower : Text
+    poolId : PoolId
+    healthFactor : Decimal
+    collateralValueUSD : Decimal
+    borrowValueUSD : Decimal
+    tier : CreditTier
+    triggeredAt : Timestamp
+  deriving (Eq, Show)
+
+-- | Template: represents a pending liquidation opportunity
+template LiquidationTrigger
+  with
+    operator : Party
+    triggerData : LiquidationTriggerData
+    isProcessed : Bool
+  where
+    signatory operator
+
+    key (operator, triggerData.positionId) : (Party, PositionId)
+    maintainer key._1
+
+    -- | A liquidator can execute this liquidation
+    choice ExecuteLiquidation : ContractId LiquidationResult
+      with
+        liquidator : Party
+        debtAsset : AssetSymbol
+        debtAmount : Decimal          -- Amount of debt liquidator wants to repay
+        debtPriceUSD : Decimal
+        collateralAsset : AssetSymbol
+        collateralPriceUSD : Decimal
+        collateralLiqPenalty : Decimal
+        executionTime : Timestamp
+      controller liquidator
+      do
+        assertMsg "Position not eligible for liquidation"
+          (triggerData.healthFactor < 1.0)
+        assertMsg "Already processed" (not this.isProcessed)
+
+        -- Calculate liquidation amounts using math engine
+        let collInput = CollateralInput with
+              symbol = collateralAsset
+              amount = triggerData.collateralValueUSD / collateralPriceUSD
+              priceUSD = collateralPriceUSD
+              ltv = 0.75
+              liqThreshold = 0.82
+              liqPenalty = collateralLiqPenalty
+              tier = CryptoTier
+
+        let result = calculateLiquidation
+              collInput
+              debtAmount
+              debtPriceUSD
+              triggerData.borrowValueUSD
+              triggerData.healthFactor
+
+        assertMsg "Liquidation calculation failed" result.isLiquidatable
+
+        create LiquidationResult with
+          operator = this.operator
+          liquidator
+          resultId = triggerData.positionId <> "-liq"
+          borrowPositionId = triggerData.positionId
+          borrower = triggerData.borrower
+          debtAsset
+          debtRepaid = debtAmount
+          collateralAsset
+          collateralSeized = result.collateralToSeize
+          liquidatorProfit = result.liquidatorProfit
+          protocolFee = result.protocolFee
+          healthFactorBefore = triggerData.healthFactor
+          executedAt = executionTime
+
+    -- | Operator cancels trigger if HF recovers
+    choice CancelTrigger : ()
+      controller operator
+      do return ()
+
+-- ─── Liquidation Result ────────────────────────────────────────────────────
+
+-- | Immutable record of a completed liquidation
+template LiquidationResult
+  with
+    operator : Party
+    liquidator : Party
+    resultId : Text
+    borrowPositionId : PositionId
+    borrower : Text
+    debtAsset : AssetSymbol
+    debtRepaid : Decimal
+    collateralAsset : AssetSymbol
+    collateralSeized : Decimal
+    liquidatorProfit : Decimal
+    protocolFee : Decimal
+    healthFactorBefore : Decimal
+    executedAt : Timestamp
+  where
+    signatory operator, liquidator
+
+    key (operator, resultId) : (Party, Text)
+    maintainer key._1
+
+    -- | Operator can archive old liquidation results
+    choice ArchiveLiquidationResult : ()
+      controller operator
+      do return ()
+
+-- ─── Flash Liquidation ─────────────────────────────────────────────────────
+
+-- | Flash liquidation: atomic borrow-liquidate-repay in a single transaction
+template FlashLiquidation
+  with
+    operator : Party
+    liquidator : Party
+    flashId : Text
+    targetPositionId : PositionId
+    debtAsset : AssetSymbol
+    debtAmount : Decimal
+    collateralAsset : AssetSymbol
+    flashLoanFee : Decimal         -- Fee paid for the flash loan
+    status : Text                  -- Pending, Executing, Completed, Failed
+    createdAt : Timestamp
+  where
+    signatory operator, liquidator
+
+    key (operator, flashId) : (Party, Text)
+    maintainer key._1
+
+    -- | Execute the flash liquidation
+    choice ExecuteFlashLiquidation : ContractId FlashLiquidation
+      with
+        collateralReceived : Decimal
+        profit : Decimal
+        executionTime : Timestamp
+      controller operator
+      do
+        assertMsg "Flash liquidation must be profitable" (profit > 0.0)
+        create this with
+          status = "Completed"
+
+    -- | Mark as failed
+    choice FailFlashLiquidation : ContractId FlashLiquidation
+      with
+        reason : Text
+        failTime : Timestamp
+      controller operator
+      do
+        create this with
+          status = "Failed"
+
+-- ─── Batch Liquidation ─────────────────────────────────────────────────────
+
+-- | Batch liquidation request for processing multiple underwater positions
+template BatchLiquidation
+  with
+    operator : Party
+    batchId : Text
+    positionIds : [PositionId]
+    processedCount : Int
+    totalDebtRepaid : Decimal
+    totalCollateralSeized : Decimal
+    totalProtocolFee : Decimal
+    status : Text                  -- Pending, Processing, Completed
+    createdAt : Timestamp
+    lastUpdated : Timestamp
+  where
+    signatory operator
+
+    key (operator, batchId) : (Party, Text)
+    maintainer key._1
+
+    -- | Process next position in the batch
+    choice ProcessBatchItem : ContractId BatchLiquidation
+      with
+        debtRepaid : Decimal
+        collateralSeized : Decimal
+        protocolFee : Decimal
+        updateTime : Timestamp
+      controller operator
+      do
+        let newProcessed = this.processedCount + 1
+        let newStatus = if newProcessed >= length this.positionIds
+                        then "Completed"
+                        else "Processing"
+        create this with
+          processedCount = newProcessed
+          totalDebtRepaid = this.totalDebtRepaid + debtRepaid
+          totalCollateralSeized = this.totalCollateralSeized + collateralSeized
+          totalProtocolFee = this.totalProtocolFee + protocolFee
+          status = newStatus
+          lastUpdated = updateTime

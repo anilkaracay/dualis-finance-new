@@ -1,0 +1,240 @@
+-- ============================================================================
+-- DUALIS FINANCE — Borrow Position Test Suite
+-- ============================================================================
+
+module Test.BorrowTest where
+
+import Dualis.Types
+import Dualis.Lending.Math
+import Dualis.Lending.Borrow
+
+-- ─── Test Fixtures ─────────────────────────────────────────────────────────
+
+usdcAsset : AssetInfo
+usdcAsset = AssetInfo with
+  symbol = "USDC"
+  instrumentType = Stablecoin
+  priceUSD = 1.0
+  decimals = 6
+
+ethCollRef : CollateralRef
+ethCollRef = CollateralRef with
+  vaultId = "vault-001"
+  symbol = "ETH"
+  amount = 10.0
+  valueUSD = 30000.0
+
+goldTierParams : TierLendingParams
+goldTierParams = TierLendingParams with
+  maxLTV = 0.78
+  rateDiscount = 0.15
+  minCollateralRatio = 1.25
+  liquidationBuffer = 0.08
+
+initialHF : HealthFactorInfo
+initialHF = HealthFactorInfo with
+  value = 2.0
+  collateralValueUSD = 30000.0
+  weightedCollateralUSD = 24600.0
+  borrowValueUSD = 15000.0
+  weightedLTV = 0.5
+  status = HFHealthy
+
+-- ─── Create Borrow Position Test ───────────────────────────────────────────
+
+testCreateBorrow : Script ()
+testCreateBorrow = script do
+  operator <- allocateParty "Operator"
+  alice <- allocateParty "Alice"
+
+  posCid <- submit operator do
+    createCmd BorrowPosition with
+      operator
+      borrower = alice
+      positionId = "borrow-pos-001"
+      poolId = "usdc-main"
+      borrowedAsset = usdcAsset
+      borrowedAmountPrincipal = 15000.0
+      borrowIndexAtEntry = 1.0
+      collateralRefs = [ethCollRef]
+      creditTier = Gold
+      tierParams = goldTierParams
+      lastHealthFactor = initialHF
+      borrowTimestamp = "2026-01-15T10:00:00Z"
+      lastUpdateTimestamp = "2026-01-15T10:00:00Z"
+      isActive = True
+      isLiquidatable = False
+
+  pos <- queryContractId alice posCid
+  case pos of
+    Some p -> do
+      assertMsg "Position ID matches" (p.positionId == "borrow-pos-001")
+      assertMsg "Borrowed principal is 15000" (p.borrowedAmountPrincipal == 15000.0)
+      assertMsg "Credit tier is Gold" (p.creditTier == Gold)
+      assertMsg "Not liquidatable" (not p.isLiquidatable)
+    None -> abort "Position not found"
+
+-- ─── Get Current Debt Test ─────────────────────────────────────────────────
+
+testGetCurrentDebt : Script ()
+testGetCurrentDebt = script do
+  operator <- allocateParty "Operator"
+  alice <- allocateParty "Alice"
+
+  posCid <- submit operator do
+    createCmd BorrowPosition with
+      operator; borrower = alice
+      positionId = "borrow-pos-001"; poolId = "usdc-main"
+      borrowedAsset = usdcAsset
+      borrowedAmountPrincipal = 15000.0; borrowIndexAtEntry = 1.0
+      collateralRefs = [ethCollRef]
+      creditTier = Gold; tierParams = goldTierParams
+      lastHealthFactor = initialHF
+      borrowTimestamp = "2026-01-15T10:00:00Z"
+      lastUpdateTimestamp = "2026-01-15T10:00:00Z"
+      isActive = True; isLiquidatable = False
+
+  -- After borrow index grows to 1.05 (5% interest)
+  debt <- submit alice do
+    exerciseCmd posCid GetCurrentDebt with currentBorrowIndex = 1.05
+
+  assertMsg "Debt should be 15750 (15000 * 1.05)" (debt == 15750.0)
+
+-- ─── Partial Repay Test ────────────────────────────────────────────────────
+
+testPartialRepay : Script ()
+testPartialRepay = script do
+  operator <- allocateParty "Operator"
+  alice <- allocateParty "Alice"
+
+  posCid <- submit operator do
+    createCmd BorrowPosition with
+      operator; borrower = alice
+      positionId = "borrow-pos-001"; poolId = "usdc-main"
+      borrowedAsset = usdcAsset
+      borrowedAmountPrincipal = 15000.0; borrowIndexAtEntry = 1.0
+      collateralRefs = [ethCollRef]
+      creditTier = Gold; tierParams = goldTierParams
+      lastHealthFactor = initialHF
+      borrowTimestamp = "2026-01-15T10:00:00Z"
+      lastUpdateTimestamp = "2026-01-15T10:00:00Z"
+      isActive = True; isLiquidatable = False
+
+  -- Repay 5000 when index is 1.0 (no interest yet)
+  result <- submit alice do
+    exerciseCmd posCid Repay with
+      repayAmount = 5000.0
+      currentBorrowIndex = 1.0
+      repayTime = "2026-02-01T10:00:00Z"
+
+  case result of
+    Some newPosCid -> do
+      newPos <- queryContractId alice newPosCid
+      case newPos of
+        Some p -> assertMsg "Remaining principal should be 10000" (p.borrowedAmountPrincipal == 10000.0)
+        None -> abort "New position not found"
+    None -> abort "Expected partial repay, got full"
+
+-- ─── Full Repay Test ───────────────────────────────────────────────────────
+
+testFullRepay : Script ()
+testFullRepay = script do
+  operator <- allocateParty "Operator"
+  alice <- allocateParty "Alice"
+
+  posCid <- submit operator do
+    createCmd BorrowPosition with
+      operator; borrower = alice
+      positionId = "borrow-pos-002"; poolId = "usdc-main"
+      borrowedAsset = usdcAsset
+      borrowedAmountPrincipal = 10000.0; borrowIndexAtEntry = 1.0
+      collateralRefs = [ethCollRef]
+      creditTier = Gold; tierParams = goldTierParams
+      lastHealthFactor = initialHF
+      borrowTimestamp = "2026-01-15T10:00:00Z"
+      lastUpdateTimestamp = "2026-01-15T10:00:00Z"
+      isActive = True; isLiquidatable = False
+
+  -- Full repay
+  result <- submit alice do
+    exerciseCmd posCid Repay with
+      repayAmount = 10000.0
+      currentBorrowIndex = 1.0
+      repayTime = "2026-02-01T10:00:00Z"
+
+  case result of
+    Some _ -> abort "Expected full repay (archive), got partial"
+    None -> pure ()  -- Correct — position archived
+
+-- ─── Add Collateral Test ───────────────────────────────────────────────────
+
+testAddCollateral : Script ()
+testAddCollateral = script do
+  operator <- allocateParty "Operator"
+  alice <- allocateParty "Alice"
+
+  posCid <- submit operator do
+    createCmd BorrowPosition with
+      operator; borrower = alice
+      positionId = "borrow-pos-003"; poolId = "usdc-main"
+      borrowedAsset = usdcAsset
+      borrowedAmountPrincipal = 15000.0; borrowIndexAtEntry = 1.0
+      collateralRefs = [ethCollRef]
+      creditTier = Gold; tierParams = goldTierParams
+      lastHealthFactor = initialHF
+      borrowTimestamp = "2026-01-15T10:00:00Z"
+      lastUpdateTimestamp = "2026-01-15T10:00:00Z"
+      isActive = True; isLiquidatable = False
+
+  -- Add wBTC collateral
+  newPosCid <- submit alice do
+    exerciseCmd posCid AddCollateral with
+      newCollateralRef = CollateralRef with
+        vaultId = "vault-002"; symbol = "wBTC"; amount = 0.5; valueUSD = 31000.0
+      updateTime = "2026-02-01T10:00:00Z"
+
+  newPos <- queryContractId alice newPosCid
+  case newPos of
+    Some p -> assertMsg "Should have 2 collateral refs" (length p.collateralRefs == 2)
+    None -> abort "Position not found after adding collateral"
+
+-- ─── Update Health Factor Test ─────────────────────────────────────────────
+
+testUpdateHealthFactor : Script ()
+testUpdateHealthFactor = script do
+  operator <- allocateParty "Operator"
+  alice <- allocateParty "Alice"
+
+  posCid <- submit operator do
+    createCmd BorrowPosition with
+      operator; borrower = alice
+      positionId = "borrow-pos-004"; poolId = "usdc-main"
+      borrowedAsset = usdcAsset
+      borrowedAmountPrincipal = 15000.0; borrowIndexAtEntry = 1.0
+      collateralRefs = [ethCollRef]
+      creditTier = Gold; tierParams = goldTierParams
+      lastHealthFactor = initialHF
+      borrowTimestamp = "2026-01-15T10:00:00Z"
+      lastUpdateTimestamp = "2026-01-15T10:00:00Z"
+      isActive = True; isLiquidatable = False
+
+  -- Update HF to a dangerous level
+  let dangerHF = HealthFactorInfo with
+        value = 0.9
+        collateralValueUSD = 13500.0
+        weightedCollateralUSD = 11070.0
+        borrowValueUSD = 15000.0
+        weightedLTV = 1.11
+        status = HFLiquidatable
+
+  newPosCid <- submit operator do
+    exerciseCmd posCid UpdateHealthFactor with
+      newHealthFactor = dangerHF
+      updateTime = "2026-02-15T10:00:00Z"
+
+  newPos <- queryContractId operator newPosCid
+  case newPos of
+    Some p -> do
+      assertMsg "Should be marked liquidatable" p.isLiquidatable
+      assertMsg "HF should be 0.9" (p.lastHealthFactor.value == 0.9)
+    None -> abort "Position not found after HF update"

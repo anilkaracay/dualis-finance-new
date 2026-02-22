@@ -1,0 +1,290 @@
+-- ============================================================================
+-- DUALIS FINANCE — Trigger Test Suite
+-- ============================================================================
+
+module Test.TriggerTest where
+
+import Dualis.Types
+import Dualis.Trigger.InterestAccrual
+import Dualis.Trigger.LiquidationScanner
+import Dualis.Trigger.OracleAggregator
+import Dualis.Trigger.StalenessChecker
+
+-- ─── Interest Accrual Trigger Tests ────────────────────────────────────────
+
+testCreateAccrualTrigger : Script ()
+testCreateAccrualTrigger = script do
+  operator <- allocateParty "Operator"
+
+  triggerCid <- submit operator do
+    createCmd InterestAccrualTrigger with
+      operator
+      triggerId = "accrual-trigger-001"
+      config = AccrualTriggerConfig with
+        intervalSeconds = 300
+        targetPools = ["usdc-main", "eth-main"]
+        isEnabled = True
+      lastRunTimestamp = 1000000
+      totalRunCount = 0
+      lastAccrualResults = []
+
+  trigger <- queryContractId operator triggerCid
+  case trigger of
+    Some t -> do
+      assertMsg "Trigger ID matches" (t.triggerId == "accrual-trigger-001")
+      assertMsg "Is enabled" t.config.isEnabled
+      assertMsg "300s interval" (t.config.intervalSeconds == 300)
+    None -> abort "Trigger not found"
+
+testRunAccrual : Script ()
+testRunAccrual = script do
+  operator <- allocateParty "Operator"
+
+  triggerCid <- submit operator do
+    createCmd InterestAccrualTrigger with
+      operator
+      triggerId = "accrual-trigger-002"
+      config = AccrualTriggerConfig with
+        intervalSeconds = 300; targetPools = []; isEnabled = True
+      lastRunTimestamp = 1000000
+      totalRunCount = 0
+      lastAccrualResults = []
+
+  -- Run after 300 seconds
+  newTriggerCid <- submit operator do
+    exerciseCmd triggerCid RunAccrual with
+      currentTs = 1000300
+      poolAccruals = [("usdc-main", 125.50), ("eth-main", 0.0045)]
+
+  trigger <- queryContractId operator newTriggerCid
+  case trigger of
+    Some t -> do
+      assertMsg "Run count = 1" (t.totalRunCount == 1)
+      assertMsg "Last run updated" (t.lastRunTimestamp == 1000300)
+      assertMsg "2 accrual results" (length t.lastAccrualResults == 2)
+    None -> abort "Trigger not found after run"
+
+testAccrualIntervalCheck : Script ()
+testAccrualIntervalCheck = script do
+  operator <- allocateParty "Operator"
+
+  triggerCid <- submit operator do
+    createCmd InterestAccrualTrigger with
+      operator
+      triggerId = "accrual-trigger-003"
+      config = AccrualTriggerConfig with
+        intervalSeconds = 300; targetPools = []; isEnabled = True
+      lastRunTimestamp = 1000000
+      totalRunCount = 0; lastAccrualResults = []
+
+  -- Try to run too early — should fail
+  submitMustFail operator do
+    exerciseCmd triggerCid RunAccrual with
+      currentTs = 1000100  -- Only 100s passed, need 300
+      poolAccruals = []
+
+  pure ()
+
+-- ─── Liquidation Scanner Tests ─────────────────────────────────────────────
+
+testCreateLiquidationScanner : Script ()
+testCreateLiquidationScanner = script do
+  operator <- allocateParty "Operator"
+
+  scannerCid <- submit operator do
+    createCmd LiquidationScanner with
+      operator
+      scannerId = "scanner-001"
+      config = ScannerConfig with
+        scanIntervalSeconds = 30
+        warningThreshold = 1.2
+        liquidationThreshold = 1.0
+        isEnabled = True
+      lastScanTimestamp = 1000000
+      totalScans = 0
+      positionsScanned = 0
+      liquidationsTriggered = 0
+      warningsIssued = 0
+      lastScanResults = []
+
+  scanner <- queryContractId operator scannerCid
+  case scanner of
+    Some s -> do
+      assertMsg "Scanner ID matches" (s.scannerId == "scanner-001")
+      assertMsg "30s scan interval" (s.config.scanIntervalSeconds == 30)
+    None -> abort "Scanner not found"
+
+testRunScan : Script ()
+testRunScan = script do
+  operator <- allocateParty "Operator"
+
+  scannerCid <- submit operator do
+    createCmd LiquidationScanner with
+      operator
+      scannerId = "scanner-002"
+      config = ScannerConfig with
+        scanIntervalSeconds = 30; warningThreshold = 1.2
+        liquidationThreshold = 1.0; isEnabled = True
+      lastScanTimestamp = 1000000
+      totalScans = 0; positionsScanned = 0
+      liquidationsTriggered = 0; warningsIssued = 0
+      lastScanResults = []
+
+  -- Run scan with results
+  newScannerCid <- submit operator do
+    exerciseCmd scannerCid RunScan with
+      currentTs = 1000030
+      scanResults = [
+        ScanResult with positionId = "pos-001"; healthFactor = 2.5; status = "safe",
+        ScanResult with positionId = "pos-002"; healthFactor = 1.1; status = "warning",
+        ScanResult with positionId = "pos-003"; healthFactor = 0.8; status = "liquidatable"
+        ]
+
+  scanner <- queryContractId operator newScannerCid
+  case scanner of
+    Some s -> do
+      assertMsg "Total scans = 1" (s.totalScans == 1)
+      assertMsg "3 positions scanned" (s.positionsScanned == 3)
+      assertMsg "1 liquidation triggered" (s.liquidationsTriggered == 1)
+      assertMsg "1 warning issued" (s.warningsIssued == 1)
+    None -> abort "Scanner not found after run"
+
+-- ─── Oracle Aggregator Tests ───────────────────────────────────────────────
+
+testCreateOracleAggregator : Script ()
+testCreateOracleAggregator = script do
+  operator <- allocateParty "Operator"
+
+  aggCid <- submit operator do
+    createCmd OracleAggregator with
+      operator
+      aggregatorId = "agg-001"
+      config = AggregatorConfig with
+        updateIntervalSeconds = 60
+        maxDeviation = 0.05
+        minSources = 2
+        targetAssets = ["ETH", "wBTC", "USDC"]
+        isEnabled = True
+      lastAggregationTs = 1000000
+      totalAggregations = 0
+      lastResults = []
+      outlierCount = 0
+
+  agg <- queryContractId operator aggCid
+  case agg of
+    Some a -> do
+      assertMsg "Aggregator ID matches" (a.aggregatorId == "agg-001")
+      assertMsg "3 target assets" (length a.config.targetAssets == 3)
+    None -> abort "Aggregator not found"
+
+testRunAggregation : Script ()
+testRunAggregation = script do
+  operator <- allocateParty "Operator"
+
+  aggCid <- submit operator do
+    createCmd OracleAggregator with
+      operator
+      aggregatorId = "agg-002"
+      config = AggregatorConfig with
+        updateIntervalSeconds = 60; maxDeviation = 0.05
+        minSources = 2; targetAssets = ["ETH"]; isEnabled = True
+      lastAggregationTs = 1000000
+      totalAggregations = 0; lastResults = []; outlierCount = 0
+
+  newAggCid <- submit operator do
+    exerciseCmd aggCid RunAggregation with
+      currentTs = 1000060
+      results = [
+        AggregationEntry with
+          asset = "ETH"; aggregatedPrice = 3000.0
+          sourceCount = 3; maxDeviation = 0.02; isValid = True
+        ]
+
+  agg <- queryContractId operator newAggCid
+  case agg of
+    Some a -> do
+      assertMsg "1 aggregation completed" (a.totalAggregations == 1)
+      assertMsg "No outliers (0.02 < 0.05)" (a.outlierCount == 0)
+    None -> abort "Aggregator not found after run"
+
+-- ─── Staleness Checker Tests ───────────────────────────────────────────────
+
+testCreateStalenessChecker : Script ()
+testCreateStalenessChecker = script do
+  operator <- allocateParty "Operator"
+
+  checkerCid <- submit operator do
+    createCmd StalenessChecker with
+      operator
+      checkerId = "staleness-001"
+      config = StalenessConfig with
+        checkIntervalSeconds = 60
+        defaultMaxStaleness = 300
+        assetOverrides = [("USDC", 600)]  -- Stablecoins can be older
+        isEnabled = True
+      lastCheckTs = 1000000
+      totalChecks = 0
+      staleFeeds = []
+      lastReport = []
+
+  checker <- queryContractId operator checkerCid
+  case checker of
+    Some c -> do
+      assertMsg "Checker ID matches" (c.checkerId == "staleness-001")
+      assertMsg "1 override" (length c.config.assetOverrides == 1)
+    None -> abort "Checker not found"
+
+testRunStalenessCheck : Script ()
+testRunStalenessCheck = script do
+  operator <- allocateParty "Operator"
+
+  checkerCid <- submit operator do
+    createCmd StalenessChecker with
+      operator
+      checkerId = "staleness-002"
+      config = StalenessConfig with
+        checkIntervalSeconds = 60; defaultMaxStaleness = 300
+        assetOverrides = []; isEnabled = True
+      lastCheckTs = 1000000
+      totalChecks = 0; staleFeeds = []; lastReport = []
+
+  newCheckerCid <- submit operator do
+    exerciseCmd checkerCid RunStalenessCheck with
+      currentTs = 1000060
+      report = [
+        StalenessEntry with asset = "ETH"; lastUpdateAge = 120; maxAllowedAge = 300; isStale = False,
+        StalenessEntry with asset = "wBTC"; lastUpdateAge = 400; maxAllowedAge = 300; isStale = True,
+        StalenessEntry with asset = "USDC"; lastUpdateAge = 50; maxAllowedAge = 300; isStale = False
+        ]
+
+  checker <- queryContractId operator newCheckerCid
+  case checker of
+    Some c -> do
+      assertMsg "1 check completed" (c.totalChecks == 1)
+      assertMsg "1 stale feed (wBTC)" (length c.staleFeeds == 1)
+    None -> abort "Checker not found after run"
+
+testGetMaxStaleness : Script ()
+testGetMaxStaleness = script do
+  operator <- allocateParty "Operator"
+
+  checkerCid <- submit operator do
+    createCmd StalenessChecker with
+      operator
+      checkerId = "staleness-003"
+      config = StalenessConfig with
+        checkIntervalSeconds = 60; defaultMaxStaleness = 300
+        assetOverrides = [("USDC", 600), ("T-BILL", 900)]
+        isEnabled = True
+      lastCheckTs = 1000000
+      totalChecks = 0; staleFeeds = []; lastReport = []
+
+  -- Check override asset
+  usdcMax <- submit operator do
+    exerciseCmd checkerCid GetMaxStaleness with asset = "USDC"
+  assertMsg "USDC max staleness should be 600" (usdcMax == 600)
+
+  -- Check default asset
+  ethMax <- submit operator do
+    exerciseCmd checkerCid GetMaxStaleness with asset = "ETH"
+  assertMsg "ETH max staleness should be default 300" (ethMax == 300)

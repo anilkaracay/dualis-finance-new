@@ -1,0 +1,179 @@
+-- ============================================================================
+-- DUALIS FINANCE — Oracle Price Feed Test Suite
+-- ============================================================================
+
+module Test.OracleTest where
+
+import Dualis.Types
+import Dualis.Oracle.PriceFeed
+
+-- ─── Create Price Feed Test ────────────────────────────────────────────────
+
+testCreatePriceFeed : Script ()
+testCreatePriceFeed = script do
+  operator <- allocateParty "Operator"
+
+  feedCid <- submit operator do
+    createCmd PriceFeed with
+      operator
+      asset = "ETH"
+      aggregatedPrice = 3000.0
+      sources = [
+        PriceSourceEntry with source = Chainlink; priceUSD = 3001.0; timestamp = "2026-02-15T10:00:00Z"; confidence = 0.99; isActive = True,
+        PriceSourceEntry with source = Pyth; priceUSD = 2999.0; timestamp = "2026-02-15T10:00:00Z"; confidence = 0.98; isActive = True
+        ]
+      lastUpdated = "2026-02-15T10:00:00Z"
+      maxStaleness = 300
+      minSources = 2
+      isValid = True
+
+  feed <- queryContractId operator feedCid
+  case feed of
+    Some f -> do
+      assertMsg "Asset is ETH" (f.asset == "ETH")
+      assertMsg "Price is 3000" (f.aggregatedPrice == 3000.0)
+      assertMsg "Is valid" f.isValid
+      assertMsg "Has 2 sources" (length f.sources == 2)
+    None -> abort "Price feed not found"
+
+-- ─── Submit Price Update Test ──────────────────────────────────────────────
+
+testSubmitPrice : Script ()
+testSubmitPrice = script do
+  operator <- allocateParty "Operator"
+
+  feedCid <- submit operator do
+    createCmd PriceFeed with
+      operator
+      asset = "ETH"
+      aggregatedPrice = 3000.0
+      sources = [
+        PriceSourceEntry with source = Chainlink; priceUSD = 3001.0; timestamp = "2026-02-15T10:00:00Z"; confidence = 0.99; isActive = True
+        ]
+      lastUpdated = "2026-02-15T10:00:00Z"
+      maxStaleness = 300
+      minSources = 2
+      isValid = False  -- Only 1 source, need 2
+
+  -- Add a second source
+  newFeedCid <- submit operator do
+    exerciseCmd feedCid SubmitPrice with
+      newSource = PriceSourceEntry with
+        source = Pyth
+        priceUSD = 3005.0
+        timestamp = "2026-02-15T10:01:00Z"
+        confidence = 0.97
+        isActive = True
+      submissionTime = "2026-02-15T10:01:00Z"
+
+  feed <- queryContractId operator newFeedCid
+  case feed of
+    Some f -> do
+      assertMsg "Should now be valid (2 sources)" f.isValid
+      assertMsg "Has 2 sources" (length f.sources == 2)
+      assertMsg "Aggregated price should be median" (f.aggregatedPrice > 0.0)
+    None -> abort "Updated feed not found"
+
+-- ─── Batch Update Test ─────────────────────────────────────────────────────
+
+testBatchUpdate : Script ()
+testBatchUpdate = script do
+  operator <- allocateParty "Operator"
+
+  feedCid <- submit operator do
+    createCmd PriceFeed with
+      operator
+      asset = "wBTC"
+      aggregatedPrice = 60000.0
+      sources = []
+      lastUpdated = "2026-02-15T10:00:00Z"
+      maxStaleness = 300
+      minSources = 2
+      isValid = False
+
+  -- Batch update with 3 sources
+  newFeedCid <- submit operator do
+    exerciseCmd feedCid BatchUpdatePrices with
+      newSources = [
+        PriceSourceEntry with source = Chainlink; priceUSD = 62000.0; timestamp = "2026-02-15T10:05:00Z"; confidence = 0.99; isActive = True,
+        PriceSourceEntry with source = Pyth; priceUSD = 62100.0; timestamp = "2026-02-15T10:05:00Z"; confidence = 0.98; isActive = True,
+        PriceSourceEntry with source = InternalFeed; priceUSD = 61950.0; timestamp = "2026-02-15T10:05:00Z"; confidence = 0.95; isActive = True
+        ]
+      updateTime = "2026-02-15T10:05:00Z"
+
+  feed <- queryContractId operator newFeedCid
+  case feed of
+    Some f -> do
+      assertMsg "Should be valid (3 sources >= 2 min)" f.isValid
+      assertMsg "Has 3 sources" (length f.sources == 3)
+      -- Median of [61950, 62000, 62100] = 62000
+      assertMsg "Aggregated should be median" (f.aggregatedPrice == 62000.0)
+    None -> abort "Batch updated feed not found"
+
+-- ─── Mark Stale Test ───────────────────────────────────────────────────────
+
+testMarkStale : Script ()
+testMarkStale = script do
+  operator <- allocateParty "Operator"
+
+  feedCid <- submit operator do
+    createCmd PriceFeed with
+      operator
+      asset = "ETH"
+      aggregatedPrice = 3000.0
+      sources = []
+      lastUpdated = "2026-02-15T10:00:00Z"
+      maxStaleness = 300
+      minSources = 2
+      isValid = True
+
+  staleCid <- submit operator do
+    exerciseCmd feedCid MarkStale
+
+  feed <- queryContractId operator staleCid
+  case feed of
+    Some f -> assertMsg "Should be invalid (stale)" (not f.isValid)
+    None -> abort "Stale feed not found"
+
+-- ─── Price Oracle Test ─────────────────────────────────────────────────────
+
+testPriceOracle : Script ()
+testPriceOracle = script do
+  operator <- allocateParty "Operator"
+
+  oracleCid <- submit operator do
+    createCmd PriceOracle with
+      operator
+      oracleId = "main-oracle"
+      supportedAssets = ["ETH", "wBTC", "USDC"]
+      lastAggregation = "2026-02-15T10:00:00Z"
+
+  -- Add a new asset
+  newOracleCid <- submit operator do
+    exerciseCmd oracleCid AddSupportedAsset with asset = "T-BILL"
+
+  oracle <- queryContractId operator newOracleCid
+  case oracle of
+    Some o -> assertMsg "Should have 4 assets" (length o.supportedAssets == 4)
+    None -> abort "Oracle not found"
+
+-- ─── Median Price Test ─────────────────────────────────────────────────────
+
+testMedianPriceOdd : Script ()
+testMedianPriceOdd = script do
+  -- Test median with odd number of prices
+  let prices = [3005.0, 3000.0, 3010.0]
+  let result = medianPrice prices
+  assertMsg "Median of [3005, 3000, 3010] should be 3005" (result == 3005.0)
+
+testMedianPriceEven : Script ()
+testMedianPriceEven = script do
+  -- Test median with even number of prices
+  let prices = [3000.0, 3010.0]
+  let result = medianPrice prices
+  assertMsg "Median of [3000, 3010] should be 3005" (result == 3005.0)
+
+testMedianPriceSingle : Script ()
+testMedianPriceSingle = script do
+  let result = medianPrice [3000.0]
+  assertMsg "Single price median" (result == 3000.0)

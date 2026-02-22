@@ -1,0 +1,186 @@
+-- ============================================================================
+-- DUALIS FINANCE — Credit Score & Attestation Test Suite
+-- ============================================================================
+
+module Test.CreditTest where
+
+import Dualis.Types
+import Dualis.Credit.CompositeScore
+import Dualis.Credit.Attestation
+
+-- ─── Composite Score Creation ──────────────────────────────────────────────
+
+testCreateCompositeCredit : Script ()
+testCreateCompositeCredit = script do
+  operator <- allocateParty "Operator"
+  alice <- allocateParty "Alice"
+
+  scoreCid <- submit operator do
+    createCmd CompositeCredit with
+      operator
+      owner = alice
+      compositeScore = 720
+      tier = Gold
+      layers = ScoreLayer with
+        onChainScore = 300; onChainMax = 400
+        offChainScore = 250; offChainMax = 350
+        ecosystemScore = 170; ecosystemMax = 250
+      onChainDetail = OnChainBreakdown with
+        loanCompletion = 120; repaymentSpeed = 80; collateralHealth = 60
+        protocolHistory = 20; secLendingRecord = 20; total = 300
+      offChainDetail = OffChainBreakdown with
+        creditBureauScore = 120; incomeVerification = 70
+        businessVerification = 30; kycCompletion = 30; total = 250
+      ecosystemDetail = EcosystemBreakdown with
+        tifaPerformance = 80; crossProtocolRefs = 50; governanceStaking = 40; total = 170
+      benefits = getTierParams Gold
+      lastCalculated = "2026-02-15T10:00:00Z"
+
+  score <- queryContractId alice scoreCid
+  case score of
+    Some s -> do
+      assertMsg "Score is 720" (s.compositeScore == 720)
+      assertMsg "Tier is Gold" (s.tier == Gold)
+      assertMsg "Gold maxLTV is 0.78" (s.benefits.maxLTV == 0.78)
+    None -> abort "Score not found"
+
+-- ─── Recalculate Composite Score ───────────────────────────────────────────
+
+testRecalculateScore : Script ()
+testRecalculateScore = script do
+  operator <- allocateParty "Operator"
+  alice <- allocateParty "Alice"
+
+  scoreCid <- submit operator do
+    createCmd CompositeCredit with
+      operator; owner = alice
+      compositeScore = 500; tier = Silver
+      layers = ScoreLayer with
+        onChainScore = 200; onChainMax = 400
+        offChainScore = 200; offChainMax = 350
+        ecosystemScore = 100; ecosystemMax = 250
+      onChainDetail = OnChainBreakdown with
+        loanCompletion = 80; repaymentSpeed = 50; collateralHealth = 40
+        protocolHistory = 20; secLendingRecord = 10; total = 200
+      offChainDetail = OffChainBreakdown with
+        creditBureauScore = 100; incomeVerification = 60
+        businessVerification = 20; kycCompletion = 20; total = 200
+      ecosystemDetail = EcosystemBreakdown with
+        tifaPerformance = 50; crossProtocolRefs = 30; governanceStaking = 20; total = 100
+      benefits = getTierParams Silver
+      lastCalculated = "2026-01-15T10:00:00Z"
+
+  -- Recalculate with improved scores
+  newScoreCid <- submit operator do
+    exerciseCmd scoreCid RecalculateComposite with
+      newOnChain = OnChainBreakdown with
+        loanCompletion = 140; repaymentSpeed = 90; collateralHealth = 70
+        protocolHistory = 35; secLendingRecord = 25; total = 360
+      newOffChain = OffChainBreakdown with
+        creditBureauScore = 140; incomeVerification = 90
+        businessVerification = 45; kycCompletion = 45; total = 320
+      newEcosystem = EcosystemBreakdown with
+        tifaPerformance = 90; crossProtocolRefs = 70; governanceStaking = 60; total = 220
+      calculationTime = "2026-02-15T10:00:00Z"
+
+  score <- queryContractId alice newScoreCid
+  case score of
+    Some s -> do
+      -- 360 + 320 + 220 = 900 -> Diamond
+      assertMsg "Score should be 900" (s.compositeScore == 900)
+      assertMsg "Tier should upgrade to Diamond" (s.tier == Diamond)
+      assertMsg "Diamond maxLTV is 0.85" (s.benefits.maxLTV == 0.85)
+      assertMsg "Diamond discount is 25%" (s.benefits.rateDiscount == 0.25)
+    None -> abort "Recalculated score not found"
+
+-- ─── Credit Tier Derivation ────────────────────────────────────────────────
+
+testTierDerivation : Script ()
+testTierDerivation = script do
+  assertMsg "900 = Diamond" (deriveTier 900 == Diamond)
+  assertMsg "850 = Diamond" (deriveTier 850 == Diamond)
+  assertMsg "849 = Gold" (deriveTier 849 == Gold)
+  assertMsg "650 = Gold" (deriveTier 650 == Gold)
+  assertMsg "649 = Silver" (deriveTier 649 == Silver)
+  assertMsg "450 = Silver" (deriveTier 450 == Silver)
+  assertMsg "449 = Bronze" (deriveTier 449 == Bronze)
+  assertMsg "250 = Bronze" (deriveTier 250 == Bronze)
+  assertMsg "249 = Unrated" (deriveTier 249 == Unrated)
+  assertMsg "0 = Unrated" (deriveTier 0 == Unrated)
+
+-- ─── Attestation Bundle Test ───────────────────────────────────────────────
+
+testCreateAttestationBundle : Script ()
+testCreateAttestationBundle = script do
+  operator <- allocateParty "Operator"
+  alice <- allocateParty "Alice"
+
+  bundleCid <- submit operator do
+    createCmd CreditAttestationBundle with
+      operator
+      owner = alice
+      attestations = []
+      lastVerified = "2026-01-01T00:00:00Z"
+
+  -- Add an attestation
+  newBundleCid <- submit alice do
+    exerciseCmd bundleCid AddAttestation with
+      newAttestation = OffChainAttestation with
+        attestationId = "att-001"
+        attestationType = CreditBureau
+        provider = "findeks"
+        claimedRange = "above_700"
+        proof = ZKProof with
+          proofData = "0xabc123"; verifierKey = "0xdef456"
+          publicInputs = ["range_above_700"]; circuit = "credit_range_v1"
+          generatedAt = "2026-02-15T10:00:00Z"
+        issuedAt = "2026-02-15T10:00:00Z"
+        expiresAt = "2027-02-15T10:00:00Z"
+        revoked = False
+        verified = True
+
+  bundle <- queryContractId alice newBundleCid
+  case bundle of
+    Some b -> assertMsg "Should have 1 attestation" (length b.attestations == 1)
+    None -> abort "Bundle not found"
+
+-- ─── Prune Expired Attestations ────────────────────────────────────────────
+
+testPruneExpired : Script ()
+testPruneExpired = script do
+  operator <- allocateParty "Operator"
+  alice <- allocateParty "Alice"
+
+  bundleCid <- submit operator do
+    createCmd CreditAttestationBundle with
+      operator
+      owner = alice
+      attestations = [
+        OffChainAttestation with
+          attestationId = "att-001"; attestationType = CreditBureau
+          provider = "findeks"; claimedRange = "above_700"
+          proof = ZKProof with proofData = ""; verifierKey = ""
+            publicInputs = []; circuit = ""; generatedAt = ""
+          issuedAt = "2025-01-01T00:00:00Z"
+          expiresAt = "2025-12-31T00:00:00Z"  -- Expired!
+          revoked = False; verified = True,
+        OffChainAttestation with
+          attestationId = "att-002"; attestationType = IncomeVerification
+          provider = "experian"; claimedRange = "high_income"
+          proof = ZKProof with proofData = ""; verifierKey = ""
+            publicInputs = []; circuit = ""; generatedAt = ""
+          issuedAt = "2026-01-01T00:00:00Z"
+          expiresAt = "2027-01-01T00:00:00Z"  -- Still valid
+          revoked = False; verified = True
+        ]
+      lastVerified = "2026-01-01T00:00:00Z"
+
+  -- Prune with current time in 2026
+  prunedCid <- submit operator do
+    exerciseCmd bundleCid PruneExpired with
+      currentTime = "2026-06-15T00:00:00Z"
+
+  bundle <- queryContractId alice prunedCid
+  case bundle of
+    Some b -> assertMsg "Should have 1 attestation after prune" (length b.attestations == 1)
+    None -> abort "Pruned bundle not found"

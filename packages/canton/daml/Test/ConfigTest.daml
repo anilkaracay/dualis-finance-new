@@ -1,0 +1,176 @@
+-- ============================================================================
+-- DUALIS FINANCE — Protocol Config Test Suite
+-- ============================================================================
+
+module Test.ConfigTest where
+
+import Dualis.Types
+import Dualis.Core.Config
+
+-- ─── Create Protocol Config Test ───────────────────────────────────────────
+
+testCreateProtocolConfig : Script ()
+testCreateProtocolConfig = script do
+  operator <- allocateParty "Operator"
+
+  configCid <- submit operator do
+    createCmd ProtocolConfig with
+      operator
+      protocolParams = defaultProtocolParams
+      supportedAssets = []
+      version = "2.0.0"
+      lastUpdated = "2026-02-15T10:00:00Z"
+
+  config <- queryContractId operator configCid
+  case config of
+    Some c -> do
+      assertMsg "Version is 2.0.0" (c.version == "2.0.0")
+      assertMsg "Not paused by default" (not c.protocolParams.isPaused)
+      assertMsg "No assets initially" (null c.supportedAssets)
+    None -> abort "Config not found"
+
+-- ─── Add Asset Config Test ─────────────────────────────────────────────────
+
+testAddAssetConfig : Script ()
+testAddAssetConfig = script do
+  operator <- allocateParty "Operator"
+
+  configCid <- submit operator do
+    createCmd ProtocolConfig with
+      operator
+      protocolParams = defaultProtocolParams
+      supportedAssets = []
+      version = "2.0.0"
+      lastUpdated = "2026-02-15T10:00:00Z"
+
+  let usdcConfig = AssetConfig with
+        symbol = "USDC"
+        instrumentType = Stablecoin
+        rateModel = InterestRateModel with
+          modelType = VariableRate
+          baseRate = 0.02; multiplier = 0.05
+          kink = 0.80; jumpMultiplier = 0.50
+          reserveFactor = 0.10
+        collateralParams = CollateralParams with
+          loanToValue = 0.85; liquidationThreshold = 0.90
+          liquidationPenalty = 0.03
+          borrowCap = None; supplyCap = Some 500000000.0
+          isCollateralEnabled = True; isBorrowEnabled = True
+          collateralTier = CryptoTier
+        isActive = True
+
+  newConfigCid <- submit operator do
+    exerciseCmd configCid UpsertAssetConfig with
+      assetConfig = usdcConfig
+      updateTime = "2026-02-15T10:01:00Z"
+
+  config <- queryContractId operator newConfigCid
+  case config of
+    Some c -> assertMsg "Should have 1 asset" (length c.supportedAssets == 1)
+    None -> abort "Config not found after asset add"
+
+-- ─── Emergency Pause Test ──────────────────────────────────────────────────
+
+testEmergencyPause : Script ()
+testEmergencyPause = script do
+  operator <- allocateParty "Operator"
+
+  configCid <- submit operator do
+    createCmd ProtocolConfig with
+      operator
+      protocolParams = defaultProtocolParams
+      supportedAssets = []
+      version = "2.0.0"
+      lastUpdated = "2026-02-15T10:00:00Z"
+
+  -- Check not paused
+  isPaused <- submit operator do
+    exerciseCmd configCid IsProtocolPaused
+  assertMsg "Should not be paused" (not isPaused)
+
+  -- Pause the protocol
+  pausedCid <- submit operator do
+    exerciseCmd configCid SetPauseStatus with
+      paused = True
+      updateTime = "2026-02-15T10:05:00Z"
+
+  isPaused2 <- submit operator do
+    exerciseCmd pausedCid IsProtocolPaused
+  assertMsg "Should be paused" isPaused2
+
+-- ─── Get Asset Config Test ─────────────────────────────────────────────────
+
+testGetAssetConfig : Script ()
+testGetAssetConfig = script do
+  operator <- allocateParty "Operator"
+
+  let ethConfig = AssetConfig with
+        symbol = "ETH"
+        instrumentType = CryptoCurrency
+        rateModel = InterestRateModel with
+          modelType = VariableRate
+          baseRate = 0.01; multiplier = 0.04
+          kink = 0.75; jumpMultiplier = 0.60
+          reserveFactor = 0.15
+        collateralParams = CollateralParams with
+          loanToValue = 0.75; liquidationThreshold = 0.82
+          liquidationPenalty = 0.05
+          borrowCap = None; supplyCap = None
+          isCollateralEnabled = True; isBorrowEnabled = True
+          collateralTier = CryptoTier
+        isActive = True
+
+  configCid <- submit operator do
+    createCmd ProtocolConfig with
+      operator
+      protocolParams = defaultProtocolParams
+      supportedAssets = [ethConfig]
+      version = "2.0.0"
+      lastUpdated = "2026-02-15T10:00:00Z"
+
+  -- Query existing asset
+  result <- submit operator do
+    exerciseCmd configCid GetAssetConfig with assetSymbol = "ETH"
+  case result of
+    Some ac -> assertMsg "Symbol matches" (ac.symbol == "ETH")
+    None -> abort "ETH asset config not found"
+
+  -- Query non-existent asset
+  result2 <- submit operator do
+    exerciseCmd configCid GetAssetConfig with assetSymbol = "DOGE"
+  case result2 of
+    Some _ -> abort "DOGE should not exist"
+    None -> pure ()
+
+-- ─── Remove Asset Config Test ──────────────────────────────────────────────
+
+testRemoveAssetConfig : Script ()
+testRemoveAssetConfig = script do
+  operator <- allocateParty "Operator"
+
+  let usdcConfig = AssetConfig with
+        symbol = "USDC"; instrumentType = Stablecoin
+        rateModel = InterestRateModel with
+          modelType = VariableRate; baseRate = 0.02; multiplier = 0.05
+          kink = 0.80; jumpMultiplier = 0.50; reserveFactor = 0.10
+        collateralParams = CollateralParams with
+          loanToValue = 0.85; liquidationThreshold = 0.90; liquidationPenalty = 0.03
+          borrowCap = None; supplyCap = None
+          isCollateralEnabled = True; isBorrowEnabled = True; collateralTier = CryptoTier
+        isActive = True
+
+  configCid <- submit operator do
+    createCmd ProtocolConfig with
+      operator; protocolParams = defaultProtocolParams
+      supportedAssets = [usdcConfig]; version = "2.0.0"
+      lastUpdated = "2026-02-15T10:00:00Z"
+
+  newCid <- submit operator do
+    exerciseCmd configCid RemoveAssetConfig with
+      assetSymbol = "USDC"
+      updateTime = "2026-02-15T10:05:00Z"
+
+  config <- queryContractId operator newCid
+  case config of
+    Some c -> assertMsg "Should have 0 assets after removal" (null c.supportedAssets)
+    None -> abort "Config not found after removal"

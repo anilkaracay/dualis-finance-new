@@ -1,0 +1,240 @@
+-- ============================================================================
+-- DUALIS FINANCE — DUAL Token & Staking
+-- ============================================================================
+-- The DUAL governance token and staking mechanism.
+-- Staked DUAL provides governance voting power and protocol fee sharing.
+-- ============================================================================
+
+module Dualis.Token.DUAL where
+
+import Dualis.Types
+
+-- ─── Token Allocation Category ─────────────────────────────────────────────
+
+data AllocationCategory
+  = CommunityRewards
+  | TeamAdvisors
+  | TreasuryReserve
+  | LiquidityMining
+  | EcosystemGrants
+  | StrategicSale
+  deriving (Eq, Show, Ord)
+
+-- ─── Vesting Schedule ──────────────────────────────────────────────────────
+
+data VestingSchedule = VestingSchedule
+  with
+    totalAmount : Decimal
+    claimedAmount : Decimal
+    startDate : Timestamp
+    cliffDate : Timestamp       -- No claims before cliff
+    endDate : Timestamp         -- Fully vested by this date
+    vestingPeriodMonths : Int
+    category : AllocationCategory
+  deriving (Eq, Show)
+
+-- ─── DUAL Token Template ──────────────────────────────────────────────────
+
+template DUALToken
+  with
+    operator : Party
+    totalSupply : Decimal          -- 1,000,000,000 DUAL
+    circulatingSupply : Decimal
+    totalStaked : Decimal
+    allocations : [(AllocationCategory, Decimal)]  -- category -> allocated amount
+    tokenAddress : Text            -- Canton contract reference
+    createdAt : Timestamp
+  where
+    signatory operator
+
+    key operator : Party
+    maintainer key
+
+    -- | Mint new tokens (only during initial distribution)
+    choice MintTokens : ContractId DUALToken
+      with
+        amount : Decimal
+        recipient : Text
+        mintTime : Timestamp
+      controller operator
+      do
+        assertMsg "Cannot mint beyond total supply"
+          (this.circulatingSupply + amount <= this.totalSupply)
+        create this with
+          circulatingSupply = this.circulatingSupply + amount
+
+    -- | Burn tokens (deflationary mechanism)
+    choice BurnTokens : ContractId DUALToken
+      with
+        amount : Decimal
+        burnTime : Timestamp
+      controller operator
+      do
+        assertMsg "Cannot burn more than circulating supply"
+          (amount <= this.circulatingSupply)
+        create this with
+          circulatingSupply = this.circulatingSupply - amount
+          totalSupply = this.totalSupply - amount
+
+    -- | Update staking totals
+    choice UpdateStakingTotal : ContractId DUALToken
+      with
+        newTotalStaked : Decimal
+      controller operator
+      do
+        create this with totalStaked = newTotalStaked
+
+-- ─── Staking Position Template ─────────────────────────────────────────────
+
+data StakingTier = StandardStake | SilverStake | GoldStake | DiamondStake
+  deriving (Eq, Show, Ord)
+
+-- | Determine staking tier based on amount
+getStakingTier : Decimal -> StakingTier
+getStakingTier amount
+  | amount >= 100000.0 = DiamondStake
+  | amount >= 25000.0  = GoldStake
+  | amount >= 5000.0   = SilverStake
+  | otherwise          = StandardStake
+
+-- | APY bonus multiplier per staking tier
+getStakingBonus : StakingTier -> Decimal
+getStakingBonus DiamondStake  = 1.50   -- 50% bonus
+getStakingBonus GoldStake     = 1.25   -- 25% bonus
+getStakingBonus SilverStake   = 1.10   -- 10% bonus
+getStakingBonus StandardStake = 1.00   -- no bonus
+
+template StakingPosition
+  with
+    operator : Party
+    staker : Party
+    positionId : Text
+    stakedAmount : Decimal
+    stakingTier : StakingTier
+    lockPeriodDays : Int           -- Minimum lock period
+    startDate : Timestamp
+    unlockDate : Timestamp         -- Earliest withdrawal date
+    accruedRewards : Decimal       -- Accumulated DUAL rewards
+    lastRewardClaim : Timestamp
+    isLocked : Bool                -- True until unlock date passes
+    votingPower : Decimal          -- Governance voting weight
+  where
+    signatory operator, staker
+
+    key (operator, positionId) : (Party, Text)
+    maintainer key._1
+
+    -- | Stake additional DUAL
+    choice AddStake : ContractId StakingPosition
+      with
+        additionalAmount : Decimal
+        stakeTime : Timestamp
+      controller staker
+      do
+        assertMsg "Amount must be positive" (additionalAmount > 0.0)
+        let newTotal = this.stakedAmount + additionalAmount
+        let newTier = getStakingTier newTotal
+        create this with
+          stakedAmount = newTotal
+          stakingTier = newTier
+          votingPower = newTotal * getStakingBonus newTier
+
+    -- | Unstake DUAL (only after unlock)
+    choice Unstake : Optional (ContractId StakingPosition)
+      with
+        unstakeAmount : Decimal
+        unstakeTime : Timestamp
+      controller staker
+      do
+        assertMsg "Position is still locked" (not this.isLocked)
+        assertMsg "Unstake exceeds staked amount" (unstakeAmount <= this.stakedAmount)
+
+        let remaining = this.stakedAmount - unstakeAmount
+        if remaining <= 0.0
+          then return None  -- Full unstake, archive position
+          else do
+            let newTier = getStakingTier remaining
+            pos <- create this with
+              stakedAmount = remaining
+              stakingTier = newTier
+              votingPower = remaining * getStakingBonus newTier
+            return (Some pos)
+
+    -- | Claim accumulated rewards
+    choice ClaimRewards : ContractId StakingPosition
+      with
+        claimTime : Timestamp
+      controller staker
+      do
+        assertMsg "No rewards to claim" (this.accruedRewards > 0.0)
+        -- In production, would transfer DUAL to staker
+        create this with
+          accruedRewards = 0.0
+          lastRewardClaim = claimTime
+
+    -- ─── Operator Actions ────────────────────────────────────────────
+
+    -- | Accrue rewards (called by trigger/operator)
+    choice AccrueRewards : ContractId StakingPosition
+      with
+        rewardAmount : Decimal
+        accrualTime : Timestamp
+      controller operator
+      do
+        create this with
+          accruedRewards = this.accruedRewards + rewardAmount
+
+    -- | Unlock position after lock period
+    choice UnlockPosition : ContractId StakingPosition
+      with
+        unlockTime : Timestamp
+      controller operator
+      do
+        create this with isLocked = False
+
+    -- ─── Queries ─────────────────────────────────────────────────────
+
+    nonconsuming choice GetVotingPower : Decimal
+      controller staker
+      do return this.votingPower
+
+    nonconsuming choice GetEffectiveAPY : Decimal
+      with
+        baseAPY : Decimal
+      controller staker
+      do return (baseAPY * getStakingBonus this.stakingTier)
+
+-- ─── Token Vesting Template ───────────────────────────────────────────────
+
+template TokenVesting
+  with
+    operator : Party
+    beneficiary : Party
+    vestingId : Text
+    schedule : VestingSchedule
+    isRevoked : Bool
+  where
+    signatory operator, beneficiary
+
+    key (operator, vestingId) : (Party, Text)
+    maintainer key._1
+
+    -- | Claim vested tokens
+    choice ClaimVested : ContractId TokenVesting
+      with
+        claimAmount : Decimal
+        claimTime : Timestamp
+      controller beneficiary
+      do
+        assertMsg "Vesting has been revoked" (not this.isRevoked)
+        assertMsg "Claim exceeds available"
+          (this.schedule.claimedAmount + claimAmount <= this.schedule.totalAmount)
+        create this with
+          schedule = this.schedule with
+            claimedAmount = this.schedule.claimedAmount + claimAmount
+
+    -- | Revoke unvested tokens (operator only, e.g., team departure)
+    choice RevokeVesting : ContractId TokenVesting
+      controller operator
+      do
+        create this with isRevoked = True

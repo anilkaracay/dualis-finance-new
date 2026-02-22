@@ -1,5 +1,7 @@
 module Dualis.Credit.CompositeScore where
 
+import Dualis.Types (CreditTier(..), TierLendingParams(..), deriveTier, getTierParams)
+
 -- On-chain breakdown (max 400 points)
 data OnChainBreakdown = OnChainBreakdown
   with
@@ -39,34 +41,6 @@ data ScoreLayer = ScoreLayer
     ecosystemScore : Int
     ecosystemMax : Int
   deriving (Eq, Show)
-
-data CreditTier = Diamond | Gold | Silver | Bronze | Unrated
-  deriving (Eq, Show, Ord)
-
-data TierLendingParams = TierLendingParams
-  with
-    maxLTV : Decimal
-    rateDiscount : Decimal
-    minCollateralRatio : Decimal
-    liquidationBuffer : Decimal
-  deriving (Eq, Show)
-
--- Derive tier from composite score
-deriveTier : Int -> CreditTier
-deriveTier score
-  | score >= 850 = Diamond
-  | score >= 650 = Gold
-  | score >= 450 = Silver
-  | score >= 250 = Bronze
-  | otherwise = Unrated
-
--- Get lending parameters for a given tier
-getTierParams : CreditTier -> TierLendingParams
-getTierParams Diamond = TierLendingParams with maxLTV = 0.85; rateDiscount = 0.25; minCollateralRatio = 1.15; liquidationBuffer = 0.05
-getTierParams Gold = TierLendingParams with maxLTV = 0.78; rateDiscount = 0.15; minCollateralRatio = 1.25; liquidationBuffer = 0.08
-getTierParams Silver = TierLendingParams with maxLTV = 0.70; rateDiscount = 0.08; minCollateralRatio = 1.35; liquidationBuffer = 0.10
-getTierParams Bronze = TierLendingParams with maxLTV = 0.60; rateDiscount = 0.00; minCollateralRatio = 1.50; liquidationBuffer = 0.12
-getTierParams Unrated = TierLendingParams with maxLTV = 0.50; rateDiscount = 0.00; minCollateralRatio = 1.75; liquidationBuffer = 0.15
 
 -- Template: CompositeCredit
 -- Stores the composite credit score for a party

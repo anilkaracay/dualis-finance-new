@@ -1,0 +1,311 @@
+-- ============================================================================
+-- DUALIS FINANCE — Financial Math Test Suite
+-- ============================================================================
+
+module Test.MathTest where
+
+import Dualis.Types
+import Dualis.Lending.Math
+
+-- ─── Utilization Tests ─────────────────────────────────────────────────────
+
+testUtilizationEmpty : Script ()
+testUtilizationEmpty = script do
+  let u = calculateUtilization 0.0 0.0
+  assertMsg "Empty pool utilization should be 0" (u == 0.0)
+
+testUtilizationNormal : Script ()
+testUtilizationNormal = script do
+  let u = calculateUtilization 50.0 100.0
+  assertMsg "50/100 utilization should be 0.5" (u == 0.5)
+
+testUtilizationCap : Script ()
+testUtilizationCap = script do
+  let u = calculateUtilization 150.0 100.0
+  assertMsg "Over-utilized should cap at 1.0" (u == 1.0)
+
+-- ─── Borrow APR Tests ──────────────────────────────────────────────────────
+
+-- Standard USDC-like model
+usdcModel : InterestRateModel
+usdcModel = InterestRateModel with
+  modelType = VariableRate
+  baseRate = 0.02
+  multiplier = 0.05
+  kink = 0.80
+  jumpMultiplier = 0.50
+  reserveFactor = 0.10
+
+testBorrowAPRBelowKink : Script ()
+testBorrowAPRBelowKink = script do
+  let apr = calculateBorrowAPR usdcModel 0.5
+  -- base(0.02) + 0.5 * mult(0.05) = 0.02 + 0.025 = 0.045
+  assertMsg "Borrow APR below kink" (apr == 0.045)
+
+testBorrowAPRAtKink : Script ()
+testBorrowAPRAtKink = script do
+  let apr = calculateBorrowAPR usdcModel 0.80
+  -- base(0.02) + 0.80 * mult(0.05) = 0.02 + 0.04 = 0.06
+  assertMsg "Borrow APR at kink" (apr == 0.06)
+
+testBorrowAPRAboveKink : Script ()
+testBorrowAPRAboveKink = script do
+  let apr = calculateBorrowAPR usdcModel 0.90
+  -- base(0.02) + 0.80 * 0.05 + (0.90 - 0.80) * 0.50
+  -- = 0.02 + 0.04 + 0.10 * 0.50 = 0.02 + 0.04 + 0.05 = 0.11
+  assertMsg "Borrow APR above kink" (apr == 0.11)
+
+-- ─── Supply APR Tests ──────────────────────────────────────────────────────
+
+testSupplyAPR : Script ()
+testSupplyAPR = script do
+  let supplyAPR = calculateSupplyAPR usdcModel 0.5
+  -- borrowAPR = 0.045, supply = 0.045 * 0.5 * (1 - 0.10) = 0.045 * 0.5 * 0.9 = 0.02025
+  assertMsg "Supply APR should be less than borrow APR" (supplyAPR < 0.045)
+
+testSupplyAPRAlwaysLessThanBorrow : Script ()
+testSupplyAPRAlwaysLessThanBorrow = script do
+  let testUtils = [0.1, 0.3, 0.5, 0.7, 0.9]
+  mapA_ (\u -> do
+    let bAPR = calculateBorrowAPR usdcModel u
+    let sAPR = calculateSupplyAPR usdcModel u
+    assertMsg ("Supply APR should be <= Borrow APR at util " <> show u)
+      (sAPR <= bAPR)
+    ) testUtils
+
+-- ─── Tier-Adjusted Borrow APR Tests ────────────────────────────────────────
+
+testTierAdjustedAPR : Script ()
+testTierAdjustedAPR = script do
+  let baseAPR = calculateBorrowAPR usdcModel 0.5  -- 0.045
+  let goldAPR = calculateTierAdjustedBorrowAPR usdcModel 0.5 0.15  -- 15% discount
+  let expectedGold = baseAPR * (1.0 - 0.15)
+  assertMsg "Gold tier should get 15% discount" (goldAPR == expectedGold)
+
+testDiamondDiscount : Script ()
+testDiamondDiscount = script do
+  let baseAPR = calculateBorrowAPR usdcModel 0.5
+  let diamondAPR = calculateTierAdjustedBorrowAPR usdcModel 0.5 0.25
+  let expected = baseAPR * 0.75
+  assertMsg "Diamond tier should get 25% discount" (diamondAPR == expected)
+
+-- ─── APR/APY Conversion Tests ──────────────────────────────────────────────
+
+testAprToApy : Script ()
+testAprToApy = script do
+  let apy = aprToApy 0.05
+  -- e^0.05 - 1 ≈ 0.05127 (Taylor: 0.05 + 0.05²/2 + ... ≈ 0.05127)
+  assertMsg "APY should be slightly higher than APR" (apy > 0.05)
+  assertMsg "APY should be reasonable" (apy < 0.06)
+
+testApyToApr : Script ()
+testApyToApr = script do
+  let apr = apyToApr 0.05
+  -- ln(1.05) ≈ 0.04879 (Taylor: 0.05 - 0.05²/2 + ... ≈ 0.04879)
+  assertMsg "APR should be slightly lower than APY" (apr < 0.05)
+  assertMsg "APR should be reasonable" (apr > 0.04)
+
+-- ─── Interest Accrual Tests ────────────────────────────────────────────────
+
+testAccrualZeroDelta : Script ()
+testAccrualZeroDelta = script do
+  let result = accrueInterest usdcModel 100000.0 200000.0 5000.0 1.0 1.0 1000 1000
+  assertMsg "No time passed = no interest" (result.interestAccrued == 0.0)
+  assertMsg "Borrow index unchanged" (result.newBorrowIndex == 1.0)
+  assertMsg "Supply index unchanged" (result.newSupplyIndex == 1.0)
+
+testAccrualPositiveInterest : Script ()
+testAccrualPositiveInterest = script do
+  let dt = 86400  -- 1 day
+  let result = accrueInterest usdcModel 100000.0 200000.0 5000.0 1.0 1.0 0 dt
+  assertMsg "Interest should accrue" (result.interestAccrued > 0.0)
+  assertMsg "Borrow index should increase" (result.newBorrowIndex > 1.0)
+  assertMsg "Supply index should increase" (result.newSupplyIndex > 1.0)
+  assertMsg "Total borrows should increase" (result.newTotalBorrows > 100000.0)
+  assertMsg "Reserves should increase" (result.newTotalReserves > 5000.0)
+
+testAccrualReserveFactor : Script ()
+testAccrualReserveFactor = script do
+  let dt = 86400
+  let result = accrueInterest usdcModel 100000.0 200000.0 5000.0 1.0 1.0 0 dt
+  -- Reserve accrual = interest * reserveFactor(0.10)
+  let expectedReserve = result.interestAccrued * 0.10
+  assertMsg "Reserve should be 10% of interest"
+    (result.reserveAccrued == expectedReserve)
+
+-- ─── Current Balance Tests ─────────────────────────────────────────────────
+
+testCurrentBalanceNoChange : Script ()
+testCurrentBalanceNoChange = script do
+  let bal = calculateCurrentBalance 1000.0 1.0 1.0
+  assertMsg "No index change = same balance" (bal == 1000.0)
+
+testCurrentBalanceGrowth : Script ()
+testCurrentBalanceGrowth = script do
+  let bal = calculateCurrentBalance 1000.0 1.0 1.05
+  assertMsg "5% index growth = 1050" (bal == 1050.0)
+
+testInterestDelta : Script ()
+testInterestDelta = script do
+  let delta = calculateInterestDelta 1000.0 1.0 1.05
+  assertMsg "Interest delta should be 50" (delta == 50.0)
+
+-- ─── Health Factor Tests ───────────────────────────────────────────────────
+
+testHealthFactorSingleCollateral : Script ()
+testHealthFactorSingleCollateral = script do
+  let colls = [CollateralInput with
+        symbol = "ETH"
+        amount = 10.0
+        priceUSD = 3000.0
+        ltv = 0.75
+        liqThreshold = 0.82
+        liqPenalty = 0.05
+        tier = CryptoTier]
+  let debts = [DebtInput with symbol = "USDC"; amount = 15000.0; priceUSD = 1.0]
+  let hf = calculateHealthFactor colls debts
+  -- Weighted: 10 * 3000 * 0.82 * 1.0 = 24600 / 15000 = 1.64
+  assertMsg "HF should be > 1.0 (safe)" (hf.value > 1.0)
+  assertMsg "Status should be healthy" (hf.status == HFHealthy)
+
+testHealthFactorMultiCollateral : Script ()
+testHealthFactorMultiCollateral = script do
+  let colls = [
+        CollateralInput with
+          symbol = "ETH"; amount = 5.0; priceUSD = 3000.0
+          ltv = 0.75; liqThreshold = 0.82; liqPenalty = 0.05; tier = CryptoTier,
+        CollateralInput with
+          symbol = "T-BILL"; amount = 10000.0; priceUSD = 1.0
+          ltv = 0.90; liqThreshold = 0.95; liqPenalty = 0.02; tier = RWATier
+        ]
+  let debts = [DebtInput with symbol = "USDC"; amount = 20000.0; priceUSD = 1.0]
+  let hf = calculateHealthFactor colls debts
+  -- ETH weighted: 5 * 3000 * 0.82 * 1.00 = 12300
+  -- T-BILL weighted: 10000 * 1.0 * 0.95 * 0.95 = 9025
+  -- Total weighted: 21325 / 20000 = 1.066
+  assertMsg "Multi-collateral HF calculated" (hf.value > 0.0)
+
+testHealthFactorNoDebt : Script ()
+testHealthFactorNoDebt = script do
+  let colls = [CollateralInput with
+        symbol = "ETH"; amount = 10.0; priceUSD = 3000.0
+        ltv = 0.75; liqThreshold = 0.82; liqPenalty = 0.05; tier = CryptoTier]
+  let hf = calculateHealthFactor colls []
+  assertMsg "No debt = infinite HF proxy" (hf.value >= 999999.0)
+  assertMsg "Status should be safe" (hf.status == HFSafe)
+
+testHealthFactorLiquidatable : Script ()
+testHealthFactorLiquidatable = script do
+  let colls = [CollateralInput with
+        symbol = "ETH"; amount = 1.0; priceUSD = 3000.0
+        ltv = 0.75; liqThreshold = 0.82; liqPenalty = 0.05; tier = CryptoTier]
+  let debts = [DebtInput with symbol = "USDC"; amount = 5000.0; priceUSD = 1.0]
+  let hf = calculateHealthFactor colls debts
+  -- Weighted: 1 * 3000 * 0.82 * 1.0 = 2460 / 5000 = 0.492
+  assertMsg "HF should be < 1.0 (liquidatable)" (hf.value < 1.0)
+  assertMsg "Status should be liquidatable" (hf.status == HFLiquidatable)
+
+-- ─── Health Factor Classification ──────────────────────────────────────────
+
+testHFClassification : Script ()
+testHFClassification = script do
+  assertMsg "0.5 = liquidatable" (classifyHealthFactor 0.5 == HFLiquidatable)
+  assertMsg "1.0 = liquidatable" (classifyHealthFactor 1.0 == HFLiquidatable)
+  assertMsg "1.1 = danger" (classifyHealthFactor 1.1 == HFDanger)
+  assertMsg "1.3 = caution" (classifyHealthFactor 1.3 == HFCaution)
+  assertMsg "1.8 = healthy" (classifyHealthFactor 1.8 == HFHealthy)
+  assertMsg "2.5 = safe" (classifyHealthFactor 2.5 == HFSafe)
+
+-- ─── Max Borrowable Tests ──────────────────────────────────────────────────
+
+testMaxBorrowable : Script ()
+testMaxBorrowable = script do
+  let colls = [CollateralInput with
+        symbol = "ETH"; amount = 10.0; priceUSD = 3000.0
+        ltv = 0.75; liqThreshold = 0.82; liqPenalty = 0.05; tier = CryptoTier]
+  let maxB = calculateMaxBorrowable colls [] 0.78  -- Gold tier LTV
+  -- ETH: 10 * 3000 * min(0.75, 0.78) * 1.0 = 10 * 3000 * 0.75 = 22500
+  assertMsg "Max borrowable should be positive" (maxB > 0.0)
+  assertMsg "Max borrowable = 22500" (maxB == 22500.0)
+
+testMaxBorrowableWithExistingDebt : Script ()
+testMaxBorrowableWithExistingDebt = script do
+  let colls = [CollateralInput with
+        symbol = "ETH"; amount = 10.0; priceUSD = 3000.0
+        ltv = 0.75; liqThreshold = 0.82; liqPenalty = 0.05; tier = CryptoTier]
+  let existing = [DebtInput with symbol = "USDC"; amount = 10000.0; priceUSD = 1.0]
+  let maxB = calculateMaxBorrowable colls existing 0.78
+  -- 22500 - 10000 = 12500
+  assertMsg "Should deduct existing debt" (maxB == 12500.0)
+
+-- ─── Liquidation Tests ─────────────────────────────────────────────────────
+
+testLiquidationHealthy : Script ()
+testLiquidationHealthy = script do
+  let coll = CollateralInput with
+        symbol = "ETH"; amount = 10.0; priceUSD = 3000.0
+        ltv = 0.75; liqThreshold = 0.82; liqPenalty = 0.05; tier = CryptoTier
+  let result = calculateLiquidation coll 1000.0 1.0 15000.0 1.5
+  assertMsg "Healthy position not liquidatable" (not result.isLiquidatable)
+
+testLiquidationUnderwater : Script ()
+testLiquidationUnderwater = script do
+  let coll = CollateralInput with
+        symbol = "ETH"; amount = 10.0; priceUSD = 3000.0
+        ltv = 0.75; liqThreshold = 0.82; liqPenalty = 0.05; tier = CryptoTier
+  let result = calculateLiquidation coll 10000.0 1.0 20000.0 0.8
+  assertMsg "Underwater position is liquidatable" result.isLiquidatable
+  assertMsg "Max debt to repay should be positive" (result.maxDebtToRepay > 0.0)
+  assertMsg "Collateral to seize should be positive" (result.collateralToSeize > 0.0)
+
+testLiquidationPenaltySplit : Script ()
+testLiquidationPenaltySplit = script do
+  let coll = CollateralInput with
+        symbol = "ETH"; amount = 10.0; priceUSD = 3000.0
+        ltv = 0.75; liqThreshold = 0.82; liqPenalty = 0.05; tier = CryptoTier
+  let result = calculateLiquidation coll 5000.0 1.0 15000.0 0.9
+  -- Liquidator gets 90% of penalty, protocol gets 10%
+  assertMsg "Liquidator profit should be 9x protocol fee"
+    (result.liquidatorProfit > result.protocolFee)
+
+-- ─── Credit Score Tests ────────────────────────────────────────────────────
+
+testCreditScorePerfect : Script ()
+testCreditScorePerfect = script do
+  let score = calculateCreditScore 10 0 100 0 500000.0 2.0 10
+  assertMsg "Perfect record should score high" (score > 500)
+
+testCreditScoreNew : Script ()
+testCreditScoreNew = script do
+  let score = calculateCreditScore 0 0 0 0 0.0 0.0 0
+  assertMsg "New user should score 0" (score == 0)
+
+testCreditScoreTierDerivation : Script ()
+testCreditScoreTierDerivation = script do
+  assertMsg "850+ = Diamond" (deriveTier 900 == Diamond)
+  assertMsg "650-849 = Gold" (deriveTier 700 == Gold)
+  assertMsg "450-649 = Silver" (deriveTier 500 == Silver)
+  assertMsg "250-449 = Bronze" (deriveTier 300 == Bronze)
+  assertMsg "<250 = Unrated" (deriveTier 100 == Unrated)
+
+-- ─── Liquidation Price Tests ───────────────────────────────────────────────
+
+testLiquidationPrice : Script ()
+testLiquidationPrice = script do
+  -- borrowValue=15000, amount=10, threshold=0.82, otherCollateral=0
+  -- liqPrice = 15000 / (10 * 0.82) = 15000 / 8.2 ≈ 1829.27
+  let lp = calculateLiquidationPrice 15000.0 10.0 0.82 0.0
+  assertMsg "Liquidation price should be positive" (lp > 0.0)
+  assertMsg "Liquidation price should be < current price (3000)" (lp < 3000.0)
+
+-- ─── Weighted LTV Tests ───────────────────────────────────────────────────
+
+testWeightedLTV : Script ()
+testWeightedLTV = script do
+  let ltv = calculateWeightedLTV 15000.0 30000.0
+  assertMsg "LTV should be 0.5" (ltv == 0.5)
+
+testWeightedLTVZeroCollateral : Script ()
+testWeightedLTVZeroCollateral = script do
+  let ltv = calculateWeightedLTV 15000.0 0.0
+  assertMsg "Zero collateral LTV should be 0" (ltv == 0.0)

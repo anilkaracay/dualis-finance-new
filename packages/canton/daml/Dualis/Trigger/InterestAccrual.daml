@@ -1,0 +1,83 @@
+-- ============================================================================
+-- DUALIS FINANCE — Interest Accrual Trigger
+-- ============================================================================
+-- Periodic trigger that accrues interest on all lending pools.
+-- In production, this runs as a DAML trigger process.
+-- For simulation, it's modeled as a template + script pattern.
+-- ============================================================================
+
+module Dualis.Trigger.InterestAccrual where
+
+import Dualis.Types
+import Dualis.Lending.Math
+
+-- ─── Trigger Configuration ─────────────────────────────────────────────────
+
+data AccrualTriggerConfig = AccrualTriggerConfig
+  with
+    intervalSeconds : Int       -- How often to accrue (default: 300 = 5 min)
+    targetPools : [PoolId]     -- Pools to accrue, empty = all
+    isEnabled : Bool
+  deriving (Eq, Show)
+
+-- ─── Accrual Trigger Template ──────────────────────────────────────────────
+
+-- | Represents the trigger state for interest accrual
+template InterestAccrualTrigger
+  with
+    operator : Party
+    triggerId : Text
+    config : AccrualTriggerConfig
+    lastRunTimestamp : Int        -- Unix seconds
+    totalRunCount : Int
+    lastAccrualResults : [(PoolId, Decimal)]  -- [(poolId, interestAccrued)]
+  where
+    signatory operator
+
+    key (operator, triggerId) : (Party, Text)
+    maintainer key._1
+
+    -- | Execute a single accrual run
+    -- In production, the DAML trigger framework calls this automatically.
+    -- Here, the operator invokes it manually or via a backend cron.
+    choice RunAccrual : ContractId InterestAccrualTrigger
+      with
+        currentTs : Int
+        poolAccruals : [(PoolId, Decimal)]  -- Results from pool accrual
+      controller operator
+      do
+        assertMsg "Trigger is disabled" this.config.isEnabled
+
+        -- Ensure minimum interval has passed
+        let elapsed = currentTs - this.lastRunTimestamp
+        assertMsg "Accrual interval not reached"
+          (elapsed >= this.config.intervalSeconds)
+
+        create this with
+          lastRunTimestamp = currentTs
+          totalRunCount = this.totalRunCount + 1
+          lastAccrualResults = poolAccruals
+
+    -- | Update trigger configuration
+    choice UpdateAccrualConfig : ContractId InterestAccrualTrigger
+      with
+        newConfig : AccrualTriggerConfig
+      controller operator
+      do create this with config = newConfig
+
+    -- | Enable/disable the trigger
+    choice SetAccrualEnabled : ContractId InterestAccrualTrigger
+      with
+        enabled : Bool
+      controller operator
+      do create this with
+          config = this.config with isEnabled = enabled
+
+    -- | Non-consuming: check if accrual is due
+    nonconsuming choice IsAccrualDue : Bool
+      with
+        currentTs : Int
+      controller operator
+      do
+        let elapsed = currentTs - this.lastRunTimestamp
+        return (this.config.isEnabled && elapsed >= this.config.intervalSeconds)

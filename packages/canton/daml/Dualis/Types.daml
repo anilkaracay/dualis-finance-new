@@ -1,16 +1,213 @@
+-- ============================================================================
+-- DUALIS FINANCE — Core Types Module
+-- ============================================================================
+-- Shared types used across all Dualis Canton DAML smart contracts.
+-- Mirrors packages/shared/src/types/* from the TypeScript layer.
+-- ============================================================================
+
 module Dualis.Types where
 
--- Common types shared across Dualis contracts.
--- Individual modules define their own domain-specific types.
+-- ─── Party & Identity ───────────────────────────────────────────────────────
 
--- Represents a Canton party identity
+-- | Canton party identifier (alias for readability)
 type PartyId = Text
 
--- Represents a UTC timestamp in ISO 8601 format
+-- | UTC timestamp in ISO 8601 format
 type Timestamp = Text
 
--- Represents a monetary amount as a string for decimal precision
-type Amount = Text
+-- | Monetary amount as Decimal for on-ledger precision
+type Amount = Decimal
 
--- Represents a contract reference ID
+-- | String-encoded amount for cross-boundary transfer
+type AmountText = Text
+
+-- | Contract reference identifier
 type ContractRef = Text
+
+-- | Asset symbol (USDC, ETH, wBTC, T-BILL, etc.)
+type AssetSymbol = Text
+
+-- | Pool identifier
+type PoolId = Text
+
+-- | Position identifier
+type PositionId = Text
+
+-- ─── Asset Classification ──────────────────────────────────────────────────
+
+data InstrumentType
+  = Stablecoin
+  | CryptoCurrency
+  | TokenizedTreasury
+  | TokenizedEquity
+  | TokenizedReceivable
+  | TokenizedCommodity
+  | ProjectAsset
+  deriving (Eq, Show, Ord)
+
+data AssetInfo = AssetInfo
+  with
+    symbol : AssetSymbol
+    instrumentType : InstrumentType
+    priceUSD : Decimal
+    decimals : Int
+  deriving (Eq, Show)
+
+-- ─── Collateral Classification ──────────────────────────────────────────────
+
+data CollateralTier = CryptoTier | RWATier | TIFATier
+  deriving (Eq, Show, Ord)
+
+-- | Haircut multiplier applied based on collateral tier
+-- crypto = 1.00 (no haircut), rwa = 0.95, tifa = 0.80
+getCollateralHaircut : CollateralTier -> Decimal
+getCollateralHaircut CryptoTier = 1.00
+getCollateralHaircut RWATier    = 0.95
+getCollateralHaircut TIFATier   = 0.80
+
+data CollateralParams = CollateralParams
+  with
+    loanToValue : Decimal          -- Max LTV ratio (0-1)
+    liquidationThreshold : Decimal -- Threshold triggering liquidation (0-1)
+    liquidationPenalty : Decimal   -- Penalty on liquidation (0-1)
+    borrowCap : Optional Decimal   -- Max borrowable against this asset
+    supplyCap : Optional Decimal   -- Max depositable
+    isCollateralEnabled : Bool
+    isBorrowEnabled : Bool
+    collateralTier : CollateralTier
+  deriving (Eq, Show)
+
+-- ─── Interest Rate Model ───────────────────────────────────────────────────
+
+data RateModelType = VariableRate
+  deriving (Eq, Show, Ord)
+
+data InterestRateModel = InterestRateModel
+  with
+    modelType : RateModelType
+    baseRate : Decimal       -- Annual base rate (decimal, e.g. 0.02 = 2%)
+    multiplier : Decimal     -- Slope below kink
+    kink : Decimal           -- Optimal utilization (0-1)
+    jumpMultiplier : Decimal -- Slope above kink
+    reserveFactor : Decimal  -- Protocol reserve cut (0-1)
+  deriving (Eq, Show)
+
+-- ─── Health Factor ─────────────────────────────────────────────────────────
+
+data HealthFactorStatus = HFSafe | HFHealthy | HFCaution | HFDanger | HFLiquidatable
+  deriving (Eq, Show, Ord)
+
+data HealthFactorInfo = HealthFactorInfo
+  with
+    value : Decimal
+    collateralValueUSD : Decimal
+    weightedCollateralUSD : Decimal
+    borrowValueUSD : Decimal
+    weightedLTV : Decimal
+    status : HealthFactorStatus
+  deriving (Eq, Show)
+
+-- | Classify health factor into status buckets
+classifyHealthFactor : Decimal -> HealthFactorStatus
+classifyHealthFactor hf
+  | hf <= 1.0 = HFLiquidatable
+  | hf <= 1.2 = HFDanger
+  | hf <= 1.5 = HFCaution
+  | hf <= 2.0 = HFHealthy
+  | otherwise  = HFSafe
+
+-- ─── Credit Tiers ──────────────────────────────────────────────────────────
+
+data CreditTier = Diamond | Gold | Silver | Bronze | Unrated
+  deriving (Eq, Show, Ord)
+
+data TierLendingParams = TierLendingParams
+  with
+    maxLTV : Decimal
+    rateDiscount : Decimal
+    minCollateralRatio : Decimal
+    liquidationBuffer : Decimal
+  deriving (Eq, Show)
+
+-- | Derive credit tier from composite score (0-1000)
+deriveTier : Int -> CreditTier
+deriveTier score
+  | score >= 850 = Diamond
+  | score >= 650 = Gold
+  | score >= 450 = Silver
+  | score >= 250 = Bronze
+  | otherwise    = Unrated
+
+-- | Get lending parameters for a given tier
+getTierParams : CreditTier -> TierLendingParams
+getTierParams Diamond = TierLendingParams with maxLTV = 0.85; rateDiscount = 0.25; minCollateralRatio = 1.15; liquidationBuffer = 0.05
+getTierParams Gold    = TierLendingParams with maxLTV = 0.78; rateDiscount = 0.15; minCollateralRatio = 1.25; liquidationBuffer = 0.08
+getTierParams Silver  = TierLendingParams with maxLTV = 0.70; rateDiscount = 0.08; minCollateralRatio = 1.35; liquidationBuffer = 0.10
+getTierParams Bronze  = TierLendingParams with maxLTV = 0.60; rateDiscount = 0.00; minCollateralRatio = 1.50; liquidationBuffer = 0.12
+getTierParams Unrated = TierLendingParams with maxLTV = 0.50; rateDiscount = 0.00; minCollateralRatio = 1.75; liquidationBuffer = 0.15
+
+-- ─── Transaction Metadata ──────────────────────────────────────────────────
+
+data TransactionStatus = TxPending | TxConfirmed | TxFailed
+  deriving (Eq, Show, Ord)
+
+data TransactionMeta = TransactionMeta
+  with
+    txId : Text
+    status : TransactionStatus
+    timestamp : Timestamp
+    submitter : Party
+  deriving (Eq, Show)
+
+-- ─── Accrual Index State ───────────────────────────────────────────────────
+
+data AccrualState = AccrualState
+  with
+    borrowIndex : Decimal     -- Cumulative borrow interest index
+    supplyIndex : Decimal     -- Cumulative supply interest index
+    lastAccrualTs : Int       -- Unix seconds of last accrual
+  deriving (Eq, Show)
+
+-- ─── Pool Position Types ───────────────────────────────────────────────────
+
+data PositionType = SupplyPosition | BorrowPosition_
+  deriving (Eq, Show, Ord)
+
+-- ─── Liquidation Constants ─────────────────────────────────────────────────
+
+-- | Close factor: fraction of debt that can be liquidated in one tx
+closeFactorNormal : Decimal
+closeFactorNormal = 0.50
+
+closeFactorCritical : Decimal
+closeFactorCritical = 1.00
+
+criticalHFThreshold : Decimal
+criticalHFThreshold = 0.50
+
+-- | Liquidation penalty split: 90% to liquidator, 10% to protocol
+reserveSplitLiquidator : Decimal
+reserveSplitLiquidator = 0.90
+
+reserveSplitProtocol : Decimal
+reserveSplitProtocol = 0.10
+
+-- ─── Oracle Types ──────────────────────────────────────────────────────────
+
+data OracleSource = Chainlink | Pyth | InternalFeed | ManualFeed
+  deriving (Eq, Show, Ord)
+
+data PriceData = PriceData
+  with
+    asset : AssetSymbol
+    priceUSD : Decimal
+    source : OracleSource
+    timestamp : Timestamp
+    confidence : Decimal     -- 0-1 confidence level
+  deriving (Eq, Show)
+
+-- ─── Seconds Per Year ──────────────────────────────────────────────────────
+
+-- | 365.25 * 24 * 60 * 60 = 31,557,600
+secondsPerYear : Decimal
+secondsPerYear = 31557600.0

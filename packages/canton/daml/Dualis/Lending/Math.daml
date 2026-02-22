@@ -1,0 +1,354 @@
+-- ============================================================================
+-- DUALIS FINANCE — Financial Mathematics Engine (DAML)
+-- ============================================================================
+-- Pure financial math functions for on-ledger computation.
+-- Mirrors packages/shared/src/utils/math.ts from the TypeScript layer.
+--
+-- All rates are expressed as DECIMALS (e.g., 0.08 = 8%)
+-- All time is in SECONDS (Unix epoch)
+-- All amounts are in BASE UNITS (Canton Decimal)
+-- ============================================================================
+
+module Dualis.Lending.Math where
+
+import Dualis.Types
+
+-- ─── UTILIZATION ────────────────────────────────────────────────────────────
+
+-- | Calculate pool utilization rate.
+-- U = totalBorrows / totalDeposits
+-- Returns 0 for empty pools. Capped at 1.
+calculateUtilization : Decimal -> Decimal -> Decimal
+calculateUtilization totalBorrows totalDeposits
+  | totalDeposits <= 0.0 = 0.0
+  | otherwise = min (totalBorrows / totalDeposits) 1.0
+
+-- ─── INTEREST RATES (Jump Rate Model) ──────────────────────────────────────
+
+-- | Calculate borrow APR using Jump Rate Model.
+-- Piecewise linear: normal slope below kink, steep slope above.
+--
+-- Below kink: baseRate + utilization * multiplier
+-- Above kink: baseRate + kink * multiplier + (utilization - kink) * jumpMultiplier
+calculateBorrowAPR : InterestRateModel -> Decimal -> Decimal
+calculateBorrowAPR model utilization
+  | utilization <= model.kink =
+      model.baseRate + utilization * model.multiplier
+  | otherwise =
+      model.baseRate
+        + model.kink * model.multiplier
+        + (utilization - model.kink) * model.jumpMultiplier
+
+-- | Calculate supply APR.
+-- Suppliers earn a portion of borrow interest, reduced by reserve factor.
+-- supplyAPR = borrowAPR * utilization * (1 - reserveFactor)
+calculateSupplyAPR : InterestRateModel -> Decimal -> Decimal
+calculateSupplyAPR model utilization =
+  let borrowAPR = calculateBorrowAPR model utilization
+  in borrowAPR * utilization * (1.0 - model.reserveFactor)
+
+-- | Calculate borrow APR adjusted for credit tier discount.
+calculateTierAdjustedBorrowAPR : InterestRateModel -> Decimal -> Decimal -> Decimal
+calculateTierAdjustedBorrowAPR model utilization tierDiscount =
+  let baseAPR = calculateBorrowAPR model utilization
+  in baseAPR * (1.0 - tierDiscount)
+
+-- ─── APR ↔ APY CONVERSION ─────────────────────────────────────────────────
+
+-- | Approximate e^x using Taylor series (sufficient for typical APR values 0-0.5)
+-- e^x ≈ 1 + x + x²/2 + x³/6 + x⁴/24 + x⁵/120
+expApprox : Decimal -> Decimal
+expApprox x =
+  let x2 = x * x
+      x3 = x2 * x
+      x4 = x3 * x
+      x5 = x4 * x
+  in 1.0 + x + x2 / 2.0 + x3 / 6.0 + x4 / 24.0 + x5 / 120.0
+
+-- | Approximate ln(1 + x) using Taylor series
+-- ln(1+x) ≈ x - x²/2 + x³/3 - x⁴/4 + x⁵/5
+lnApprox : Decimal -> Decimal
+lnApprox x =
+  let x2 = x * x
+      x3 = x2 * x
+      x4 = x3 * x
+      x5 = x4 * x
+  in x - x2 / 2.0 + x3 / 3.0 - x4 / 4.0 + x5 / 5.0
+
+-- | Convert APR to APY using continuous compounding approximation.
+-- APY = e^APR - 1
+aprToApy : Decimal -> Decimal
+aprToApy apr = expApprox apr - 1.0
+
+-- | Convert APY to APR.
+-- APR = ln(1 + APY)
+apyToApr : Decimal -> Decimal
+apyToApr apy = lnApprox apy
+
+-- ─── UNIFIED POOL APY ─────────────────────────────────────────────────────
+
+-- | Unified APY calculator.
+-- @param model Interest rate model configuration
+-- @param utilization Current utilization (0-1)
+-- @param isSupply True for supply side, False for borrow side
+-- @param tierDiscount Optional credit tier rate discount (0-1)
+calculatePoolAPY : InterestRateModel -> Decimal -> Bool -> Decimal -> Decimal
+calculatePoolAPY model utilization isSupply tierDiscount =
+  let apr = if isSupply
+            then calculateSupplyAPR model utilization
+            else
+              let base = calculateBorrowAPR model utilization
+              in if tierDiscount > 0.0
+                 then base * (1.0 - tierDiscount)
+                 else base
+  in aprToApy apr
+
+-- ─── PER-SECOND RATE ──────────────────────────────────────────────────────
+
+-- | Convert annual rate to per-second rate.
+annualToPerSecond : Decimal -> Decimal
+annualToPerSecond annualRate = annualRate / secondsPerYear
+
+-- ─── INTEREST ACCRUAL (Index-Based) ───────────────────────────────────────
+
+-- | Result of interest accrual computation
+data AccrualResult = AccrualResult
+  with
+    newBorrowIndex : Decimal
+    newSupplyIndex : Decimal
+    interestAccrued : Decimal
+    reserveAccrued : Decimal
+    newTotalBorrows : Decimal
+    newTotalReserves : Decimal
+  deriving (Eq, Show)
+
+-- | Accrue interest for a pool since last update.
+-- Uses index-based system for O(1) updates.
+accrueInterest : InterestRateModel -> Decimal -> Decimal -> Decimal -> Decimal -> Decimal -> Int -> Int -> AccrualResult
+accrueInterest model totalBorrows totalDeposits totalReserves borrowIndex supplyIndex lastAccrualTs currentTs =
+  let deltaTime = currentTs - lastAccrualTs
+  in if deltaTime <= 0
+     then AccrualResult with
+       newBorrowIndex = borrowIndex
+       newSupplyIndex = supplyIndex
+       interestAccrued = 0.0
+       reserveAccrued = 0.0
+       newTotalBorrows = totalBorrows
+       newTotalReserves = totalReserves
+     else
+       let utilization = calculateUtilization totalBorrows totalDeposits
+           borrowRatePerSec = annualToPerSecond (calculateBorrowAPR model utilization)
+           supplyRatePerSec = annualToPerSecond (calculateSupplyAPR model utilization)
+           dt = intToDecimal deltaTime
+           borrowInterestFactor = borrowRatePerSec * dt
+           supplyInterestFactor = supplyRatePerSec * dt
+           newBI = borrowIndex * (1.0 + borrowInterestFactor)
+           newSI = supplyIndex * (1.0 + supplyInterestFactor)
+           iAccrued = totalBorrows * borrowInterestFactor
+           rAccrued = iAccrued * model.reserveFactor
+       in AccrualResult with
+         newBorrowIndex = newBI
+         newSupplyIndex = newSI
+         interestAccrued = iAccrued
+         reserveAccrued = rAccrued
+         newTotalBorrows = totalBorrows + iAccrued
+         newTotalReserves = totalReserves + rAccrued
+
+-- ─── USER BALANCE COMPUTATION ─────────────────────────────────────────────
+
+-- | Calculate a user's current balance using index ratio.
+-- currentBalance = principal * (currentIndex / indexAtEntry)
+calculateCurrentBalance : Decimal -> Decimal -> Decimal -> Decimal
+calculateCurrentBalance principal indexAtEntry currentIndex
+  | indexAtEntry <= 0.0 = principal
+  | otherwise = principal * (currentIndex / indexAtEntry)
+
+-- | Calculate interest earned/owed since entry.
+calculateInterestDelta : Decimal -> Decimal -> Decimal -> Decimal
+calculateInterestDelta principal indexAtEntry currentIndex =
+  calculateCurrentBalance principal indexAtEntry currentIndex - principal
+
+-- ─── HEALTH FACTOR ────────────────────────────────────────────────────────
+
+-- | Single collateral position input
+data CollateralInput = CollateralInput
+  with
+    symbol : AssetSymbol
+    amount : Decimal
+    priceUSD : Decimal
+    ltv : Decimal
+    liqThreshold : Decimal
+    liqPenalty : Decimal
+    tier : CollateralTier
+  deriving (Eq, Show)
+
+-- | Single debt position input
+data DebtInput = DebtInput
+  with
+    symbol : AssetSymbol
+    amount : Decimal
+    priceUSD : Decimal
+  deriving (Eq, Show)
+
+-- | Calculate Health Factor for a multi-collateral position.
+-- HF = Σ(collateral_i × price_i × liqThreshold_i × tierHaircut_i) / Σ(debt_j × price_j)
+calculateHealthFactor : [CollateralInput] -> [DebtInput] -> HealthFactorInfo
+calculateHealthFactor collaterals debts =
+  let collateralValueUSD = foldl (\acc c -> acc + c.amount * c.priceUSD) 0.0 collaterals
+      weightedCollateralUSD = foldl (\acc c ->
+        let haircut = getCollateralHaircut c.tier
+        in acc + c.amount * c.priceUSD * c.liqThreshold * haircut
+        ) 0.0 collaterals
+      borrowValueUSD = foldl (\acc d -> acc + d.amount * d.priceUSD) 0.0 debts
+      hfValue = if borrowValueUSD <= 0.0 then 999999.0  -- Infinity proxy
+                else weightedCollateralUSD / borrowValueUSD
+      wLTV = if collateralValueUSD > 0.0
+             then borrowValueUSD / collateralValueUSD
+             else 0.0
+      status = classifyHealthFactor hfValue
+  in HealthFactorInfo with
+    value = hfValue
+    collateralValueUSD
+    weightedCollateralUSD
+    borrowValueUSD
+    weightedLTV = wLTV
+    status
+
+-- | Simple health factor (legacy): weightedCollateral / borrowValue
+calculateSimpleHF : Decimal -> Decimal -> Decimal -> Decimal
+calculateSimpleHF collateralValueUSD liquidationThreshold borrowValueUSD
+  | borrowValueUSD <= 0.0 = 999999.0
+  | otherwise = (collateralValueUSD * liquidationThreshold) / borrowValueUSD
+
+-- ─── MAXIMUM BORROWABLE ──────────────────────────────────────────────────
+
+-- | Calculate maximum additional amount a user can borrow (in USD).
+-- Accounts for existing debts, credit tier limits, and collateral tier haircuts.
+calculateMaxBorrowable : [CollateralInput] -> [DebtInput] -> Decimal -> Decimal
+calculateMaxBorrowable collaterals existingDebts tierMaxLTV =
+  let maxBorrowCapacity = foldl (\acc c ->
+        let effectiveLTV = min c.ltv tierMaxLTV
+            haircut = getCollateralHaircut c.tier
+        in acc + c.amount * c.priceUSD * effectiveLTV * haircut
+        ) 0.0 collaterals
+      existingDebtUSD = foldl (\acc d -> acc + d.amount * d.priceUSD) 0.0 existingDebts
+  in max 0.0 (maxBorrowCapacity - existingDebtUSD)
+
+-- ─── WEIGHTED LTV ─────────────────────────────────────────────────────────
+
+-- | Calculate weighted LTV ratio.
+calculateWeightedLTV : Decimal -> Decimal -> Decimal
+calculateWeightedLTV totalBorrowUSD totalCollateralUSD
+  | totalCollateralUSD <= 0.0 = 0.0
+  | otherwise = totalBorrowUSD / totalCollateralUSD
+
+-- ─── LIQUIDATION ─────────────────────────────────────────────────────────
+
+-- | Result of liquidation calculation
+data LiquidationCalcResult = LiquidationCalcResult
+  with
+    isLiquidatable : Bool
+    maxDebtToRepay : Decimal
+    collateralToSeize : Decimal
+    liquidatorProfit : Decimal
+    protocolFee : Decimal
+  deriving (Eq, Show)
+
+-- | Calculate liquidation parameters for an underwater position.
+calculateLiquidation : CollateralInput -> Decimal -> Decimal -> Decimal -> Decimal -> LiquidationCalcResult
+calculateLiquidation collateral debtToRepay debtPriceUSD totalDebtUSD healthFactor
+  | healthFactor >= 1.0 = LiquidationCalcResult with
+      isLiquidatable = False
+      maxDebtToRepay = 0.0
+      collateralToSeize = 0.0
+      liquidatorProfit = 0.0
+      protocolFee = 0.0
+  | otherwise =
+      let closeFactor = if healthFactor < criticalHFThreshold
+                        then closeFactorCritical
+                        else closeFactorNormal
+          maxDebt = totalDebtUSD * closeFactor / debtPriceUSD
+          actualDebt = min debtToRepay maxDebt
+          debtRepaidUSD = actualDebt * debtPriceUSD
+          collateralSeizedUSD = debtRepaidUSD * (1.0 + collateral.liqPenalty)
+          seizedAmount = collateralSeizedUSD / collateral.priceUSD
+          totalPenalty = debtRepaidUSD * collateral.liqPenalty
+          liqProfit = totalPenalty * reserveSplitLiquidator
+          protoFee = totalPenalty * reserveSplitProtocol
+      in LiquidationCalcResult with
+        isLiquidatable = True
+        maxDebtToRepay = maxDebt
+        collateralToSeize = seizedAmount
+        liquidatorProfit = liqProfit
+        protocolFee = protoFee
+
+-- ─── LIQUIDATION PRICE ───────────────────────────────────────────────────
+
+-- | Calculate the price at which HF drops to 1.0 for a given collateral.
+calculateLiquidationPrice : Decimal -> Decimal -> Decimal -> Decimal -> Decimal
+calculateLiquidationPrice borrowValueUSD collateralAmount liquidationThreshold otherCollateralWeightedValue
+  | collateralAmount <= 0.0 || liquidationThreshold <= 0.0 = 0.0
+  | otherwise = (borrowValueUSD - otherCollateralWeightedValue) / (collateralAmount * liquidationThreshold)
+
+-- ─── CREDIT SCORE ────────────────────────────────────────────────────────
+
+-- | Calculate on-chain credit score based on protocol activity.
+calculateCreditScore : Int -> Int -> Int -> Int -> Decimal -> Decimal -> Int -> Int
+calculateCreditScore loansCompleted loansDefaulted onTimeRepayments lateRepayments totalVolumeRepaid lowestHF secLendingDeals =
+  let totalLoans = loansCompleted + loansDefaulted
+      completionScore = if totalLoans > 0
+                        then (intToDecimal loansCompleted / intToDecimal totalLoans) * 300.0
+                        else 0.0
+      totalRepayments = onTimeRepayments + lateRepayments
+      timelinessScore = if totalRepayments > 0
+                        then (intToDecimal onTimeRepayments / intToDecimal totalRepayments) * 250.0
+                        else 0.0
+      -- Approximate log10 with simplified tiers
+      volumeScore = min 200.0 (approximateLog10 (totalVolumeRepaid + 1.0) * 40.0)
+      healthScore = if lowestHF >= 1.5 then 150.0
+                    else if lowestHF >= 1.2 then 100.0
+                    else if lowestHF >= 1.0 then 50.0
+                    else 0.0
+      secScore = min 100.0 (intToDecimal secLendingDeals * 10.0)
+      total = completionScore + timelinessScore + volumeScore + healthScore + secScore
+  in truncate total
+
+-- | Simple log10 approximation for credit score calculation
+-- Uses: log10(x) ≈ number of digits - 1 + fractional part
+approximateLog10 : Decimal -> Decimal
+approximateLog10 x
+  | x <= 1.0    = 0.0
+  | x <= 10.0   = x / 10.0
+  | x <= 100.0  = 1.0 + (x - 10.0) / 90.0
+  | x <= 1000.0 = 2.0 + (x - 100.0) / 900.0
+  | x <= 10000.0 = 3.0 + (x - 1000.0) / 9000.0
+  | x <= 100000.0 = 4.0 + (x - 10000.0) / 90000.0
+  | x <= 1000000.0 = 5.0 + (x - 100000.0) / 900000.0
+  | otherwise = 6.0
+
+-- ─── HELPERS ──────────────────────────────────────────────────────────────
+
+-- | Convert Int to Decimal
+intToDecimal : Int -> Decimal
+intToDecimal n = fromIntegerToDecimal (toInteger n)
+
+-- | Convert Integer to Decimal
+fromIntegerToDecimal : Integer -> Decimal
+fromIntegerToDecimal n = intToDecimal' n
+  where
+    intToDecimal' : Integer -> Decimal
+    intToDecimal' 0 = 0.0
+    intToDecimal' i = if i > 0
+                      then intToDecimal' (i - 1) + 1.0
+                      else intToDecimal' (i + 1) - 1.0
+
+-- | Truncate Decimal to Int (floor)
+truncate : Decimal -> Int
+truncate d = if d >= 0.0
+             then truncatePositive d 0
+             else negate (truncatePositive (negate d) 0)
+  where
+    truncatePositive : Decimal -> Int -> Int
+    truncatePositive remaining acc
+      | remaining < 1.0 = acc
+      | otherwise = truncatePositive (remaining - 1.0) (acc + 1)

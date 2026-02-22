@@ -1,0 +1,193 @@
+-- ============================================================================
+-- DUALIS FINANCE — Liquidation Engine Test Suite
+-- ============================================================================
+
+module Test.LiquidationTest where
+
+import Dualis.Types
+import Dualis.Lending.Math
+import Dualis.Liquidation.Engine
+
+-- ─── Create Liquidation Trigger Test ───────────────────────────────────────
+
+testCreateLiquidationTrigger : Script ()
+testCreateLiquidationTrigger = script do
+  operator <- allocateParty "Operator"
+
+  triggerCid <- submit operator do
+    createCmd LiquidationTrigger with
+      operator
+      triggerData = LiquidationTriggerData with
+        positionId = "borrow-pos-001"
+        borrower = "party::alice"
+        poolId = "usdc-main"
+        healthFactor = 0.85
+        collateralValueUSD = 25000.0
+        borrowValueUSD = 30000.0
+        tier = Gold
+        triggeredAt = "2026-02-15T10:00:00Z"
+      isProcessed = False
+
+  trigger <- queryContractId operator triggerCid
+  case trigger of
+    Some t -> do
+      assertMsg "Position ID matches" (t.triggerData.positionId == "borrow-pos-001")
+      assertMsg "HF is 0.85" (t.triggerData.healthFactor == 0.85)
+      assertMsg "Not processed" (not t.isProcessed)
+    None -> abort "Trigger not found"
+
+-- ─── Execute Liquidation Test ──────────────────────────────────────────────
+
+testExecuteLiquidation : Script ()
+testExecuteLiquidation = script do
+  operator <- allocateParty "Operator"
+  liquidator <- allocateParty "Liquidator"
+
+  triggerCid <- submit operator do
+    createCmd LiquidationTrigger with
+      operator
+      triggerData = LiquidationTriggerData with
+        positionId = "borrow-pos-001"
+        borrower = "party::alice"
+        poolId = "usdc-main"
+        healthFactor = 0.85
+        collateralValueUSD = 25000.0
+        borrowValueUSD = 30000.0
+        tier = Gold
+        triggeredAt = "2026-02-15T10:00:00Z"
+      isProcessed = False
+
+  -- Liquidator executes liquidation
+  resultCid <- submit liquidator do
+    exerciseCmd triggerCid ExecuteLiquidation with
+      liquidator
+      debtAsset = "USDC"
+      debtAmount = 10000.0
+      debtPriceUSD = 1.0
+      collateralAsset = "ETH"
+      collateralPriceUSD = 3000.0
+      collateralLiqPenalty = 0.05
+      executionTime = "2026-02-15T10:01:00Z"
+
+  result <- queryContractId operator resultCid
+  case result of
+    Some r -> do
+      assertMsg "Debt repaid should be positive" (r.debtRepaid > 0.0)
+      assertMsg "Collateral seized should be positive" (r.collateralSeized > 0.0)
+      assertMsg "Liquidator profit should be positive" (r.liquidatorProfit > 0.0)
+      assertMsg "Protocol fee should be positive" (r.protocolFee > 0.0)
+    None -> abort "Liquidation result not found"
+
+-- ─── Cancel Trigger Test ───────────────────────────────────────────────────
+
+testCancelTrigger : Script ()
+testCancelTrigger = script do
+  operator <- allocateParty "Operator"
+
+  triggerCid <- submit operator do
+    createCmd LiquidationTrigger with
+      operator
+      triggerData = LiquidationTriggerData with
+        positionId = "borrow-pos-002"
+        borrower = "party::bob"
+        poolId = "eth-main"
+        healthFactor = 0.95
+        collateralValueUSD = 40000.0
+        borrowValueUSD = 42000.0
+        tier = Silver
+        triggeredAt = "2026-02-15T10:00:00Z"
+      isProcessed = False
+
+  -- HF recovered — cancel the trigger
+  submit operator do
+    exerciseCmd triggerCid CancelTrigger
+
+  -- Trigger should be archived
+  triggerOpt <- queryContractId operator triggerCid
+  case triggerOpt of
+    Some _ -> abort "Trigger should have been archived"
+    None -> pure ()
+
+-- ─── Flash Liquidation Test ────────────────────────────────────────────────
+
+testFlashLiquidation : Script ()
+testFlashLiquidation = script do
+  operator <- allocateParty "Operator"
+  liquidator <- allocateParty "Liquidator"
+
+  flashCid <- submit operator do
+    createCmd FlashLiquidation with
+      operator
+      liquidator
+      flashId = "flash-001"
+      targetPositionId = "borrow-pos-001"
+      debtAsset = "USDC"
+      debtAmount = 15000.0
+      collateralAsset = "ETH"
+      flashLoanFee = 13.5  -- 0.0009 * 15000
+      status = "Pending"
+      createdAt = "2026-02-15T10:00:00Z"
+
+  -- Execute the flash liquidation
+  completedCid <- submit operator do
+    exerciseCmd flashCid ExecuteFlashLiquidation with
+      collateralReceived = 5.25
+      profit = 350.0
+      executionTime = "2026-02-15T10:00:01Z"
+
+  flash <- queryContractId operator completedCid
+  case flash of
+    Some f -> assertMsg "Status should be Completed" (f.status == "Completed")
+    None -> abort "Flash liquidation not found"
+
+-- ─── Batch Liquidation Test ────────────────────────────────────────────────
+
+testBatchLiquidation : Script ()
+testBatchLiquidation = script do
+  operator <- allocateParty "Operator"
+
+  batchCid <- submit operator do
+    createCmd BatchLiquidation with
+      operator
+      batchId = "batch-001"
+      positionIds = ["pos-001", "pos-002", "pos-003"]
+      processedCount = 0
+      totalDebtRepaid = 0.0
+      totalCollateralSeized = 0.0
+      totalProtocolFee = 0.0
+      status = "Pending"
+      createdAt = "2026-02-15T10:00:00Z"
+      lastUpdated = "2026-02-15T10:00:00Z"
+
+  -- Process first item
+  batch2Cid <- submit operator do
+    exerciseCmd batchCid ProcessBatchItem with
+      debtRepaid = 5000.0
+      collateralSeized = 1.8
+      protocolFee = 25.0
+      updateTime = "2026-02-15T10:00:01Z"
+
+  -- Process second item
+  batch3Cid <- submit operator do
+    exerciseCmd batch2Cid ProcessBatchItem with
+      debtRepaid = 8000.0
+      collateralSeized = 2.9
+      protocolFee = 40.0
+      updateTime = "2026-02-15T10:00:02Z"
+
+  -- Process third (last) item
+  batch4Cid <- submit operator do
+    exerciseCmd batch3Cid ProcessBatchItem with
+      debtRepaid = 3000.0
+      collateralSeized = 1.1
+      protocolFee = 15.0
+      updateTime = "2026-02-15T10:00:03Z"
+
+  batch <- queryContractId operator batch4Cid
+  case batch of
+    Some b -> do
+      assertMsg "All 3 processed" (b.processedCount == 3)
+      assertMsg "Status should be Completed" (b.status == "Completed")
+      assertMsg "Total debt repaid = 16000" (b.totalDebtRepaid == 16000.0)
+      assertMsg "Total protocol fee = 80" (b.totalProtocolFee == 80.0)
+    None -> abort "Batch not found"

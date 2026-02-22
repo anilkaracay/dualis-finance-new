@@ -1,0 +1,296 @@
+-- ============================================================================
+-- DUALIS FINANCE — Full Integration Test
+-- ============================================================================
+-- End-to-end scenario testing the complete lending lifecycle:
+-- Setup → Deposit → Borrow → Accrue Interest → Price Drop → Liquidation
+-- ============================================================================
+
+module Test.IntegrationTest where
+
+import Dualis.Types
+import Dualis.Lending.Math
+import Dualis.Core.Config
+import Dualis.Lending.Pool
+import Dualis.Lending.Borrow
+import Dualis.Lending.Collateral
+import Dualis.Liquidation.Engine
+import Dualis.Oracle.PriceFeed
+import Dualis.Credit.CompositeScore
+
+-- ─── Full Lending Lifecycle ────────────────────────────────────────────────
+
+testFullLendingLifecycle : Script ()
+testFullLendingLifecycle = script do
+  -- Step 0: Setup parties
+  operator <- allocateParty "Operator"
+  alice <- allocateParty "Alice"       -- Supplier
+  bob <- allocateParty "Bob"           -- Borrower
+  liquidator <- allocateParty "Liquidator"
+
+  -- Step 1: Create protocol config
+  configCid <- submit operator do
+    createCmd ProtocolConfig with
+      operator
+      protocolParams = defaultProtocolParams
+      supportedAssets = []
+      version = "2.0.0"
+      lastUpdated = "2026-01-01T00:00:00Z"
+
+  -- Step 2: Create USDC lending pool
+  let usdcAsset = AssetInfo with
+        symbol = "USDC"; instrumentType = Stablecoin
+        priceUSD = 1.0; decimals = 6
+  let usdcModel = InterestRateModel with
+        modelType = VariableRate
+        baseRate = 0.02; multiplier = 0.05; kink = 0.80
+        jumpMultiplier = 0.50; reserveFactor = 0.10
+  let usdcCollParams = CollateralParams with
+        loanToValue = 0.85; liquidationThreshold = 0.90
+        liquidationPenalty = 0.03; borrowCap = None
+        supplyCap = Some 500000000.0
+        isCollateralEnabled = True; isBorrowEnabled = True
+        collateralTier = CryptoTier
+
+  poolCid <- submit operator do
+    createCmd LendingPool with
+      operator; poolId = "usdc-main"; asset = usdcAsset
+      rateModel = usdcModel; collateralParams = usdcCollParams
+      totalSupply = 0.0; totalBorrow = 0.0; totalReserves = 0.0
+      accrual = AccrualState with borrowIndex = 1.0; supplyIndex = 1.0; lastAccrualTs = 1000000
+      isActive = True; contractRef = "canton::pool::usdc-main::001"
+
+  -- Step 3: Alice deposits 100,000 USDC
+  (pool2Cid, aliceSupplyCid) <- submit alice do
+    exerciseCmd poolCid Deposit with
+      depositor = alice; amount = 100000.0
+      depositTime = "2026-01-15T10:00:00Z"
+
+  pool2 <- queryContractId operator pool2Cid
+  case pool2 of
+    Some p -> assertMsg "Pool supply = 100000" (p.totalSupply == 100000.0)
+    None -> abort "Pool not found after Alice deposit"
+
+  -- Step 4: Create Bob's credit score (Gold tier)
+  bobScoreCid <- submit operator do
+    createCmd CompositeCredit with
+      operator; owner = bob
+      compositeScore = 720; tier = Gold
+      layers = ScoreLayer with
+        onChainScore = 300; onChainMax = 400
+        offChainScore = 250; offChainMax = 350
+        ecosystemScore = 170; ecosystemMax = 250
+      onChainDetail = OnChainBreakdown with
+        loanCompletion = 120; repaymentSpeed = 80; collateralHealth = 60
+        protocolHistory = 20; secLendingRecord = 20; total = 300
+      offChainDetail = OffChainBreakdown with
+        creditBureauScore = 120; incomeVerification = 70
+        businessVerification = 30; kycCompletion = 30; total = 250
+      ecosystemDetail = EcosystemBreakdown with
+        tifaPerformance = 80; crossProtocolRefs = 50; governanceStaking = 40; total = 170
+      benefits = getTierParams Gold
+      lastCalculated = "2026-01-15T10:00:00Z"
+
+  -- Step 5: Create ETH price feed
+  ethPriceCid <- submit operator do
+    createCmd PriceFeed with
+      operator; asset = "ETH"; aggregatedPrice = 3000.0
+      sources = [
+        PriceSourceEntry with source = Chainlink; priceUSD = 3000.0
+          timestamp = "2026-01-15T10:00:00Z"; confidence = 0.99; isActive = True,
+        PriceSourceEntry with source = Pyth; priceUSD = 3000.0
+          timestamp = "2026-01-15T10:00:00Z"; confidence = 0.98; isActive = True
+        ]
+      lastUpdated = "2026-01-15T10:00:00Z"
+      maxStaleness = 300; minSources = 2; isValid = True
+
+  -- Step 6: Bob posts ETH collateral
+  bobVaultCid <- submit operator do
+    createCmd CollateralVault with
+      operator; owner = bob; vaultId = "vault-bob-001"
+      borrowPositionId = "borrow-bob-001"
+      entries = [CollateralEntry with
+        symbol = "ETH"; amount = 10.0; priceUSD = 3000.0
+        collateralTier = CryptoTier; loanToValue = 0.75
+        liquidationThreshold = 0.82; liquidationPenalty = 0.05
+        depositTime = "2026-01-15T10:00:00Z"]
+      totalValueUSD = 30000.0
+      weightedValueUSD = 24600.0  -- 10 * 3000 * 0.82 * 1.0
+      createdAt = "2026-01-15T10:00:00Z"
+      lastUpdated = "2026-01-15T10:00:00Z"
+
+  -- Step 7: Bob borrows 15,000 USDC (using Gold tier params)
+  -- First check max borrowable
+  let collInputs = [CollateralInput with
+        symbol = "ETH"; amount = 10.0; priceUSD = 3000.0
+        ltv = 0.75; liqThreshold = 0.82; liqPenalty = 0.05; tier = CryptoTier]
+  let maxBorrow = calculateMaxBorrowable collInputs [] 0.78  -- Gold maxLTV
+  assertMsg "Max borrowable should be >= 15000" (maxBorrow >= 15000.0)
+
+  -- Check projected HF
+  let debtInputs = [DebtInput with symbol = "USDC"; amount = 15000.0; priceUSD = 1.0]
+  let projectedHF = calculateHealthFactor collInputs debtInputs
+  assertMsg "Projected HF should be > 1.2" (projectedHF.value > 1.2)
+
+  -- Record borrow in pool
+  pool3Cid <- submit operator do
+    exerciseCmd pool2Cid RecordBorrow with borrowAmount = 15000.0
+
+  -- Create borrow position
+  borrowCid <- submit operator do
+    createCmd BorrowPosition with
+      operator; borrower = bob
+      positionId = "borrow-bob-001"; poolId = "usdc-main"
+      borrowedAsset = usdcAsset
+      borrowedAmountPrincipal = 15000.0; borrowIndexAtEntry = 1.0
+      collateralRefs = [CollateralRef with
+        vaultId = "vault-bob-001"; symbol = "ETH"; amount = 10.0; valueUSD = 30000.0]
+      creditTier = Gold; tierParams = getTierParams Gold
+      lastHealthFactor = projectedHF
+      borrowTimestamp = "2026-01-15T10:00:00Z"
+      lastUpdateTimestamp = "2026-01-15T10:00:00Z"
+      isActive = True; isLiquidatable = False
+
+  -- Step 8: Time passes — accrue interest (7 days)
+  pool4Cid <- submit operator do
+    exerciseCmd pool3Cid AccrueInterest with
+      currentTs = 1000000 + (7 * 86400)  -- 7 days later
+
+  pool4 <- queryContractId operator pool4Cid
+  case pool4 of
+    Some p -> do
+      assertMsg "Borrow index grew" (p.accrual.borrowIndex > 1.0)
+      assertMsg "Supply index grew" (p.accrual.supplyIndex > 1.0)
+    None -> abort "Pool not found after accrual"
+
+  -- Step 9: ETH price drops dramatically
+  ethPrice2Cid <- submit operator do
+    exerciseCmd ethPriceCid BatchUpdatePrices with
+      newSources = [
+        PriceSourceEntry with source = Chainlink; priceUSD = 1500.0
+          timestamp = "2026-01-22T10:00:00Z"; confidence = 0.99; isActive = True,
+        PriceSourceEntry with source = Pyth; priceUSD = 1500.0
+          timestamp = "2026-01-22T10:00:00Z"; confidence = 0.98; isActive = True
+        ]
+      updateTime = "2026-01-22T10:00:00Z"
+
+  -- Step 10: Recalculate Bob's HF with new prices
+  let newCollInputs = [CollateralInput with
+        symbol = "ETH"; amount = 10.0; priceUSD = 1500.0  -- Price dropped!
+        ltv = 0.75; liqThreshold = 0.82; liqPenalty = 0.05; tier = CryptoTier]
+  let newHF = calculateHealthFactor newCollInputs debtInputs
+  -- Weighted: 10 * 1500 * 0.82 * 1.0 = 12300 / 15000 = 0.82
+  assertMsg "HF should be < 1.0 after price drop" (newHF.value < 1.0)
+  assertMsg "Position should be liquidatable" (newHF.status == HFLiquidatable)
+
+  -- Update borrow position HF
+  borrow2Cid <- submit operator do
+    exerciseCmd borrowCid UpdateHealthFactor with
+      newHealthFactor = newHF
+      updateTime = "2026-01-22T10:00:00Z"
+
+  -- Step 11: Create liquidation trigger
+  liqTriggerCid <- submit operator do
+    createCmd LiquidationTrigger with
+      operator
+      triggerData = LiquidationTriggerData with
+        positionId = "borrow-bob-001"
+        borrower = show bob
+        poolId = "usdc-main"
+        healthFactor = newHF.value
+        collateralValueUSD = 15000.0   -- 10 * 1500
+        borrowValueUSD = 15000.0
+        tier = Gold
+        triggeredAt = "2026-01-22T10:00:00Z"
+      isProcessed = False
+
+  -- Step 12: Liquidator executes liquidation
+  liqResultCid <- submit liquidator do
+    exerciseCmd liqTriggerCid ExecuteLiquidation with
+      liquidator
+      debtAsset = "USDC"
+      debtAmount = 7500.0            -- 50% close factor
+      debtPriceUSD = 1.0
+      collateralAsset = "ETH"
+      collateralPriceUSD = 1500.0
+      collateralLiqPenalty = 0.05
+      executionTime = "2026-01-22T10:01:00Z"
+
+  liqResult <- queryContractId operator liqResultCid
+  case liqResult of
+    Some r -> do
+      assertMsg "Debt repaid > 0" (r.debtRepaid > 0.0)
+      assertMsg "Collateral seized > 0" (r.collateralSeized > 0.0)
+      assertMsg "Liquidator profited" (r.liquidatorProfit > 0.0)
+      assertMsg "Protocol earned fee" (r.protocolFee > 0.0)
+    None -> abort "Liquidation result not found"
+
+  -- Step 13: Check Alice's supply position earned interest
+  aliceBalance <- submit alice do
+    exerciseCmd aliceSupplyCid GetCurrentBalance with
+      currentSupplyIndex = 1.0001  -- Small growth from accrual
+
+  assertMsg "Alice should have earned interest" (aliceBalance > 100000.0)
+
+  -- Integration test complete!
+  pure ()
+
+-- ─── Multi-Pool Scenario ──────────────────────────────────────────────────
+
+testMultiPoolScenario : Script ()
+testMultiPoolScenario = script do
+  operator <- allocateParty "Operator"
+
+  let ethAsset = AssetInfo with symbol = "ETH"; instrumentType = CryptoCurrency; priceUSD = 3000.0; decimals = 18
+  let wbtcAsset = AssetInfo with symbol = "wBTC"; instrumentType = CryptoCurrency; priceUSD = 62000.0; decimals = 8
+  let ethModel = InterestRateModel with modelType = VariableRate; baseRate = 0.01; multiplier = 0.04; kink = 0.75; jumpMultiplier = 0.60; reserveFactor = 0.15
+  let wbtcModel = InterestRateModel with modelType = VariableRate; baseRate = 0.005; multiplier = 0.03; kink = 0.65; jumpMultiplier = 0.80; reserveFactor = 0.20
+  let defaultColl = CollateralParams with loanToValue = 0.75; liquidationThreshold = 0.82; liquidationPenalty = 0.05; borrowCap = None; supplyCap = None; isCollateralEnabled = True; isBorrowEnabled = True; collateralTier = CryptoTier
+
+  -- Create two pools
+  ethPoolCid <- submit operator do
+    createCmd LendingPool with
+      operator; poolId = "eth-main"; asset = ethAsset; rateModel = ethModel
+      collateralParams = defaultColl; totalSupply = 45000.0; totalBorrow = 28000.0
+      totalReserves = 300.0
+      accrual = AccrualState with borrowIndex = 1.0; supplyIndex = 1.0; lastAccrualTs = 1000000
+      isActive = True; contractRef = "canton::pool::eth-main::001"
+
+  wbtcPoolCid <- submit operator do
+    createCmd LendingPool with
+      operator; poolId = "wbtc-main"; asset = wbtcAsset; rateModel = wbtcModel
+      collateralParams = defaultColl; totalSupply = 1800.0; totalBorrow = 900.0
+      totalReserves = 12.0
+      accrual = AccrualState with borrowIndex = 1.0; supplyIndex = 1.0; lastAccrualTs = 1000000
+      isActive = True; contractRef = "canton::pool::wbtc-main::002"
+
+  -- Get metrics for both pools
+  (ethUtil, ethSAPY, ethBAPY) <- submit operator do
+    exerciseCmd ethPoolCid GetPoolMetrics
+  (wbtcUtil, wbtcSAPY, wbtcBAPY) <- submit operator do
+    exerciseCmd wbtcPoolCid GetPoolMetrics
+
+  -- Verify utilization calculations
+  -- ETH: 28000/45000 ≈ 0.622
+  assertMsg "ETH utilization should be ~0.622" (ethUtil > 0.6 && ethUtil < 0.65)
+  -- wBTC: 900/1800 = 0.5
+  assertMsg "wBTC utilization should be 0.5" (wbtcUtil == 0.5)
+
+  -- Higher utilization → higher rates
+  assertMsg "ETH borrow APY > wBTC borrow APY" (ethBAPY > wbtcBAPY)
+
+  -- Accrue interest on both pools (1 day)
+  ethPool2Cid <- submit operator do
+    exerciseCmd ethPoolCid AccrueInterest with currentTs = 1000000 + 86400
+  wbtcPool2Cid <- submit operator do
+    exerciseCmd wbtcPoolCid AccrueInterest with currentTs = 1000000 + 86400
+
+  ethPool2 <- queryContractId operator ethPool2Cid
+  wbtcPool2 <- queryContractId operator wbtcPool2Cid
+
+  case (ethPool2, wbtcPool2) of
+    (Some ep, Some wp) -> do
+      assertMsg "ETH borrows grew" (ep.totalBorrow > 28000.0)
+      assertMsg "wBTC borrows grew" (wp.totalBorrow > 900.0)
+    _ -> abort "Pools not found after accrual"
+
+  pure ()

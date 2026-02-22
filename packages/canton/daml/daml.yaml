@@ -9,6 +9,8 @@ parties:
   - Carol
   - Dave
   - Eve
+  - Liquidator
+  - Oracle
 dependencies:
   - daml-prim
   - daml-stdlib

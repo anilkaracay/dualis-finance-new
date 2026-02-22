@@ -1,0 +1,109 @@
+-- ============================================================================
+-- DUALIS FINANCE — Liquidation Scanner Trigger
+-- ============================================================================
+-- Periodically scans all borrow positions for liquidation eligibility.
+-- Creates LiquidationTrigger contracts for underwater positions.
+-- ============================================================================
+
+module Dualis.Trigger.LiquidationScanner where
+
+import Dualis.Types
+import Dualis.Lending.Math
+
+-- ─── Scanner Configuration ─────────────────────────────────────────────────
+
+data ScannerConfig = ScannerConfig
+  with
+    scanIntervalSeconds : Int     -- How often to scan (default: 30)
+    warningThreshold : Decimal    -- HF below which a warning is issued (1.2)
+    liquidationThreshold : Decimal -- HF below which liquidation triggers (1.0)
+    isEnabled : Bool
+  deriving (Eq, Show)
+
+-- ─── Position Scan Result ──────────────────────────────────────────────────
+
+data ScanResult = ScanResult
+  with
+    positionId : PositionId
+    healthFactor : Decimal
+    status : Text               -- "safe" | "warning" | "liquidatable"
+  deriving (Eq, Show)
+
+-- ─── Liquidation Scanner Template ──────────────────────────────────────────
+
+template LiquidationScanner
+  with
+    operator : Party
+    scannerId : Text
+    config : ScannerConfig
+    lastScanTimestamp : Int        -- Unix seconds
+    totalScans : Int
+    positionsScanned : Int
+    liquidationsTriggered : Int
+    warningsIssued : Int
+    lastScanResults : [ScanResult]
+  where
+    signatory operator
+
+    key (operator, scannerId) : (Party, Text)
+    maintainer key._1
+
+    -- | Execute a scan cycle
+    choice RunScan : ContractId LiquidationScanner
+      with
+        currentTs : Int
+        scanResults : [ScanResult]  -- Pre-computed scan results from backend
+      controller operator
+      do
+        assertMsg "Scanner is disabled" this.config.isEnabled
+
+        let elapsed = currentTs - this.lastScanTimestamp
+        assertMsg "Scan interval not reached"
+          (elapsed >= this.config.scanIntervalSeconds)
+
+        let newLiquidations = length (filter (\r -> r.status == "liquidatable") scanResults)
+        let newWarnings = length (filter (\r -> r.status == "warning") scanResults)
+
+        create this with
+          lastScanTimestamp = currentTs
+          totalScans = this.totalScans + 1
+          positionsScanned = length scanResults
+          liquidationsTriggered = this.liquidationsTriggered + newLiquidations
+          warningsIssued = this.warningsIssued + newWarnings
+          lastScanResults = scanResults
+
+    -- | Update scanner configuration
+    choice UpdateScannerConfig : ContractId LiquidationScanner
+      with
+        newConfig : ScannerConfig
+      controller operator
+      do create this with config = newConfig
+
+    -- | Enable/disable the scanner
+    choice SetScannerEnabled : ContractId LiquidationScanner
+      with
+        enabled : Bool
+      controller operator
+      do create this with
+          config = this.config with isEnabled = enabled
+
+    -- | Non-consuming: check if scan is due
+    nonconsuming choice IsScanDue : Bool
+      with
+        currentTs : Int
+      controller operator
+      do
+        let elapsed = currentTs - this.lastScanTimestamp
+        return (this.config.isEnabled && elapsed >= this.config.scanIntervalSeconds)
+
+    -- | Non-consuming: classify a health factor
+    nonconsuming choice ClassifyPosition : Text
+      with
+        healthFactor : Decimal
+      controller operator
+      do
+        if healthFactor < this.config.liquidationThreshold
+          then return "liquidatable"
+          else if healthFactor < this.config.warningThreshold
+               then return "warning"
+               else return "safe"
