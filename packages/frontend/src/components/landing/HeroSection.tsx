@@ -3,7 +3,7 @@
 import { useRef, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { HERO, TRUST_PARTNERS } from '@/lib/landing-data';
+import { HERO } from '@/lib/landing-data';
 import { GradientText } from './shared/GradientText';
 import { CountUpNumber } from './shared/CountUpNumber';
 import { NoiseOverlay } from './shared/NoiseOverlay';
@@ -169,7 +169,7 @@ export function HeroSection() {
         {/* CTA buttons */}
         <div ref={ctaRef} className="flex flex-col sm:flex-row items-center gap-4 mb-16">
           <Link
-            href="/overview"
+            href="/auth"
             className="lp-btn-primary px-8 py-4 text-base font-jakarta font-semibold inline-flex items-center gap-2 min-w-[200px] justify-center"
           >
             {HERO.ctaPrimary}
@@ -199,19 +199,57 @@ export function HeroSection() {
 
         {/* Trust bar */}
         <div ref={trustRef} className="flex flex-col items-center gap-6">
-          {/* Partner chips */}
-          <div className="flex flex-wrap items-center justify-center gap-3">
-            {TRUST_PARTNERS.map((partner) => (
-              <div
-                key={partner.abbr}
-                className="px-4 py-2 rounded-lg border border-[var(--lp-border)] bg-[var(--lp-glass)] backdrop-blur-sm"
-                title={partner.name}
-              >
-                <span className="font-jakarta text-xs font-medium text-[var(--lp-text-tertiary)] tracking-wider">
-                  {partner.abbr}
-                </span>
-              </div>
-            ))}
+          {/* Partner logos — monochrome wordmarks */}
+          <div className="flex flex-wrap items-center justify-center gap-7 md:gap-10">
+            {/* Goldman Sachs — serif wordmark */}
+            <span
+              className="text-[var(--lp-text-primary)] opacity-[0.35] hover:opacity-60 transition-opacity duration-300 cursor-default select-none font-serif text-[13px] tracking-[0.18em]"
+              title="Goldman Sachs"
+            >
+              GOLDMAN SACHS
+            </span>
+
+            {/* DTCC — bold sans wordmark */}
+            <span
+              className="text-[var(--lp-text-primary)] opacity-[0.35] hover:opacity-60 transition-opacity duration-300 cursor-default select-none font-jakarta text-[15px] font-bold tracking-[0.22em]"
+              title="DTCC"
+            >
+              DTCC
+            </span>
+
+            {/* BNP Paribas — stars mark + wordmark */}
+            <span
+              className="inline-flex items-center gap-1.5 text-[var(--lp-text-primary)] opacity-[0.35] hover:opacity-60 transition-opacity duration-300 cursor-default select-none"
+              title="BNP Paribas"
+            >
+              <svg width="16" height="14" viewBox="0 0 20 18" fill="currentColor" aria-hidden="true">
+                <circle cx="4" cy="14" r="1.8" />
+                <circle cx="8.5" cy="9" r="1.8" />
+                <circle cx="13" cy="5.5" r="1.8" />
+                <circle cx="17.5" cy="9" r="1.8" />
+              </svg>
+              <span className="font-jakarta text-[13px] font-semibold tracking-[0.1em]">BNP PARIBAS</span>
+            </span>
+
+            {/* HSBC — hexagonal mark + wordmark */}
+            <span
+              className="inline-flex items-center gap-1.5 text-[var(--lp-text-primary)] opacity-[0.35] hover:opacity-60 transition-opacity duration-300 cursor-default select-none"
+              title="HSBC"
+            >
+              <svg width="20" height="16" viewBox="0 0 34 26" fill="currentColor" aria-hidden="true">
+                <polygon points="0,0 17,13 0,26" />
+                <polygon points="34,0 17,13 34,26" />
+              </svg>
+              <span className="font-jakarta text-[14px] font-bold tracking-[0.18em]">HSBC</span>
+            </span>
+
+            {/* S&P Global — sans wordmark */}
+            <span
+              className="text-[var(--lp-text-primary)] opacity-[0.35] hover:opacity-60 transition-opacity duration-300 cursor-default select-none font-jakarta text-[13px] font-semibold tracking-[0.08em]"
+              title="S&P Global"
+            >
+              S&amp;P GLOBAL
+            </span>
           </div>
 
           {/* Trust statement with counter */}
