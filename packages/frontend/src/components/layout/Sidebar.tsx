@@ -23,7 +23,7 @@ interface SidebarProps {
 }
 
 const navItems = [
-  { href: '/', icon: LayoutDashboard, label: 'Dashboard' },
+  { href: '/overview', icon: LayoutDashboard, label: 'Dashboard' },
   { href: '/markets', icon: TrendingUp, label: 'Markets' },
   { href: '/borrow', icon: Wallet, label: 'Borrow' },
   { href: '/sec-lending', icon: Handshake, label: 'Sec Lending' },
@@ -43,7 +43,7 @@ function Sidebar({ collapsed = false, className }: SidebarProps) {
   const pathname = usePathname();
 
   const isActive = (href: string) => {
-    if (href === '/') return pathname === '/' || pathname === '';
+    if (href === '/overview') return pathname === '/overview';
     return pathname.startsWith(href);
   };
 

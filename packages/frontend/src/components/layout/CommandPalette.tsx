@@ -98,7 +98,7 @@ function CommandPalette({ open, onOpenChange, onNavigate }: CommandPaletteProps)
                 <Command.Separator className="my-1 h-px bg-border-subtle" />
 
                 <Command.Group heading="Pages" className="px-2 py-1.5 text-xs font-semibold text-text-tertiary uppercase tracking-wider">
-                  <Command.Item onSelect={() => handleSelect('/')} className="flex items-center gap-3 h-11 px-3 rounded-sm text-sm text-text-primary cursor-pointer data-[selected=true]:bg-bg-hover">
+                  <Command.Item onSelect={() => handleSelect('/overview')} className="flex items-center gap-3 h-11 px-3 rounded-sm text-sm text-text-primary cursor-pointer data-[selected=true]:bg-bg-hover">
                     <LayoutDashboard className="h-4 w-4 text-text-tertiary" />
                     Dashboard
                   </Command.Item>
