@@ -78,7 +78,7 @@ describe('ProjectCard', () => {
     const locationElements = screen.getAllByText('Istanbul, Turkey');
     expect(locationElements.length).toBeGreaterThanOrEqual(1);
     // The h3 title is the first occurrence
-    expect(locationElements[0].tagName).toBe('H3');
+    expect(locationElements[0]!.tagName).toBe('H3');
   });
 
   it('shows correct category badge', () => {

@@ -64,6 +64,8 @@ const config: Config = {
       fontFamily: {
         sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'sans-serif'],
         mono: ['JetBrains Mono', 'SF Mono', 'Fira Code', 'monospace'],
+        jakarta: ['Plus Jakarta Sans', 'Inter', '-apple-system', 'sans-serif'],
+        display: ['Instrument Serif', 'Georgia', 'Times New Roman', 'serif'],
       },
       fontSize: {
         '2xs': ['0.625rem', { lineHeight: '1.4' }],

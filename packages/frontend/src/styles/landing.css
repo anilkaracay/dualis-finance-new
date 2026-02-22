@@ -1,0 +1,228 @@
+/* ─── Landing Page Specific Styles ─── */
+/* Dark mode only for landing — always force dark */
+
+/* ─── Landing CSS Variables ─── */
+.landing-page {
+  --lp-bg-primary:    #09090B;
+  --lp-bg-secondary:  #0F0F12;
+  --lp-bg-tertiary:   #18181B;
+  --lp-bg-elevated:   #1C1C21;
+
+  --lp-text-primary:   #FAFAFA;
+  --lp-text-secondary: #A1A1AA;
+  --lp-text-tertiary:  #71717A;
+
+  --lp-accent:         #2DD4BF;
+  --lp-accent-dim:     #14B8A6;
+  --lp-accent-glow:    rgba(45, 212, 191, 0.15);
+  --lp-accent-subtle:  rgba(45, 212, 191, 0.08);
+
+  --lp-border:         rgba(255, 255, 255, 0.06);
+  --lp-border-hover:   rgba(255, 255, 255, 0.12);
+  --lp-glass:          rgba(255, 255, 255, 0.03);
+  --lp-glass-hover:    rgba(255, 255, 255, 0.06);
+
+  --lp-gradient-hero:  linear-gradient(135deg, #0F172A 0%, #09090B 50%, #0C1220 100%);
+  --lp-gradient-card:  linear-gradient(145deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%);
+  --lp-gradient-accent: linear-gradient(135deg, #2DD4BF 0%, #06B6D4 50%, #818CF8 100%);
+  --lp-gradient-text:  linear-gradient(135deg, #F0FDFA 0%, #2DD4BF 50%, #818CF8 100%);
+
+  /* Typography scale */
+  --lp-text-hero:    clamp(3.5rem, 8vw, 7rem);
+  --lp-text-display: clamp(2.5rem, 5vw, 4.5rem);
+  --lp-text-heading: clamp(1.5rem, 3vw, 2.5rem);
+  --lp-text-subhead: clamp(1.125rem, 2vw, 1.5rem);
+  --lp-text-body:    clamp(1rem, 1.2vw, 1.125rem);
+  --lp-text-small:   clamp(0.813rem, 1vw, 0.875rem);
+  --lp-text-mono:    clamp(2rem, 4vw, 3.5rem);
+
+  /* Force dark mode */
+  background-color: var(--lp-bg-primary);
+  color: var(--lp-text-primary);
+  color-scheme: dark;
+}
+
+/* ─── Landing Typography ─── */
+.font-display {
+  font-family: 'Instrument Serif', Georgia, 'Times New Roman', serif;
+  font-weight: 400;
+  font-style: normal;
+}
+
+.font-body {
+  font-family: var(--font-jakarta, 'Plus Jakarta Sans'), var(--font-inter, 'Inter'), -apple-system, sans-serif;
+}
+
+.font-data {
+  font-family: var(--font-jetbrains, 'JetBrains Mono'), 'SF Mono', monospace;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1, 'zero' 1;
+}
+
+/* ─── Gradient Text ─── */
+.lp-gradient-text {
+  background: var(--lp-gradient-text);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.lp-gradient-accent-text {
+  background: var(--lp-gradient-accent);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ─── Glass Card ─── */
+.lp-card {
+  background: var(--lp-gradient-card);
+  border: 1px solid var(--lp-border);
+  border-radius: 20px;
+  transition: border-color 0.3s ease, transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.lp-card:hover {
+  border-color: var(--lp-border-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+/* ─── Noise Overlay ─── */
+.lp-noise::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+  opacity: 0.03;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* ─── Hero Video Scrim ─── */
+.lp-video-scrim {
+  background: linear-gradient(
+    to bottom,
+    rgba(9, 9, 11, 0.7) 0%,
+    rgba(9, 9, 11, 0.4) 40%,
+    rgba(9, 9, 11, 0.85) 100%
+  );
+}
+
+/* ─── Primary Button ─── */
+.lp-btn-primary {
+  background: var(--lp-gradient-accent);
+  color: #09090B;
+  font-weight: 600;
+  border: none;
+  border-radius: 12px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  cursor: pointer;
+}
+
+.lp-btn-primary:hover {
+  transform: scale(1.02);
+  box-shadow: 0 0 30px rgba(45, 212, 191, 0.25);
+}
+
+/* ─── Ghost Button ─── */
+.lp-btn-ghost {
+  background: transparent;
+  color: var(--lp-text-secondary);
+  font-weight: 500;
+  border: 1px solid var(--lp-border-hover);
+  border-radius: 12px;
+  transition: border-color 0.2s ease, color 0.2s ease;
+  cursor: pointer;
+}
+
+.lp-btn-ghost:hover {
+  border-color: var(--lp-text-tertiary);
+  color: var(--lp-text-primary);
+}
+
+/* ─── Section Label ─── */
+.lp-section-label {
+  font-family: var(--font-jakarta, 'Plus Jakarta Sans'), sans-serif;
+  font-size: var(--lp-text-small);
+  font-weight: 500;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--lp-accent);
+  padding-left: 16px;
+  border-left: 3px solid var(--lp-accent);
+}
+
+/* ─── Scroll Indicator ─── */
+@keyframes lp-scroll-bounce {
+  0%, 100% { transform: translateY(0); opacity: 0.4; }
+  50% { transform: translateY(8px); opacity: 1; }
+}
+
+.lp-scroll-indicator {
+  animation: lp-scroll-bounce 2.5s ease-in-out infinite;
+}
+
+/* ─── Pulse Dot ─── */
+@keyframes lp-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(1.5); }
+}
+
+.lp-pulse-dot {
+  animation: lp-pulse 2s ease-in-out infinite;
+}
+
+/* ─── Particle Line Animation ─── */
+@keyframes lp-particle-flow {
+  0% { stroke-dashoffset: 20; }
+  100% { stroke-dashoffset: 0; }
+}
+
+.lp-particle-line {
+  stroke-dasharray: 4 16;
+  animation: lp-particle-flow 1.5s linear infinite;
+}
+
+/* ─── Code Block Syntax Highlighting ─── */
+.lp-code .keyword { color: #2DD4BF; }
+.lp-code .string { color: #FBBF24; }
+.lp-code .comment { color: var(--lp-text-tertiary); }
+.lp-code .function { color: #818CF8; }
+.lp-code .number { color: #FB923C; }
+.lp-code .property { color: #A1A1AA; }
+
+/* ─── Comparison Table ─── */
+.lp-comparison-row {
+  transition: background-color 0.2s ease;
+}
+
+.lp-comparison-row:hover {
+  background-color: rgba(255, 255, 255, 0.02);
+}
+
+/* ─── Responsive Adjustments ─── */
+@media (max-width: 768px) {
+  .landing-page {
+    --lp-text-hero: clamp(2.5rem, 10vw, 3.5rem);
+    --lp-text-display: clamp(2rem, 6vw, 2.5rem);
+    --lp-text-mono: clamp(1.5rem, 5vw, 2rem);
+  }
+}
+
+/* ─── Reduced Motion ─── */
+@media (prefers-reduced-motion: reduce) {
+  .lp-scroll-indicator,
+  .lp-pulse-dot,
+  .lp-particle-line {
+    animation: none;
+  }
+
+  .lp-card:hover {
+    transform: none;
+  }
+
+  .lp-btn-primary:hover {
+    transform: none;
+  }
+}
