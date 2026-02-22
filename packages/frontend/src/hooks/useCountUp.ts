@@ -21,7 +21,7 @@ function formatWithCommas(num: number, decimals: number): string {
   });
 }
 
-export function useCountUp({ start = 0, end, duration = 1200, decimals = 2, enabled = true }: UseCountUpOptions) {
+export function useCountUp({ start = 0, end, duration = 800, decimals = 2, enabled = true }: UseCountUpOptions) {
   const [value, setValue] = useState(enabled ? start : end);
   const prevEndRef = useRef(end);
   const rafRef = useRef<number | null>(null);

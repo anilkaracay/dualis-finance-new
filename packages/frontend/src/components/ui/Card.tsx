@@ -11,8 +11,8 @@ const cardVariants = {
 const cardPaddings = {
   none: '',
   sm: 'p-4',
-  md: 'p-6',
-  lg: 'p-8',
+  md: 'p-5',
+  lg: 'p-6',
 } as const;
 
 type CardVariant = keyof typeof cardVariants;
@@ -35,11 +35,11 @@ const Card = forwardRef<HTMLDivElement, CardProps>(
       <div
         ref={ref}
         className={cn(
-          'rounded-md transition-all duration-200',
+          'rounded-lg transition-all duration-200',
           cardVariants[variant],
           cardPaddings[padding],
-          hoverable && 'hover:border-border-focus/30 hover:shadow-lg',
-          clickable && 'cursor-pointer hover:border-border-focus/30 hover:shadow-lg active:scale-[0.99]',
+          hoverable && 'hover:border-border-hover hover:-translate-y-[1px] hover:transition-all hover:duration-200',
+          clickable && 'cursor-pointer hover:border-border-hover hover:-translate-y-[1px] hover:transition-all hover:duration-200 active:scale-[0.99]',
           className
         )}
         {...props}
@@ -59,7 +59,7 @@ CardHeader.displayName = 'CardHeader';
 
 const CardTitle = forwardRef<HTMLHeadingElement, React.HTMLAttributes<HTMLHeadingElement>>(
   ({ className, ...props }, ref) => (
-    <h3 ref={ref} className={cn('text-xl font-semibold text-text-primary', className)} {...props} />
+    <h3 ref={ref} className={cn('text-lg font-semibold text-text-primary tracking-snug', className)} {...props} />
   )
 );
 CardTitle.displayName = 'CardTitle';

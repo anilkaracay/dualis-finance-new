@@ -1,12 +1,6 @@
 'use client';
 
 import { useEffect, useMemo } from 'react';
-import {
-  Wallet,
-  TrendingUp,
-  ArrowDownCircle,
-  Percent,
-} from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 import { Badge } from '@/components/ui/Badge';
 import { KPICard } from '@/components/data-display/KPICard';
@@ -172,7 +166,7 @@ function AssetAllocation({
 }) {
   if (segments.length === 0) {
     return (
-      <div className="flex items-center justify-center rounded-md border border-border-default bg-surface-card py-12">
+      <div className="flex items-center justify-center rounded-lg border border-border-default bg-surface-card py-12">
         <p className="text-text-tertiary text-sm">No positions to display</p>
       </div>
     );
@@ -184,7 +178,7 @@ function AssetAllocation({
       <div className="flex-1 flex justify-center">
         <DonutChart
           segments={segments}
-          size={240}
+          size={180}
           centerLabel="Total"
           centerValue={formatCompactUSD(totalValue)}
         />
@@ -192,13 +186,13 @@ function AssetAllocation({
 
       {/* Breakdown table */}
       <div className="w-full md:w-80">
-        <div className="overflow-hidden rounded-md border border-border-default bg-surface-card">
+        <div className="overflow-hidden rounded-lg border border-border-default bg-surface-card">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-border-default">
-                <th className="px-4 py-2.5 text-left font-medium text-text-secondary">Asset</th>
-                <th className="px-4 py-2.5 text-right font-medium text-text-secondary">Value</th>
-                <th className="px-4 py-2.5 text-right font-medium text-text-secondary">%</th>
+              <tr className="border-b border-border-default backdrop-blur">
+                <th className="text-label px-4 h-10 text-left">Asset</th>
+                <th className="text-label px-4 h-10 text-right">Value</th>
+                <th className="text-label px-4 h-10 text-right">%</th>
               </tr>
             </thead>
             <tbody>
@@ -238,52 +232,52 @@ function AssetAllocation({
 function AllPositionsTable({ positions }: { positions: UnifiedPosition[] }) {
   if (positions.length === 0) {
     return (
-      <div className="flex flex-col items-center gap-3 rounded-md border border-border-default bg-surface-card py-12">
+      <div className="flex flex-col items-center gap-3 rounded-lg border border-border-default bg-surface-card py-12">
         <p className="text-text-tertiary text-sm">No positions found</p>
       </div>
     );
   }
 
   return (
-    <div className="overflow-x-auto rounded-md border border-border-default bg-surface-card">
+    <div className="overflow-x-auto rounded-lg border border-border-default bg-surface-card">
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-b border-border-default">
-            <th className="px-4 py-3 text-left font-medium text-text-secondary">Type</th>
-            <th className="px-4 py-3 text-left font-medium text-text-secondary">Asset</th>
-            <th className="px-4 py-3 text-right font-medium text-text-secondary">Amount</th>
-            <th className="px-4 py-3 text-right font-medium text-text-secondary">Value USD</th>
-            <th className="px-4 py-3 text-right font-medium text-text-secondary">APY / Fee</th>
-            <th className="px-4 py-3 text-center font-medium text-text-secondary">Health Factor</th>
-            <th className="px-4 py-3 text-right font-medium text-text-secondary">Status</th>
+          <tr className="border-b border-border-default backdrop-blur">
+            <th className="text-label px-4 h-10 text-left">Type</th>
+            <th className="text-label px-4 h-10 text-left">Asset</th>
+            <th className="text-label px-4 h-10 text-right">Amount</th>
+            <th className="text-label px-4 h-10 text-right">Value USD</th>
+            <th className="text-label px-4 h-10 text-right">APY / Fee</th>
+            <th className="text-label px-4 h-10 text-center">Health Factor</th>
+            <th className="text-label px-4 h-10 text-right">Status</th>
           </tr>
         </thead>
         <tbody>
           {positions.map((pos) => (
             <tr
               key={pos.id}
-              className="border-b border-border-default last:border-b-0 hover:bg-bg-hover transition-colors"
+              className="border-b border-border-default last:border-b-0 h-14 hover:bg-bg-hover/50 transition-colors"
             >
-              <td className="px-4 py-3">
+              <td className="px-4">
                 <Badge variant={getTypeBadgeVariant(pos.type)} size="sm">
                   {pos.type}
                 </Badge>
               </td>
-              <td className="px-4 py-3">
+              <td className="px-4">
                 <div className="flex items-center gap-2">
                   <AssetIcon symbol={pos.symbol} size="sm" />
                   <span className="font-medium text-text-primary">{pos.symbol}</span>
                 </div>
               </td>
-              <td className="px-4 py-3 text-right">
+              <td className="px-4 text-right">
                 <span className="font-mono text-text-primary">
                   {pos.amount.toLocaleString('en-US', { maximumFractionDigits: 4 })}
                 </span>
               </td>
-              <td className="px-4 py-3 text-right">
+              <td className="px-4 text-right">
                 <span className="font-mono text-text-primary">{formatUSD(pos.valueUSD)}</span>
               </td>
-              <td className="px-4 py-3 text-right">
+              <td className="px-4 text-right">
                 <span className={cn(
                   'font-mono',
                   pos.type === 'Borrow' ? 'text-negative' : 'text-positive'
@@ -291,7 +285,7 @@ function AllPositionsTable({ positions }: { positions: UnifiedPosition[] }) {
                   {(pos.apyOrFee * 100).toFixed(2)}%
                 </span>
               </td>
-              <td className="px-4 py-3">
+              <td className="px-4">
                 <div className="flex justify-center">
                   {pos.healthFactor !== undefined ? (
                     <HealthFactorGauge value={pos.healthFactor} size="sm" showLabel={false} />
@@ -300,7 +294,7 @@ function AllPositionsTable({ positions }: { positions: UnifiedPosition[] }) {
                   )}
                 </div>
               </td>
-              <td className="px-4 py-3 text-right">
+              <td className="px-4 text-right">
                 <Badge variant="success" size="sm">{pos.status}</Badge>
               </td>
             </tr>
@@ -313,43 +307,43 @@ function AllPositionsTable({ positions }: { positions: UnifiedPosition[] }) {
 
 function TransactionHistoryTable({ transactions }: { transactions: Transaction[] }) {
   return (
-    <div className="overflow-x-auto rounded-md border border-border-default bg-surface-card">
+    <div className="overflow-x-auto rounded-lg border border-border-default bg-surface-card">
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-b border-border-default">
-            <th className="px-4 py-3 text-left font-medium text-text-secondary">Time</th>
-            <th className="px-4 py-3 text-left font-medium text-text-secondary">Type</th>
-            <th className="px-4 py-3 text-left font-medium text-text-secondary">Asset</th>
-            <th className="px-4 py-3 text-right font-medium text-text-secondary">Amount</th>
-            <th className="px-4 py-3 text-right font-medium text-text-secondary">Status</th>
+          <tr className="border-b border-border-default backdrop-blur">
+            <th className="text-label px-4 h-10 text-left">Time</th>
+            <th className="text-label px-4 h-10 text-left">Type</th>
+            <th className="text-label px-4 h-10 text-left">Asset</th>
+            <th className="text-label px-4 h-10 text-right">Amount</th>
+            <th className="text-label px-4 h-10 text-right">Status</th>
           </tr>
         </thead>
         <tbody>
           {transactions.map((tx) => (
             <tr
               key={tx.id}
-              className="border-b border-border-default last:border-b-0 hover:bg-bg-hover transition-colors"
+              className="border-b border-border-default last:border-b-0 h-14 hover:bg-bg-hover/50 transition-colors"
             >
-              <td className="px-4 py-3">
+              <td className="px-4">
                 <span className="text-xs text-text-tertiary">{relativeTime(tx.timestamp)}</span>
               </td>
-              <td className="px-4 py-3">
+              <td className="px-4">
                 <Badge variant={getTxTypeBadgeVariant(tx.type)} size="sm">
                   {getTxTypeLabel(tx.type)}
                 </Badge>
               </td>
-              <td className="px-4 py-3">
+              <td className="px-4">
                 <div className="flex items-center gap-2">
                   <AssetIcon symbol={tx.symbol} size="sm" />
                   <span className="font-medium text-text-primary">{tx.symbol}</span>
                 </div>
               </td>
-              <td className="px-4 py-3 text-right">
+              <td className="px-4 text-right">
                 <span className="font-mono text-text-primary">
                   {tx.amount.toLocaleString('en-US', { maximumFractionDigits: 4 })}
                 </span>
               </td>
-              <td className="px-4 py-3 text-right">
+              <td className="px-4 text-right">
                 <Badge variant="success" size="sm">{tx.status}</Badge>
               </td>
             </tr>
@@ -475,11 +469,9 @@ export default function PortfolioPage() {
   // ---------- Render ----------
 
   return (
-    <div className="space-y-12">
+    <div className="space-y-8">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-text-primary">Portfolio</h1>
-      </div>
+      <h1 className="text-lg font-medium text-text-primary">Portfolio</h1>
 
       {/* KPI Row */}
       <section>
@@ -489,7 +481,6 @@ export default function PortfolioPage() {
             value={totalValue}
             prefix="$"
             decimals={0}
-            icon={<Wallet className="h-4 w-4" />}
             sparkline={sparklineTotalValue}
             trend="up"
             trendValue="+5.2%"
@@ -500,7 +491,6 @@ export default function PortfolioPage() {
             value={totalSupplied}
             prefix="$"
             decimals={0}
-            icon={<TrendingUp className="h-4 w-4" />}
             loading={isLoading}
           />
           <KPICard
@@ -508,7 +498,6 @@ export default function PortfolioPage() {
             value={totalBorrowed}
             prefix="$"
             decimals={0}
-            icon={<ArrowDownCircle className="h-4 w-4" />}
             loading={isLoading}
           />
           <KPICard
@@ -516,7 +505,6 @@ export default function PortfolioPage() {
             value={netAPY}
             suffix="%"
             decimals={1}
-            icon={<Percent className="h-4 w-4" />}
             loading={isLoading}
           />
         </div>
@@ -524,19 +512,19 @@ export default function PortfolioPage() {
 
       {/* Asset Allocation */}
       <section>
-        <h2 className="mb-4 text-lg font-semibold text-text-primary">Asset Allocation</h2>
+        <h2 className="text-label mb-4">Asset Allocation</h2>
         <AssetAllocation segments={donutSegments} totalValue={donutTotal} />
       </section>
 
       {/* All Positions */}
       <section>
-        <h2 className="mb-4 text-lg font-semibold text-text-primary">All Positions</h2>
+        <h2 className="text-label mb-4">All Positions</h2>
         <AllPositionsTable positions={unifiedPositions} />
       </section>
 
       {/* Transaction History */}
       <section>
-        <h2 className="mb-4 text-lg font-semibold text-text-primary">Transaction History</h2>
+        <h2 className="text-label mb-4">Transaction History</h2>
         <TransactionHistoryTable transactions={MOCK_TRANSACTIONS} />
       </section>
     </div>

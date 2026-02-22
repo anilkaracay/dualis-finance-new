@@ -154,7 +154,7 @@ function VoteTallyBar({ votes }: { votes: VoteTally }) {
   return (
     <div className="space-y-2">
       {/* Bar */}
-      <div className="flex h-2.5 w-full overflow-hidden rounded-full">
+      <div className="flex h-2 w-full overflow-hidden rounded-full">
         <div
           className="bg-positive transition-all duration-300"
           style={{ width: `${forPct}%` }}
@@ -190,7 +190,7 @@ function ProposalCard({ proposal }: { proposal: Proposal }) {
       <CardContent className="flex flex-1 flex-col gap-4 p-5">
         {/* Title + Category */}
         <div className="flex items-start justify-between gap-3">
-          <h3 className="font-semibold text-text-primary leading-snug">{proposal.title}</h3>
+          <h3 className="font-medium text-text-primary leading-snug">{proposal.title}</h3>
           <Badge variant={proposal.categoryVariant} size="sm" className="shrink-0">
             {proposal.category}
           </Badge>
@@ -250,7 +250,7 @@ function PastProposalRow({ proposal }: { proposal: Proposal }) {
   const statusLabel = proposal.status === 'executed' ? 'Executed' : proposal.status === 'passed' ? 'Passed' : 'Rejected';
 
   return (
-    <div className="flex items-center justify-between rounded-md border border-border-default bg-surface-card px-5 py-4 hover:bg-bg-hover transition-colors">
+    <div className="flex items-center justify-between rounded-lg border border-border-default bg-surface-card px-5 py-4 hover:bg-bg-hover/50 transition-colors">
       <div className="flex flex-col gap-1">
         <div className="flex items-center gap-2">
           <h4 className="text-sm font-medium text-text-primary">{proposal.title}</h4>
@@ -278,16 +278,16 @@ function PastProposalRow({ proposal }: { proposal: Proposal }) {
 
 export default function GovernancePage() {
   return (
-    <div className="space-y-12">
+    <div className="space-y-8">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-text-primary">Governance</h1>
-        <p className="mt-1 text-sm text-text-secondary">DIP Proposals</p>
+        <h1 className="text-lg font-medium text-text-primary">Governance</h1>
+        <p className="mt-1 text-sm text-text-tertiary">DIP Proposals</p>
       </div>
 
       {/* Active Proposals */}
       <section>
-        <h2 className="mb-4 text-lg font-semibold text-text-primary">Active Proposals</h2>
+        <h2 className="text-label mb-4">Active Proposals</h2>
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           {ACTIVE_PROPOSALS.map((proposal) => (
             <ProposalCard key={proposal.id} proposal={proposal} />
@@ -297,7 +297,7 @@ export default function GovernancePage() {
 
       {/* Past Proposals */}
       <section>
-        <h2 className="mb-4 text-lg font-semibold text-text-primary">Past Proposals</h2>
+        <h2 className="text-label mb-4">Past Proposals</h2>
         <div className="space-y-3">
           {PAST_PROPOSALS.map((proposal) => (
             <PastProposalRow key={proposal.id} proposal={proposal} />

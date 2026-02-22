@@ -2,8 +2,6 @@
 
 import { useState } from 'react';
 import {
-  Coins,
-  TrendingUp,
   Shield,
   Gift,
   AlertTriangle,
@@ -190,17 +188,17 @@ function YourStakeCard({ isConnected }: { isConnected: boolean }) {
         {/* Position Details */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <div className="rounded-md border border-border-subtle bg-bg-primary p-4">
-            <p className="text-xs font-medium uppercase tracking-wide text-text-tertiary">Staked</p>
-            <p className="mt-1 text-lg font-bold font-mono text-text-primary">25,000 DUAL</p>
+            <p className="text-label">Staked</p>
+            <p className="mt-1 text-lg font-medium font-mono text-text-primary">25,000 DUAL</p>
             <p className="text-xs text-text-tertiary">{formatUSD(30_750)}</p>
           </div>
           <div className="rounded-md border border-border-subtle bg-bg-primary p-4">
-            <p className="text-xs font-medium uppercase tracking-wide text-text-tertiary">Pending Rewards</p>
-            <p className="mt-1 text-lg font-bold font-mono text-text-primary">123.45 DUAL</p>
+            <p className="text-label">Pending Rewards</p>
+            <p className="mt-1 text-lg font-medium font-mono text-text-primary">123.45 DUAL</p>
           </div>
           <div className="rounded-md border border-border-subtle bg-bg-primary p-4">
-            <p className="text-xs font-medium uppercase tracking-wide text-text-tertiary">Claimable</p>
-            <p className="mt-1 text-lg font-bold font-mono text-positive">89.12 DUAL</p>
+            <p className="text-label">Claimable</p>
+            <p className="mt-1 text-lg font-medium font-mono text-positive">89.12 DUAL</p>
           </div>
         </div>
 
@@ -231,12 +229,12 @@ function SafetyModuleCard() {
 
         <div className="flex flex-wrap gap-6">
           <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-text-tertiary">Current Size</p>
-            <p className="mt-1 font-mono font-bold text-text-primary">$12.8M</p>
+            <p className="text-label">Current Size</p>
+            <p className="mt-1 font-mono font-medium text-text-primary">$12.8M</p>
           </div>
           <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-text-tertiary">Slashing Risk</p>
-            <p className="mt-1 font-mono font-bold text-warning">Up to 30%</p>
+            <p className="text-label">Slashing Risk</p>
+            <p className="mt-1 font-mono font-medium text-warning">Up to 30%</p>
           </div>
         </div>
 
@@ -250,19 +248,19 @@ function SafetyModuleCard() {
 
 function StakingParametersTable({ params }: { params: StakingParameter[] }) {
   return (
-    <div className="overflow-hidden rounded-md border border-border-default bg-surface-card">
+    <div className="overflow-hidden rounded-lg border border-border-default bg-surface-card">
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-b border-border-default">
-            <th className="px-4 py-3 text-left font-medium text-text-secondary">Parameter</th>
-            <th className="px-4 py-3 text-right font-medium text-text-secondary">Value</th>
+          <tr className="border-b border-border-default backdrop-blur">
+            <th className="text-label px-4 h-10 text-left">Parameter</th>
+            <th className="text-label px-4 h-10 text-right">Value</th>
           </tr>
         </thead>
         <tbody>
           {params.map((param) => (
             <tr
               key={param.label}
-              className="border-b border-border-default last:border-b-0 hover:bg-bg-hover transition-colors"
+              className="border-b border-border-default last:border-b-0 h-14 hover:bg-bg-hover/50 transition-colors"
             >
               <td className="px-4 py-3 text-text-primary">{param.label}</td>
               <td className="px-4 py-3 text-right font-mono text-text-primary">{param.value}</td>
@@ -282,11 +280,9 @@ export default function StakingPage() {
   const { isConnected } = useWalletStore();
 
   return (
-    <div className="space-y-12">
+    <div className="space-y-8">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-text-primary">Staking</h1>
-      </div>
+      <h1 className="text-lg font-medium text-text-primary">Staking</h1>
 
       {/* KPI Row */}
       <section>
@@ -296,7 +292,6 @@ export default function StakingPage() {
             value={45_200_000}
             prefix="$"
             decimals={0}
-            icon={<Coins className="h-4 w-4" />}
             sparkline={SPARKLINE_STAKED}
             trend="up"
             trendValue="+2.1%"
@@ -306,21 +301,18 @@ export default function StakingPage() {
             value={8.5}
             suffix="%"
             decimals={1}
-            icon={<TrendingUp className="h-4 w-4" />}
           />
           <KPICard
             label="Safety Module"
             value={12_800_000}
             prefix="$"
             decimals={0}
-            icon={<Shield className="h-4 w-4" />}
           />
           <KPICard
             label="Your Rewards"
             value={1_234}
             prefix="$"
             decimals={0}
-            icon={<Gift className="h-4 w-4" />}
             sparkline={SPARKLINE_REWARDS}
             trend="up"
             trendValue="+$89"
@@ -340,7 +332,7 @@ export default function StakingPage() {
 
       {/* Staking Parameters */}
       <section>
-        <h2 className="mb-4 text-lg font-semibold text-text-primary">Staking Parameters</h2>
+        <h2 className="text-label mb-4">Staking Parameters</h2>
         <StakingParametersTable params={STAKING_PARAMS} />
       </section>
     </div>

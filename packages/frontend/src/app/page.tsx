@@ -10,10 +10,10 @@ import {
   Globe,
   CheckCircle,
   ArrowRight,
+  ChevronDown,
 } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 import { Button } from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
 import { AreaChart } from '@/components/charts/AreaChart';
 import { useCountUp } from '@/hooks/useCountUp';
 
@@ -54,22 +54,31 @@ interface AnimatedStatProps {
   readonly end: number;
   readonly label: string;
   readonly prefix?: string;
+  readonly suffix?: string;
   readonly decimals?: number;
   readonly duration?: number;
 }
 
-function AnimatedStat({ end, label, prefix, decimals = 0, duration = 2000 }: AnimatedStatProps) {
+function AnimatedStat({
+  end,
+  label,
+  prefix,
+  suffix,
+  decimals = 0,
+  duration = 2000,
+}: AnimatedStatProps) {
   const ref = useRef<HTMLDivElement | null>(null);
   const visible = useInView(ref, { threshold: 0.3 });
   const { formattedValue } = useCountUp({ end, decimals, duration, enabled: visible });
 
   return (
     <div ref={ref} className="flex flex-col items-center md:items-start">
-      <span className="font-mono text-3xl font-bold text-text-primary md:text-4xl tabular-nums">
+      <span className="text-kpi text-2xl md:text-3xl">
         {prefix}
         {formattedValue}
+        {suffix}
       </span>
-      <span className="mt-1 text-sm text-text-tertiary">{label}</span>
+      <span className="text-label mt-1.5">{label}</span>
     </div>
   );
 }
@@ -210,54 +219,30 @@ const FOOTER_COLUMNS: readonly FooterColumn[] = [
 ] as const;
 
 // ---------------------------------------------------------------------------
-// Section: Feature Card (with fade-in animation)
+// ScrollSection — fades in when entering viewport
 // ---------------------------------------------------------------------------
 
-function FeatureCard({ feature, delay }: { readonly feature: FeatureItem; readonly delay: number }) {
-  const ref = useRef<HTMLDivElement | null>(null);
-  const inView = useInView(ref, { threshold: 0.15 });
-  const Icon = feature.icon;
-
-  return (
-    <div
-      ref={ref}
-      className={cn(
-        'rounded-lg border border-border-default bg-surface-card p-8 transition-all duration-700 hover:border-accent-teal/30',
-        inView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8',
-      )}
-      style={{ transitionDelay: `${delay}ms` }}
-    >
-      <Icon className="h-10 w-10 text-accent-teal" />
-      <h3 className="mt-4 text-xl font-semibold text-text-primary">{feature.title}</h3>
-      <p className="mt-2 text-sm leading-relaxed text-text-secondary">{feature.description}</p>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Section: Animated Section wrapper
-// ---------------------------------------------------------------------------
-
-function AnimatedSection({
+function ScrollSection({
   children,
   className,
-  threshold,
+  delay = 0,
 }: {
   readonly children: React.ReactNode;
   readonly className?: string;
-  readonly threshold?: number;
+  readonly delay?: number;
 }) {
   const ref = useRef<HTMLElement | null>(null);
-  const inView = useInView(ref, { threshold: threshold ?? 0.1 });
+  const inView = useInView(ref, { threshold: 0.08 });
 
   return (
     <section
-      ref={ref}
+      ref={ref as React.RefObject<HTMLElement>}
       className={cn(
-        'transition-all duration-700',
-        inView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8',
+        'transition-all duration-700 ease-out',
+        inView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4',
         className,
       )}
+      style={{ transitionDelay: `${delay}ms` }}
     >
       {children}
     </section>
@@ -297,28 +282,26 @@ export default function LandingPage() {
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2">
             <span className="text-xl font-bold text-accent-teal">D</span>
-            <span className="text-sm font-semibold tracking-widest text-text-primary">
-              DUALIS FINANCE
-            </span>
+            <span className="text-label tracking-widest">DUALIS</span>
           </Link>
 
           {/* Center links — hidden on mobile */}
           <div className="hidden items-center gap-8 md:flex">
             <Link
               href="/markets"
-              className="text-sm text-text-secondary transition-colors hover:text-text-primary"
+              className="text-xs text-text-secondary transition-colors hover:text-text-primary"
             >
               Markets
             </Link>
             <a
               href="#"
-              className="text-sm text-text-secondary transition-colors hover:text-text-primary"
+              className="text-xs text-text-secondary transition-colors hover:text-text-primary"
             >
               Documentation
             </a>
             <a
               href="#"
-              className="text-sm text-text-secondary transition-colors hover:text-text-primary"
+              className="text-xs text-text-secondary transition-colors hover:text-text-primary"
             >
               About
             </a>
@@ -326,7 +309,7 @@ export default function LandingPage() {
 
           {/* CTA */}
           <Link href="/overview">
-            <Button variant="primary" size="sm" iconRight={<ArrowRight className="h-4 w-4" />}>
+            <Button variant="primary" size="sm" iconRight={<ArrowRight className="h-3.5 w-3.5" />}>
               Launch App
             </Button>
           </Link>
@@ -337,14 +320,17 @@ export default function LandingPage() {
       {/* 2. Hero Section                                                    */}
       {/* ----------------------------------------------------------------- */}
       <section className="relative flex min-h-screen items-center overflow-hidden">
-        {/* Animated gradient background */}
+        {/* Grid mesh background */}
+        <div className="absolute inset-0 -z-10 bg-grid-mesh animate-grid-shift" />
+
+        {/* Subtle gradient orbs */}
         <div className="absolute inset-0 -z-10 overflow-hidden">
           <div
             className="absolute -left-1/4 -top-1/2 h-[150%] w-[150%] animate-pulse rounded-full"
             style={{
               background:
-                'radial-gradient(circle, var(--accent-teal, #00D4AA) 0%, transparent 70%)',
-              opacity: 0.07,
+                'radial-gradient(circle, var(--color-accent-teal) 0%, transparent 70%)',
+              opacity: 0.04,
               animationDuration: '6s',
             }}
           />
@@ -352,8 +338,8 @@ export default function LandingPage() {
             className="absolute -bottom-1/4 -right-1/4 h-[100%] w-[100%] animate-pulse rounded-full"
             style={{
               background:
-                'radial-gradient(circle, var(--accent-indigo, #6366F1) 0%, transparent 70%)',
-              opacity: 0.07,
+                'radial-gradient(circle, var(--color-accent-indigo) 0%, transparent 70%)',
+              opacity: 0.04,
               animationDuration: '8s',
               animationDelay: '2s',
             }}
@@ -361,23 +347,24 @@ export default function LandingPage() {
         </div>
 
         <div className="mx-auto max-w-7xl px-4 pb-20 pt-32 md:px-8">
-          <h1 className="text-5xl font-bold leading-tight text-text-primary md:text-7xl">
+          {/* Heading — staggered fade-in */}
+          <h1 className="animate-fade-in-up animate-fill-both stagger-1 text-4xl font-semibold tracking-tight text-text-primary md:text-6xl">
             The Institutional
             <br />
             Lending Protocol
           </h1>
-          <p className="mt-4 text-2xl font-semibold text-accent-teal md:text-4xl">
+          <p className="animate-fade-in-up animate-fill-both stagger-2 mt-3 text-xl font-semibold text-accent-teal md:text-3xl">
             for Canton Network
           </p>
-          <p className="mt-6 max-w-2xl text-lg leading-relaxed text-text-secondary">
+          <p className="animate-fade-in-up animate-fill-both stagger-3 mt-5 max-w-xl text-sm leading-relaxed text-text-tertiary">
             Privacy-preserving lending, securities lending, and RWA collateralization — built for
             the world&apos;s largest financial institutions.
           </p>
 
-          {/* CTA Buttons */}
-          <div className="mt-10 flex flex-wrap gap-4">
+          {/* CTA Buttons — staggered */}
+          <div className="animate-fade-in-up animate-fill-both stagger-4 mt-10 flex flex-wrap gap-4">
             <Link href="/overview">
-              <Button variant="primary" size="lg">
+              <Button variant="primary" size="lg" className="shadow-glow-teal-sm">
                 Launch App
               </Button>
             </Link>
@@ -385,187 +372,201 @@ export default function LandingPage() {
               <Button
                 variant="ghost"
                 size="lg"
-                iconRight={<ArrowRight className="h-5 w-5" />}
+                iconRight={<ArrowRight className="h-4 w-4" />}
               >
                 Read Documentation
               </Button>
             </a>
           </div>
 
-          {/* Stats */}
-          <div className="mt-16 flex flex-wrap gap-8 md:gap-16">
-            <AnimatedStat end={2.4} label="Total Value Locked" prefix="$" decimals={1} />
-            <AnimatedStat end={1.8} label="Total Borrowed" prefix="$" decimals={1} />
-            <AnimatedStat end={3200} label="Active Users" decimals={0} />
+          {/* Stats — staggered */}
+          <div className="animate-fade-in-up animate-fill-both stagger-5 mt-16 flex flex-wrap gap-10 md:gap-16">
+            <AnimatedStat end={2.4} label="Total Value Locked" prefix="$" suffix="B" decimals={1} />
+            <AnimatedStat end={1.8} label="Total Borrowed" prefix="$" suffix="B" decimals={1} />
+            <AnimatedStat end={3.2} label="Active Users" suffix="K" decimals={1} />
           </div>
+        </div>
+
+        {/* Scroll indicator */}
+        <div className="absolute bottom-8 left-1/2 -translate-x-1/2">
+          <ChevronDown className="h-5 w-5 text-text-disabled animate-bounce-subtle" />
         </div>
       </section>
 
       {/* ----------------------------------------------------------------- */}
       {/* 3. Partners Bar                                                    */}
       {/* ----------------------------------------------------------------- */}
-      <AnimatedSection className="py-16">
-        <p className="mb-8 text-center text-sm uppercase tracking-wider text-text-tertiary">
+      <section className="py-14">
+        <p className="text-label mb-8 text-center">
           Trusted by the Canton Network ecosystem
         </p>
-        <div className="flex flex-wrap items-center justify-center gap-8 md:gap-16">
+        <div className="flex flex-wrap items-center justify-center gap-8 md:gap-14">
           {PARTNERS.map((name) => (
             <span
               key={name}
-              className="text-lg font-semibold text-text-disabled transition-colors hover:text-text-secondary"
+              className="text-sm font-medium text-text-primary opacity-40 transition-opacity duration-300 hover:opacity-70"
             >
               {name}
             </span>
           ))}
         </div>
-      </AnimatedSection>
+      </section>
 
       {/* ----------------------------------------------------------------- */}
       {/* 4. Features Grid                                                   */}
       {/* ----------------------------------------------------------------- */}
-      <section className="mx-auto max-w-6xl px-4 py-20 md:px-8">
-        <h2 className="mb-12 text-center text-3xl font-bold text-text-primary">
+      <ScrollSection className="mx-auto max-w-5xl px-4 py-20 md:px-8">
+        <h2 className="text-heading mb-14 text-center text-2xl">
           Built for Institutional Finance
         </h2>
-        <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
-          {FEATURES.map((feature, i) => (
-            <FeatureCard key={feature.title} feature={feature} delay={i * 150} />
-          ))}
+        <div className="grid grid-cols-1 gap-12 md:grid-cols-3">
+          {FEATURES.map((feature) => {
+            const Icon = feature.icon;
+            return (
+              <div key={feature.title} className="flex flex-col items-center text-center">
+                <Icon className="h-5 w-5 text-accent-teal" />
+                <h3 className="mt-3 text-sm font-medium text-text-primary">{feature.title}</h3>
+                <p className="mt-1.5 text-xs leading-relaxed text-text-secondary">
+                  {feature.description}
+                </p>
+              </div>
+            );
+          })}
         </div>
-      </section>
+      </ScrollSection>
 
       {/* ----------------------------------------------------------------- */}
       {/* 5. How It Works                                                    */}
       {/* ----------------------------------------------------------------- */}
-      <AnimatedSection className="mx-4 rounded-2xl bg-bg-secondary px-8 py-16 md:mx-8">
-        <h2 className="mb-16 text-center text-3xl font-bold text-text-primary">How It Works</h2>
-        <div className="mx-auto max-w-5xl">
-          {/* Connector line on desktop */}
-          <div className="relative grid grid-cols-1 gap-8 md:grid-cols-4">
-            {/* Horizontal connector — visible on md+ */}
-            <div className="pointer-events-none absolute left-[12.5%] right-[12.5%] top-6 hidden border-t border-dashed border-border-default md:block" />
+      <ScrollSection className="mx-auto max-w-5xl px-4 py-20 md:px-8">
+        <h2 className="text-heading mb-16 text-center text-2xl">How It Works</h2>
+        <div className="relative grid grid-cols-1 gap-10 md:grid-cols-4">
+          {/* Horizontal dashed connector — desktop */}
+          <div className="pointer-events-none absolute left-[12.5%] right-[12.5%] top-4 hidden border-t border-dashed border-border-default md:block" />
 
-            {STEPS.map((step) => (
-              <div key={step.number} className="relative flex flex-col items-center text-center">
-                <div className="relative z-10 flex h-12 w-12 items-center justify-center rounded-full bg-accent-teal text-lg font-bold text-bg-primary">
-                  {step.number}
-                </div>
-                <h3 className="mt-4 font-semibold text-text-primary">{step.title}</h3>
-                <p className="mt-2 text-sm text-text-secondary">{step.description}</p>
+          {/* Vertical dashed connector — mobile */}
+          <div className="pointer-events-none absolute bottom-4 left-4 top-4 border-l border-dashed border-border-default md:hidden" />
+
+          {STEPS.map((step) => (
+            <div key={step.number} className="relative flex flex-col items-center text-center md:items-center">
+              {/* Step circle */}
+              <div className="relative z-10 flex h-8 w-8 items-center justify-center rounded-full bg-accent-teal/10 text-xs font-semibold text-accent-teal">
+                {step.number}
               </div>
-            ))}
-          </div>
+              <h3 className="mt-3 text-sm font-medium text-text-primary">{step.title}</h3>
+              <p className="mt-1 text-xs text-text-secondary">{step.description}</p>
+            </div>
+          ))}
         </div>
-      </AnimatedSection>
+      </ScrollSection>
 
       {/* ----------------------------------------------------------------- */}
       {/* 6. Protocol Stats Section                                          */}
       {/* ----------------------------------------------------------------- */}
-      <AnimatedSection className="mx-auto max-w-6xl px-4 py-20 md:px-8">
-        <h2 className="mb-12 text-center text-3xl font-bold text-text-primary">
+      <ScrollSection className="mx-auto max-w-6xl px-4 py-20 md:px-8">
+        <p className="text-label mb-3 text-center">Protocol Data</p>
+        <h2 className="text-heading mb-12 text-center text-2xl">
           Live Protocol Metrics
         </h2>
-        <div className="grid grid-cols-1 gap-8 lg:grid-cols-5">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
           {/* TVL Chart */}
-          <Card className="lg:col-span-3" padding="md">
-            <h3 className="mb-4 text-lg font-semibold text-text-primary">
-              Total Value Locked (6M)
-            </h3>
+          <div className="rounded-lg border border-border-default bg-surface-card p-5 lg:col-span-3">
+            <h3 className="text-label mb-4">Total Value Locked (6M)</h3>
             <AreaChart
               data={TVL_DATA as unknown as Array<Record<string, unknown>>}
               xKey="month"
               yKey="tvl"
-              height={300}
+              height={280}
             />
-          </Card>
+          </div>
 
           {/* Top Markets */}
-          <Card className="lg:col-span-2" padding="md">
-            <h3 className="mb-4 text-lg font-semibold text-text-primary">Top Markets</h3>
+          <div className="lg:col-span-2">
+            <h3 className="text-label mb-4">Top Markets</h3>
             <div className="space-y-0">
               {TOP_MARKETS.map((market, i) => (
                 <div
                   key={market.pool}
                   className={cn(
-                    'flex items-center justify-between px-2 py-3',
-                    i < TOP_MARKETS.length - 1 && 'border-b border-border-default',
+                    'flex items-center justify-between py-2.5',
+                    i < TOP_MARKETS.length - 1 && 'border-b border-border-subtle',
                   )}
                 >
-                  <div className="flex items-center gap-3">
-                    <span className="flex h-8 w-8 items-center justify-center rounded-full bg-bg-tertiary text-xs font-bold text-text-secondary">
+                  <div className="flex items-center gap-2.5">
+                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-bg-tertiary text-2xs font-medium text-text-secondary">
                       {market.pool.slice(0, 2)}
                     </span>
-                    <span className="font-medium text-text-primary">{market.pool}</span>
+                    <span className="text-sm font-medium text-text-primary">{market.pool}</span>
                   </div>
-                  <span className="font-mono text-sm font-semibold text-positive">
+                  <span className="text-kpi text-sm text-positive">
                     {market.apy}
                   </span>
                 </div>
               ))}
             </div>
-          </Card>
+          </div>
         </div>
-      </AnimatedSection>
+      </ScrollSection>
 
       {/* ----------------------------------------------------------------- */}
       {/* 7. Security Section                                                */}
       {/* ----------------------------------------------------------------- */}
-      <AnimatedSection className="mx-auto max-w-6xl px-4 py-20 md:px-8">
-        <h2 className="mb-4 text-center text-3xl font-bold text-text-primary">
+      <ScrollSection className="mx-auto max-w-5xl px-4 py-20 md:px-8">
+        <h2 className="text-heading mb-3 text-center text-2xl">
           Battle-Tested Infrastructure
         </h2>
-        <p className="mb-12 text-center text-text-secondary">
+        <p className="mb-10 text-center text-xs text-text-secondary">
           Built on the most trusted foundations in financial technology
         </p>
-        <div className="flex flex-wrap justify-center gap-4">
+        <div className="flex flex-wrap justify-center gap-3">
           {SECURITY_BADGES.map((badge) => {
             const Icon = badge.icon;
             return (
               <div
                 key={badge.label}
-                className="flex items-center gap-3 rounded-lg border border-border-default px-6 py-3"
+                className="flex items-center gap-2 rounded-full border border-border-default px-4 py-2"
               >
-                <Icon className="h-5 w-5 text-accent-teal" />
-                <span className="text-sm font-medium text-text-primary">{badge.label}</span>
+                <Icon className="h-4 w-4 text-accent-teal" />
+                <span className="text-xs font-medium text-text-primary">{badge.label}</span>
               </div>
             );
           })}
         </div>
-      </AnimatedSection>
+      </ScrollSection>
 
       {/* ----------------------------------------------------------------- */}
       {/* 8. Final CTA                                                       */}
       {/* ----------------------------------------------------------------- */}
-      <section className="py-24 text-center">
-        <h2 className="mb-6 text-3xl font-bold text-text-primary md:text-4xl">
+      <ScrollSection className="py-24 text-center">
+        <h2 className="text-heading mb-6 text-2xl md:text-3xl">
           Start earning institutional-grade yields
         </h2>
         <Link href="/overview">
           <Button
             variant="primary"
-            size="xl"
-            iconRight={<ArrowRight className="h-5 w-5" />}
-            className="shadow-[0_0_30px_rgba(0,212,170,0.3)]"
+            size="lg"
+            iconRight={<ArrowRight className="h-4 w-4" />}
+            className="shadow-glow-teal-sm"
           >
             Launch App
           </Button>
         </Link>
-      </section>
+      </ScrollSection>
 
       {/* ----------------------------------------------------------------- */}
       {/* 9. Footer                                                          */}
       {/* ----------------------------------------------------------------- */}
-      <footer className="border-t border-border-default py-12">
+      <footer className="border-t border-border-subtle py-12">
         <div className="mx-auto grid max-w-6xl grid-cols-2 gap-8 px-4 md:grid-cols-4">
           {FOOTER_COLUMNS.map((col) => (
             <div key={col.heading}>
-              <h4 className="mb-4 text-sm font-semibold text-text-primary">{col.heading}</h4>
+              <h4 className="text-label mb-4">{col.heading}</h4>
               <ul className="space-y-2">
                 {col.links.map((link) => (
                   <li key={link}>
                     <a
                       href="#"
-                      className="text-sm text-text-tertiary transition-colors hover:text-text-primary"
+                      className="text-xs text-text-tertiary transition-colors hover:text-text-primary"
                     >
                       {link}
                     </a>
@@ -575,7 +576,7 @@ export default function LandingPage() {
             </div>
           ))}
         </div>
-        <p className="mt-8 text-center text-xs text-text-disabled">
+        <p className="mt-8 text-center text-2xs text-text-disabled">
           &copy; 2026 Cayvox Labs. All rights reserved.
         </p>
       </footer>

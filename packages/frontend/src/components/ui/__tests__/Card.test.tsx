@@ -25,7 +25,7 @@ describe('Card', () => {
   });
   it('applies padding sizes', () => {
     const { container } = render(<Card padding="lg">Large padding</Card>);
-    expect(container.firstChild).toHaveClass('p-8');
+    expect(container.firstChild).toHaveClass('p-6');
   });
   it('applies no padding', () => {
     const { container } = render(<Card padding="none">No padding</Card>);

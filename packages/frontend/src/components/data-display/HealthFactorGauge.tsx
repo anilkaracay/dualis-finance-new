@@ -7,25 +7,18 @@ type GaugeSize = 'sm' | 'md' | 'lg';
 
 interface HealthFactorGaugeProps {
   value: number;
-  liquidationThreshold?: number;
-  size?: GaugeSize;
-  showLabel?: boolean;
-  animated?: boolean;
-  className?: string;
+  liquidationThreshold?: number | undefined;
+  size?: GaugeSize | undefined;
+  showLabel?: boolean | undefined;
+  animated?: boolean | undefined;
+  className?: string | undefined;
 }
 
 const sizeMap: Record<GaugeSize, { dim: number; strokeWidth: number; fontSize: string; showLabel: boolean }> = {
-  sm: { dim: 80, strokeWidth: 6, fontSize: 'text-lg', showLabel: false },
-  md: { dim: 140, strokeWidth: 8, fontSize: 'text-3xl', showLabel: true },
-  lg: { dim: 200, strokeWidth: 10, fontSize: 'text-4xl', showLabel: true },
+  sm: { dim: 80, strokeWidth: 4, fontSize: 'text-lg', showLabel: false },
+  md: { dim: 140, strokeWidth: 6, fontSize: 'text-3xl', showLabel: true },
+  lg: { dim: 200, strokeWidth: 8, fontSize: 'text-4xl', showLabel: true },
 };
-
-function getColor(value: number): string {
-  if (value >= 2.0) return '#10B981';
-  if (value >= 1.5) return '#F59E0B';
-  if (value >= 1.0) return '#F97316';
-  return '#EF4444';
-}
 
 function getStatus(value: number): { text: string; colorClass: string } {
   if (value >= 2.0) return { text: 'Safe', colorClass: 'text-positive' };
@@ -78,30 +71,38 @@ function HealthFactorGauge({
   const clampedValue = Math.min(Math.max(value, 0), 3);
   const fillPercent = (clampedValue / 3) * animatedProgress;
   const dashOffset = circumference * (1 - fillPercent);
-  const color = getColor(value);
   const status = getStatus(value);
   const isDanger = value < 1.0;
 
+  const gradientId = `hf-gradient-${size}`;
+
   return (
-    <div className={cn('flex flex-col items-center', isDanger && 'animate-pulse-danger rounded-full', className)}>
+    <div className={cn('flex flex-col items-center', className)}>
       <svg
         width={config.dim}
         height={config.dim / 2 + config.strokeWidth}
         viewBox={`0 0 ${config.dim} ${config.dim / 2 + config.strokeWidth}`}
         className="overflow-visible"
       >
+        <defs>
+          <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor="#00D68F" />
+            <stop offset="40%" stopColor="#FFB020" />
+            <stop offset="70%" stopColor="#FF8C42" />
+            <stop offset="100%" stopColor="#FF4C6A" />
+          </linearGradient>
+        </defs>
         <path
           d={`M ${config.strokeWidth / 2} ${cy} A ${radius} ${radius} 0 0 1 ${config.dim - config.strokeWidth / 2} ${cy}`}
           fill="none"
-          stroke="currentColor"
+          stroke="rgba(255,255,255,0.04)"
           strokeWidth={config.strokeWidth}
-          className="text-bg-tertiary"
           strokeLinecap="round"
         />
         <path
           d={`M ${config.strokeWidth / 2} ${cy} A ${radius} ${radius} 0 0 1 ${config.dim - config.strokeWidth / 2} ${cy}`}
           fill="none"
-          stroke={color}
+          stroke={`url(#${gradientId})`}
           strokeWidth={config.strokeWidth}
           strokeLinecap="round"
           strokeDasharray={circumference}
@@ -112,14 +113,14 @@ function HealthFactorGauge({
           x={cx}
           y={cy - 4}
           textAnchor="middle"
-          className="fill-text-primary font-mono font-bold"
+          className={cn('fill-text-primary font-mono font-medium', isDanger && 'animate-pulse-number')}
           style={{ fontSize: config.fontSize === 'text-4xl' ? '2.4rem' : config.fontSize === 'text-3xl' ? '1.9rem' : '1.1rem' }}
         >
           {value.toFixed(2)}
         </text>
       </svg>
       {displayLabel && (
-        <span className={cn('text-sm font-medium mt-1', status.colorClass)}>
+        <span className={cn('text-xs uppercase font-medium tracking-wide mt-1', status.colorClass)}>
           {status.text}
         </span>
       )}

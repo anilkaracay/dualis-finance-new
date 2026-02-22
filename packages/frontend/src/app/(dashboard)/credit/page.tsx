@@ -107,7 +107,7 @@ function CreditScoreRing() {
   }, []);
 
   const size = 200;
-  const strokeWidth = 14;
+  const strokeWidth = 10;
   const radius = (size - strokeWidth) / 2;
   const cx = size / 2;
   const cy = size / 2;
@@ -154,7 +154,7 @@ function CreditScoreRing() {
         {/* Center text */}
         <div className="absolute inset-0 flex flex-col items-center justify-center">
           <span
-            className="font-mono font-bold text-text-primary"
+            className="font-mono font-medium text-text-primary"
             style={{ fontSize: '2.5rem', lineHeight: 1 }}
           >
             {formattedValue}
@@ -272,9 +272,9 @@ function ScoreBreakdown() {
                 </div>
 
                 {/* Middle: Bar */}
-                <div className="flex-1 h-3 rounded-full bg-bg-tertiary overflow-hidden">
+                <div className="flex-1 h-2 rounded-full bg-bg-tertiary overflow-hidden">
                   <div
-                    className={cn('h-full rounded-full transition-all duration-700 ease-out', colors.bar)}
+                    className={cn('h-full rounded-full transition-all duration-700 ease-out bg-gradient-to-r from-accent-teal/60', colors.bar)}
                     style={{ width: `${currentWidth}%` }}
                   />
                 </div>
@@ -415,8 +415,8 @@ export default function CreditPage() {
 
   if (!isConnected) {
     return (
-      <div className="space-y-12">
-        <h1 className="text-2xl font-bold text-text-primary">Credit Score</h1>
+      <div className="space-y-8">
+        <h1 className="text-lg font-medium text-text-primary">Credit Score</h1>
         <Card>
           <CardContent>
             <div className="flex flex-col items-center gap-4 py-16">
@@ -433,9 +433,9 @@ export default function CreditPage() {
   // ---------- Connected State ----------
 
   return (
-    <div className="space-y-12">
+    <div className="space-y-8">
       {/* Header */}
-      <h1 className="text-2xl font-bold text-text-primary">Credit Score</h1>
+      <h1 className="text-lg font-medium text-text-primary">Credit Score</h1>
 
       {/* 1. Hero Section — Credit Score Ring */}
       <section>

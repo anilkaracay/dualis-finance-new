@@ -16,7 +16,7 @@ function SparklineChart({
   data,
   width = 80,
   height = 32,
-  color = '#00D4AA',
+  color = '#00E6B8',
   animated = true,
   showArea = false,
   className,
@@ -78,7 +78,7 @@ function SparklineChart({
         style={animated ? {
           strokeDasharray: pathLength,
           strokeDashoffset: pathLength,
-          animation: `drawLine 0.6s ease-out forwards`,
+          animation: `drawLine 0.4s ease-out forwards`,
         } : undefined}
       />
     </svg>

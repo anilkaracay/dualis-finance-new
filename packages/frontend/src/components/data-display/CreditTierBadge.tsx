@@ -1,52 +1,44 @@
 import { cn } from '@/lib/utils/cn';
-import { Diamond, Crown, Shield, Circle, HelpCircle } from 'lucide-react';
+import { Diamond, Crown, Shield, Circle, Minus } from 'lucide-react';
 
 type TierValue = 'Diamond' | 'Gold' | 'Silver' | 'Bronze' | 'Unrated';
 type TierSize = 'sm' | 'md' | 'lg';
 
 interface CreditTierBadgeProps {
   tier: TierValue;
-  showScore?: boolean;
-  score?: number;
-  size?: TierSize;
-  className?: string;
+  showScore?: boolean | undefined;
+  score?: number | undefined;
+  size?: TierSize | undefined;
+  className?: string | undefined;
 }
 
-const tierConfig: Record<TierValue, { icon: React.ElementType; color: string; bgClass: string; textClass: string }> = {
-  Diamond: { icon: Diamond, color: '#B9F2FF', bgClass: 'bg-tier-diamond/15', textClass: 'text-tier-diamond' },
-  Gold: { icon: Crown, color: '#FFD700', bgClass: 'bg-tier-gold/15', textClass: 'text-tier-gold' },
-  Silver: { icon: Shield, color: '#C0C0C0', bgClass: 'bg-tier-silver/15', textClass: 'text-tier-silver' },
-  Bronze: { icon: Circle, color: '#CD7F32', bgClass: 'bg-tier-bronze/15', textClass: 'text-tier-bronze' },
-  Unrated: { icon: HelpCircle, color: '#6B7280', bgClass: 'bg-tier-unrated/15', textClass: 'text-tier-unrated' },
-};
-
-const sizeConfig: Record<TierSize, { iconSize: string; paddingClass: string; textClass: string }> = {
-  sm: { iconSize: 'h-3.5 w-3.5', paddingClass: 'px-1.5 py-0.5', textClass: 'text-xs' },
-  md: { iconSize: 'h-4 w-4', paddingClass: 'px-2.5 py-1', textClass: 'text-sm' },
-  lg: { iconSize: 'h-4 w-4', paddingClass: 'px-3 py-1.5', textClass: 'text-sm' },
+const tierConfig: Record<TierValue, { icon: React.ElementType; textClass: string; glowClass: string }> = {
+  Diamond: { icon: Diamond, textClass: 'text-tier-diamond', glowClass: 'border-glow-teal' },
+  Gold: { icon: Crown, textClass: 'text-tier-gold', glowClass: '' },
+  Silver: { icon: Shield, textClass: 'text-tier-silver', glowClass: '' },
+  Bronze: { icon: Circle, textClass: 'text-tier-bronze', glowClass: '' },
+  Unrated: { icon: Minus, textClass: 'text-tier-unrated', glowClass: '' },
 };
 
 function CreditTierBadge({ tier, showScore, score, size = 'md', className }: CreditTierBadgeProps) {
   const tc = tierConfig[tier];
-  const sc = sizeConfig[size];
   const Icon = tc.icon;
 
+  if (tier === 'Unrated') {
+    return <span className={cn('text-xs text-text-tertiary', className)}>Unrated</span>;
+  }
+
   return (
-    <span
-      className={cn(
-        'inline-flex items-center gap-1.5 rounded-full font-medium border',
-        tc.bgClass,
-        tc.textClass,
-        sc.paddingClass,
-        sc.textClass,
-        'border-current/20',
-        className
-      )}
-    >
-      <Icon className={sc.iconSize} />
+    <span className={cn(
+      'inline-flex items-center gap-1.5 font-medium',
+      tc.textClass,
+      size === 'sm' ? 'text-xs' : size === 'md' ? 'text-sm' : 'text-sm',
+      className
+    )}>
+      <Icon className={size === 'sm' ? 'h-3 w-3' : 'h-4 w-4'} />
       {size !== 'sm' && <span>{tier}</span>}
       {size === 'lg' && showScore && score !== undefined && (
-        <span className="font-mono ml-0.5">{score}</span>
+        <span className="font-mono text-xs ml-0.5 opacity-70">{score}</span>
       )}
     </span>
   );

@@ -3,18 +3,18 @@ import { cn } from '@/lib/utils/cn';
 import { Loader2 } from 'lucide-react';
 
 const buttonVariants = {
-  primary: 'bg-accent-teal text-text-inverse hover:bg-accent-teal-hover active:bg-accent-teal shadow-sm hover:shadow-glow-teal',
-  secondary: 'bg-bg-tertiary text-text-primary border border-border-default hover:bg-bg-hover active:bg-bg-active',
-  ghost: 'text-text-secondary hover:text-text-primary hover:bg-bg-hover active:bg-bg-active',
-  danger: 'bg-negative text-white hover:bg-red-600 active:bg-red-700 shadow-sm',
-  success: 'bg-positive text-white hover:bg-emerald-600 active:bg-emerald-700 shadow-sm',
+  primary: 'bg-accent-teal text-text-inverse hover:brightness-110 hover:shadow-glow-teal-sm shadow-sm',
+  secondary: 'bg-transparent text-text-primary border border-border-hover hover:bg-bg-hover hover:border-border-hover',
+  ghost: 'text-text-secondary hover:text-text-primary hover:bg-bg-hover',
+  danger: 'bg-negative text-white hover:brightness-110 shadow-sm',
+  success: 'bg-positive text-white hover:brightness-110 shadow-sm',
 } as const;
 
 const buttonSizes = {
-  sm: 'h-8 px-3 text-sm rounded-sm gap-1.5',
-  md: 'h-10 px-4 text-sm rounded-sm gap-2',
-  lg: 'h-12 px-6 text-base rounded-md gap-2',
-  xl: 'h-14 px-8 text-lg rounded-md gap-2.5',
+  sm: 'h-7 px-2.5 text-xs rounded-md gap-1.5',
+  md: 'h-9 px-4 text-sm rounded-md gap-2',
+  lg: 'h-11 px-5 text-sm rounded-md gap-2',
+  xl: 'h-12 px-6 text-base rounded-lg gap-2.5',
 } as const;
 
 type ButtonVariant = keyof typeof buttonVariants;
@@ -39,7 +39,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       <button
         ref={ref}
         className={cn(
-          'inline-flex items-center justify-center font-semibold tracking-wide transition-all duration-100 focus-ring',
+          'inline-flex items-center justify-center font-medium transition-all duration-100 focus-ring btn-press',
           'disabled:opacity-50 disabled:pointer-events-none',
           buttonVariants[variant],
           buttonSizes[size],

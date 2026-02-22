@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils/cn';
 import { LayoutDashboard, TrendingUp, Wallet, Handshake, MoreHorizontal } from 'lucide-react';
 
 interface MobileNavProps {
-  className?: string;
+  className?: string | undefined;
 }
 
 const tabs = [
@@ -28,7 +28,7 @@ function MobileNav({ className }: MobileNavProps) {
   return (
     <nav
       className={cn(
-        'fixed bottom-0 left-0 right-0 z-50 flex items-center justify-around h-16 bg-bg-secondary border-t border-border-default md:hidden',
+        'fixed bottom-0 left-0 right-0 z-50 flex items-center justify-around h-14 bg-bg-secondary border-t border-border-default md:hidden',
         'pb-[env(safe-area-inset-bottom)]',
         className
       )}
@@ -40,11 +40,11 @@ function MobileNav({ className }: MobileNavProps) {
             key={tab.href}
             href={tab.href}
             className={cn(
-              'flex flex-col items-center gap-0.5 px-3 py-1.5 text-[10px] font-medium transition-colors',
+              'flex flex-col items-center gap-0.5 px-3 py-1.5 text-[9px] font-medium transition-colors',
               active ? 'text-accent-teal' : 'text-text-tertiary'
             )}
           >
-            <tab.icon className={cn('h-5 w-5', active && 'text-accent-teal')} />
+            <tab.icon className={cn('h-[18px] w-[18px]', active && 'text-accent-teal')} />
             <span>{tab.label}</span>
           </Link>
         );

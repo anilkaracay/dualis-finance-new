@@ -42,7 +42,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <div
           className={cn(
             'hidden md:flex shrink-0 transition-all duration-300',
-            ui.sidebarCollapsed ? 'w-[72px]' : 'w-[260px]'
+            ui.sidebarCollapsed ? 'w-[56px]' : 'w-[240px]'
           )}
         >
           <Sidebar collapsed={ui.sidebarCollapsed} />
@@ -59,13 +59,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             walletSlot={<WalletDropdown />}
           />
 
-          {/* Demo mode banner */}
-          {protocol.isDemo && (
-            <div className="bg-warning/10 border-b border-warning/20 px-4 py-2 text-center text-xs text-warning">
-              Running in demo mode — backend not connected
-            </div>
-          )}
-
           <main className="flex-1 overflow-y-auto bg-bg-primary pb-20 md:pb-0">
             <div className="mx-auto max-w-[1440px] px-4 py-6 md:px-6 md:py-8">
               {children}
@@ -73,6 +66,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </main>
         </div>
       </div>
+
+      {/* Demo mode pill — bottom-right corner */}
+      {protocol.isDemo && (
+        <div className="fixed bottom-4 right-4 z-50 px-3 py-1.5 rounded-full bg-warning/10 border border-warning/20 text-[10px] text-warning font-medium">
+          Demo Mode
+        </div>
+      )}
 
       {/* Mobile bottom nav */}
       <MobileNav />

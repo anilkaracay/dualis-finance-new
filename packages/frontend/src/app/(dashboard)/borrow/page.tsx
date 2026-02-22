@@ -294,7 +294,7 @@ function AddCollateralDialog({
                 <select
                   value={selectedAsset}
                   onChange={(e) => setSelectedAsset(e.target.value)}
-                  className="h-10 w-full rounded-sm bg-surface-input border border-border-default px-3 text-sm text-text-primary focus-ring transition-colors"
+                  className="h-9 w-full rounded-md bg-surface-input border border-border-default px-3 text-sm text-text-primary focus-ring transition-colors"
                 >
                   {COLLATERAL_ASSETS.map((asset) => (
                     <option key={asset} value={asset}>
@@ -407,20 +407,20 @@ function ActiveBorrowPositions({
 
   return (
     <Card padding="none">
-      <div className="px-6 pt-6 pb-4">
-        <h3 className="text-xl font-semibold text-text-primary">Active Borrow Positions</h3>
+      <div className="px-6 pt-5 pb-3">
+        <h3 className="text-label">Active Borrow Positions</h3>
       </div>
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-border-default">
-              <th className="px-6 py-3 text-left font-medium text-text-secondary">Asset</th>
-              <th className="px-6 py-3 text-right font-medium text-text-secondary">Principal</th>
-              <th className="px-6 py-3 text-right font-medium text-text-secondary">Current Debt</th>
-              <th className="px-6 py-3 text-center font-medium text-text-secondary">Health Factor</th>
-              <th className="px-6 py-3 text-center font-medium text-text-secondary">Credit Tier</th>
-              <th className="px-6 py-3 text-right font-medium text-text-secondary">APY</th>
-              <th className="px-6 py-3 text-right font-medium text-text-secondary">Actions</th>
+            <tr className="border-b border-border-default backdrop-blur">
+              <th className="text-label px-6 h-10 text-left">Asset</th>
+              <th className="text-label px-6 h-10 text-right">Principal</th>
+              <th className="text-label px-6 h-10 text-right">Current Debt</th>
+              <th className="text-label px-6 h-10 text-center">Health Factor</th>
+              <th className="text-label px-6 h-10 text-center">Credit Tier</th>
+              <th className="text-label px-6 h-10 text-right">APY</th>
+              <th className="text-label px-6 h-10 text-right">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -432,40 +432,40 @@ function ActiveBorrowPositions({
                 <tr
                   key={pos.positionId}
                   className={cn(
-                    'border-b border-border-default last:border-b-0 hover:bg-bg-hover transition-colors',
+                    'border-b border-border-default last:border-b-0 h-14 hover:bg-bg-hover/50 transition-colors',
                     pos.healthFactor < 1.2 && 'bg-negative/5'
                   )}
                 >
-                  <td className="px-6 py-4">
+                  <td className="px-6">
                     <div className="flex items-center gap-2">
                       <AssetIcon symbol={pos.symbol} size="sm" />
                       <span className="font-medium text-text-primary">{pos.symbol}</span>
                     </div>
                   </td>
-                  <td className="px-6 py-4 text-right">
+                  <td className="px-6 text-right">
                     <span className="font-mono text-text-primary">
                       {formatUSD(pos.borrowedAmountPrincipal)}
                     </span>
                   </td>
-                  <td className="px-6 py-4 text-right">
+                  <td className="px-6 text-right">
                     <span className="font-mono text-text-primary">
                       {formatUSD(pos.currentDebt)}
                     </span>
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="px-6">
                     <div className="flex justify-center">
                       <HealthFactorGauge value={pos.healthFactor} size="sm" showLabel={false} />
                     </div>
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="px-6">
                     <div className="flex justify-center">
                       <CreditTierBadge tier={pos.creditTier as CreditTier} size="sm" />
                     </div>
                   </td>
-                  <td className="px-6 py-4 text-right">
+                  <td className="px-6 text-right">
                     <APYDisplay value={borrowAPY} size="sm" />
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="px-6">
                     <div className="flex items-center justify-end gap-2">
                       <Button
                         variant="secondary"
@@ -607,7 +607,7 @@ function NewBorrowSection({ pools }: { pools: PoolData[] }) {
             {/* Step 1 — Select Asset */}
             <div>
               <h4 className="text-sm font-semibold text-text-primary mb-3 flex items-center gap-2">
-                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-accent-teal-muted text-accent-teal text-xs font-bold">
+                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-accent-teal-muted text-accent-teal text-2xs font-medium">
                   1
                 </span>
                 Select Asset
@@ -615,7 +615,7 @@ function NewBorrowSection({ pools }: { pools: PoolData[] }) {
               <select
                 value={selectedPoolId}
                 onChange={(e) => setSelectedPoolId(e.target.value)}
-                className="h-10 w-full max-w-md rounded-sm bg-surface-input border border-border-default px-3 text-sm text-text-primary focus-ring transition-colors"
+                className="h-9 w-full max-w-md rounded-md bg-surface-input border border-border-default px-3 text-sm text-text-primary focus-ring transition-colors"
               >
                 <option value="">Choose an asset...</option>
                 {activePools.map((pool) => {
@@ -632,7 +632,7 @@ function NewBorrowSection({ pools }: { pools: PoolData[] }) {
             {/* Step 2 — Borrow Amount */}
             <div>
               <h4 className="text-sm font-semibold text-text-primary mb-3 flex items-center gap-2">
-                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-accent-teal-muted text-accent-teal text-xs font-bold">
+                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-accent-teal-muted text-accent-teal text-2xs font-medium">
                   2
                 </span>
                 Borrow Amount
@@ -657,7 +657,7 @@ function NewBorrowSection({ pools }: { pools: PoolData[] }) {
             {/* Step 3 — Select Collateral */}
             <div>
               <h4 className="text-sm font-semibold text-text-primary mb-3 flex items-center gap-2">
-                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-accent-teal-muted text-accent-teal text-xs font-bold">
+                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-accent-teal-muted text-accent-teal text-2xs font-medium">
                   3
                 </span>
                 Select Collateral
@@ -672,7 +672,7 @@ function NewBorrowSection({ pools }: { pools: PoolData[] }) {
                       <select
                         value={entry.asset}
                         onChange={(e) => handleCollateralAssetChange(index, e.target.value)}
-                        className="h-10 w-full rounded-sm bg-surface-input border border-border-default px-3 text-sm text-text-primary focus-ring transition-colors"
+                        className="h-9 w-full rounded-md bg-surface-input border border-border-default px-3 text-sm text-text-primary focus-ring transition-colors"
                       >
                         {COLLATERAL_ASSETS.map((asset) => (
                           <option key={asset} value={asset}>
@@ -713,7 +713,7 @@ function NewBorrowSection({ pools }: { pools: PoolData[] }) {
             {/* Step 4 — Health Factor Simulator */}
             <div>
               <h4 className="text-sm font-semibold text-text-primary mb-3 flex items-center gap-2">
-                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-accent-teal-muted text-accent-teal text-xs font-bold">
+                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-accent-teal-muted text-accent-teal text-2xs font-medium">
                   4
                 </span>
                 Health Factor Simulator
@@ -747,14 +747,14 @@ function NewBorrowSection({ pools }: { pools: PoolData[] }) {
             {/* Step 5 — Summary Panel */}
             <div>
               <h4 className="text-sm font-semibold text-text-primary mb-3 flex items-center gap-2">
-                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-accent-teal-muted text-accent-teal text-xs font-bold">
+                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-accent-teal-muted text-accent-teal text-2xs font-medium">
                   5
                 </span>
                 Summary
               </h4>
               <div className="rounded-md bg-bg-tertiary p-4 space-y-3">
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-text-secondary">Borrow APY</span>
+                  <span className="text-label">Borrow APY</span>
                   <span className="font-mono text-text-primary">
                     {selectedPool ? (
                       <APYDisplay value={selectedPool.borrowAPY} size="sm" />
@@ -764,7 +764,7 @@ function NewBorrowSection({ pools }: { pools: PoolData[] }) {
                   </span>
                 </div>
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-text-secondary">Credit Tier</span>
+                  <span className="text-label">Credit Tier</span>
                   <div className="flex items-center gap-2">
                     {creditTier ? (
                       <>
@@ -891,8 +891,8 @@ export default function BorrowPage() {
 
   if (!isConnected) {
     return (
-      <div className="space-y-12">
-        <h1 className="text-2xl font-bold text-text-primary">Borrow</h1>
+      <div className="space-y-8">
+        <h1 className="text-lg font-medium text-text-primary">Borrow</h1>
         <Card>
           <CardContent>
             <div className="flex flex-col items-center gap-4 py-16">
@@ -909,9 +909,9 @@ export default function BorrowPage() {
   // ---------- Connected State ----------
 
   return (
-    <div className="space-y-12">
+    <div className="space-y-8">
       {/* Header */}
-      <h1 className="text-2xl font-bold text-text-primary">Borrow</h1>
+      <h1 className="text-lg font-medium text-text-primary">Borrow</h1>
 
       {/* Active Borrow Positions */}
       <section>

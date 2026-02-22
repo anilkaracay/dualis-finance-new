@@ -3,7 +3,6 @@
 import { cn } from '@/lib/utils/cn';
 import { useCountUp } from '@/hooks/useCountUp';
 import { SparklineChart } from './SparklineChart';
-import { Badge } from '@/components/ui/Badge';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
 
@@ -13,29 +12,23 @@ type Trend = 'up' | 'down' | 'flat';
 interface KPICardProps {
   label: string;
   value: number | string;
-  previousValue?: number;
-  trend?: Trend;
-  trendValue?: string;
-  sparkline?: number[];
-  icon?: React.ReactNode;
-  size?: KPISize;
-  loading?: boolean;
-  prefix?: string;
-  suffix?: string;
-  decimals?: number;
-  className?: string;
+  previousValue?: number | undefined;
+  trend?: Trend | undefined;
+  trendValue?: string | undefined;
+  trendContext?: string | undefined;
+  sparkline?: number[] | undefined;
+  size?: KPISize | undefined;
+  loading?: boolean | undefined;
+  prefix?: string | undefined;
+  suffix?: string | undefined;
+  decimals?: number | undefined;
+  className?: string | undefined;
 }
 
-const sizeConfig: Record<KPISize, { valueClass: string; labelClass: string; iconSize: string }> = {
-  sm: { valueClass: 'text-2xl', labelClass: 'text-xs', iconSize: 'h-4 w-4' },
-  md: { valueClass: 'text-4xl', labelClass: 'text-sm', iconSize: 'h-5 w-5' },
-  lg: { valueClass: 'text-5xl', labelClass: 'text-sm', iconSize: 'h-5 w-5' },
-};
-
-const trendConfig: Record<Trend, { icon: React.ElementType; variant: 'success' | 'danger' | 'default' }> = {
-  up: { icon: TrendingUp, variant: 'success' },
-  down: { icon: TrendingDown, variant: 'danger' },
-  flat: { icon: Minus, variant: 'default' },
+const sizeConfig: Record<KPISize, { valueClass: string }> = {
+  sm: { valueClass: 'text-2xl' },
+  md: { valueClass: 'text-4xl' },
+  lg: { valueClass: 'text-5xl' },
 };
 
 function KPICard({
@@ -43,8 +36,8 @@ function KPICard({
   value,
   trend,
   trendValue,
+  trendContext,
   sparkline,
-  icon,
   size = 'md',
   loading = false,
   prefix = '',
@@ -53,45 +46,44 @@ function KPICard({
   className,
 }: KPICardProps) {
   const numValue = typeof value === 'string' ? parseFloat(value) : value;
-  const { formattedValue } = useCountUp({ end: numValue, decimals });
+  const { formattedValue } = useCountUp({ end: numValue, decimals, duration: 800 });
   const config = sizeConfig[size];
 
   if (loading) {
     return (
-      <div className={cn('rounded-md bg-surface-card border border-border-default p-6', className)}>
-        <Skeleton variant="rect" height={14} width="40%" />
-        <Skeleton variant="rect" height={size === 'lg' ? 48 : 36} width="70%" className="mt-3" />
-        <Skeleton variant="rect" height={20} width="50%" className="mt-3" />
+      <div className={cn('rounded-lg bg-surface-card border border-border-default p-5', className)}>
+        <Skeleton variant="rect" height={10} width="35%" />
+        <Skeleton variant="rect" height={size === 'lg' ? 44 : 32} width="65%" className="mt-3" />
+        <Skeleton variant="rect" height={14} width="45%" className="mt-3" />
       </div>
     );
   }
 
-  return (
-    <div className={cn('rounded-md bg-surface-card border border-border-default p-6', className)}>
-      <div className="flex items-center gap-2 mb-1">
-        {icon && <span className={cn('text-text-tertiary', config.iconSize)}>{icon}</span>}
-        <span className={cn('font-medium text-text-secondary uppercase tracking-wide', config.labelClass)}>
-          {label}
-        </span>
-      </div>
+  const trendColor = trend === 'up' ? 'text-positive' : trend === 'down' ? 'text-negative' : 'text-text-tertiary';
+  const TrendIcon = trend === 'up' ? TrendingUp : trend === 'down' ? TrendingDown : Minus;
 
-      <div className={cn('font-mono font-bold text-text-primary tracking-tight tabular-nums', config.valueClass)}>
+  return (
+    <div className={cn(
+      'rounded-lg bg-surface-card border border-border-default p-5 transition-all duration-200 hover:border-border-hover',
+      className
+    )}>
+      <span className="text-label">{label}</span>
+
+      <div className={cn('text-kpi mt-2', config.valueClass)}>
         {prefix}{formattedValue}{suffix}
       </div>
 
       {(trend || sparkline) && size !== 'sm' && (
-        <div className="flex items-center gap-3 mt-3">
+        <div className="flex items-center gap-2 mt-3">
           {trend && trendValue && (
-            <Badge variant={trendConfig[trend].variant} size="sm">
-              {(() => {
-                const TrendIcon = trendConfig[trend].icon;
-                return <TrendIcon className="h-3 w-3 mr-1" />;
-              })()}
-              {trendValue}
-            </Badge>
+            <>
+              <TrendIcon className={cn('h-3 w-3', trendColor)} />
+              <span className={cn('text-xs font-medium', trendColor)}>{trendValue}</span>
+              {trendContext && <span className="text-xs text-text-tertiary">{trendContext}</span>}
+            </>
           )}
           {sparkline && sparkline.length >= 2 && (
-            <SparklineChart data={sparkline} width={80} height={28} animated showArea />
+            <SparklineChart data={sparkline} width={60} height={16} animated showArea className="ml-auto" />
           )}
         </div>
       )}

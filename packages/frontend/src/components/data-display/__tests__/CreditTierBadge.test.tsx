@@ -28,9 +28,9 @@ describe('CreditTierBadge', () => {
     expect(container.firstChild).toHaveClass('text-tier-bronze');
   });
 
-  it('renders Unrated tier with correct styling', () => {
+  it('renders Unrated tier as plain text', () => {
     const { container } = render(<CreditTierBadge tier="Unrated" />);
-    expect(container.firstChild).toHaveClass('text-tier-unrated');
+    expect(container.firstChild).toHaveClass('text-text-tertiary');
   });
 
   it('hides tier name at sm size', () => {

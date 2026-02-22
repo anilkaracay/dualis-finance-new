@@ -53,7 +53,7 @@ describe('KPICard', () => {
   it('applies prefix and suffix', () => {
     const { container } = render(<KPICard label="Rate" value={5.5} prefix="$" suffix="%" />);
     // Prefix and suffix are rendered as text nodes within the value div
-    const valueDiv = container.querySelector('.font-mono');
+    const valueDiv = container.querySelector('.text-kpi');
     expect(valueDiv).not.toBeNull();
     expect(valueDiv!.textContent).toContain('$');
     expect(valueDiv!.textContent).toContain('%');

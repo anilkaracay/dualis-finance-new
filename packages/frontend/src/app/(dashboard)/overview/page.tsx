@@ -1,21 +1,13 @@
 'use client';
 
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import {
-  DollarSign,
-  TrendingUp,
-  Heart,
-  ArrowDownCircle,
-  Sparkles,
-  Star,
-} from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 import { Badge } from '@/components/ui/Badge';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { KPICard } from '@/components/data-display/KPICard';
-import { HealthFactorGauge } from '@/components/data-display/HealthFactorGauge';
 import { AssetIcon } from '@/components/data-display/AssetIcon';
+import { HealthFactorGauge } from '@/components/data-display/HealthFactorGauge';
 import { CreditTierBadge } from '@/components/data-display/CreditTierBadge';
 import { DonutChart } from '@/components/charts/DonutChart';
 import type { DonutSegment } from '@/components/charts/DonutChart';
@@ -51,20 +43,6 @@ function formatUSD(value: number): string {
   }).format(value);
 }
 
-function truncateAddress(address: string): string {
-  if (address.length <= 12) return address;
-  return `${address.slice(0, 6)}...${address.slice(-4)}`;
-}
-
-function formatDate(date: Date): string {
-  return date.toLocaleDateString('en-US', {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  });
-}
-
 function daysElapsed(startDate: string): number {
   const start = new Date(startDate);
   const now = new Date();
@@ -81,33 +59,6 @@ function generateSparkline(n: number, base: number, variance: number): number[] 
     points.push(Math.round(current * 100) / 100);
   }
   return points;
-}
-
-// ---------------------------------------------------------------------------
-// Section: Welcome Header
-// ---------------------------------------------------------------------------
-
-function WelcomeHeader({
-  isConnected,
-  walletAddress,
-}: {
-  isConnected: boolean;
-  walletAddress: string | null;
-}) {
-  const now = new Date();
-
-  return (
-    <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
-      <div>
-        <h1 className="text-2xl font-bold text-text-primary sm:text-3xl">
-          {isConnected && walletAddress
-            ? `Welcome back, ${truncateAddress(walletAddress)}`
-            : 'Connect wallet to get started'}
-        </h1>
-        <p className="mt-1 text-sm text-text-tertiary">{formatDate(now)}</p>
-      </div>
-    </div>
-  );
 }
 
 // ---------------------------------------------------------------------------
@@ -147,7 +98,6 @@ function KPIGrid({
         trend="up"
         trendValue="+3.2%"
         sparkline={sparklineNetWorth}
-        icon={<DollarSign className="h-4 w-4" />}
         loading={isLoading}
       />
 
@@ -160,33 +110,16 @@ function KPIGrid({
         trend="up"
         trendValue="+3.2%"
         sparkline={sparklineSupplied}
-        icon={<TrendingUp className="h-4 w-4" />}
         loading={isLoading}
       />
 
-      {/* Health Factor — custom card with gauge */}
-      {isLoading ? (
-        <div className="rounded-md bg-surface-card border border-border-default p-6">
-          <Skeleton variant="rect" height={14} width="40%" />
-          <Skeleton variant="rect" height={80} width="80%" className="mt-3" />
-        </div>
-      ) : (
-        <div className="rounded-md bg-surface-card border border-border-default p-6 flex flex-col items-center gap-3">
-          <div className="flex items-center gap-2 self-start">
-            <span className="text-text-tertiary">
-              <Heart className="h-4 w-4" />
-            </span>
-            <span className="text-sm font-medium uppercase tracking-wide text-text-secondary">
-              Health Factor
-            </span>
-          </div>
-          {minHealthFactor !== undefined ? (
-            <HealthFactorGauge value={minHealthFactor} size="md" animated />
-          ) : (
-            <span className="text-text-tertiary text-sm">No borrows</span>
-          )}
-        </div>
-      )}
+      {/* Health Factor */}
+      <KPICard
+        label="Health Factor"
+        value={minHealthFactor ?? 0}
+        decimals={2}
+        loading={isLoading}
+      />
 
       {/* Total Borrowed */}
       <KPICard
@@ -195,7 +128,6 @@ function KPIGrid({
         prefix="$"
         decimals={2}
         sparkline={sparklineBorrowed}
-        icon={<ArrowDownCircle className="h-4 w-4" />}
         loading={isLoading}
       />
 
@@ -206,33 +138,15 @@ function KPIGrid({
         prefix="$"
         decimals={2}
         sparkline={sparklineEarned}
-        icon={<Sparkles className="h-4 w-4" />}
         loading={isLoading}
       />
 
-      {/* Credit Tier — custom card */}
-      {isLoading ? (
-        <div className="rounded-md bg-surface-card border border-border-default p-6">
-          <Skeleton variant="rect" height={14} width="40%" />
-          <Skeleton variant="rect" height={36} width="50%" className="mt-3" />
-        </div>
-      ) : (
-        <div className="rounded-md bg-surface-card border border-border-default p-6 flex flex-col items-center gap-4">
-          <div className="flex items-center gap-2 self-start">
-            <span className="text-text-tertiary">
-              <Star className="h-4 w-4" />
-            </span>
-            <span className="text-sm font-medium uppercase tracking-wide text-text-secondary">
-              Credit Tier
-            </span>
-          </div>
-          {creditTier ? (
-            <CreditTierBadge tier={creditTier} size="lg" />
-          ) : (
-            <span className="text-text-tertiary text-sm">Not rated</span>
-          )}
-        </div>
-      )}
+      {/* Credit Tier */}
+      <KPICard
+        label="Credit Tier"
+        value={creditTier ?? 'Unrated'}
+        loading={isLoading}
+      />
     </div>
   );
 }
@@ -260,7 +174,7 @@ function SupplyPositionsTable({
 
   if (positions.length === 0) {
     return (
-      <div className="flex flex-col items-center gap-3 rounded-md border border-border-default bg-surface-card py-12">
+      <div className="flex flex-col items-center gap-3 rounded-lg border border-border-default bg-surface-card py-12">
         <p className="text-text-tertiary text-sm">No supply positions yet</p>
         <Link
           href="/markets"
@@ -273,31 +187,31 @@ function SupplyPositionsTable({
   }
 
   return (
-    <div className="overflow-x-auto rounded-md border border-border-default bg-surface-card">
+    <div className="overflow-x-auto rounded-lg border border-border-default bg-surface-card">
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-b border-border-default">
-            <th className="px-4 py-3 text-left font-medium text-text-secondary">Asset</th>
-            <th className="px-4 py-3 text-left font-medium text-text-secondary">Pool</th>
-            <th className="px-4 py-3 text-right font-medium text-text-secondary">Deposited</th>
-            <th className="px-4 py-3 text-right font-medium text-text-secondary">APY</th>
-            <th className="px-4 py-3 text-right font-medium text-text-secondary">Status</th>
+          <tr className="border-b border-border-default backdrop-blur">
+            <th className="text-label px-4 h-10 text-left">Asset</th>
+            <th className="text-label px-4 h-10 text-left">Pool</th>
+            <th className="text-label px-4 h-10 text-right">Deposited</th>
+            <th className="text-label px-4 h-10 text-right">APY</th>
+            <th className="text-label px-4 h-10 text-right">Status</th>
           </tr>
         </thead>
         <tbody>
           {positions.map((pos) => (
             <tr
               key={pos.positionId}
-              className="border-b border-border-default last:border-b-0 hover:bg-bg-hover transition-colors"
+              className="border-b border-border-default last:border-b-0 h-14 hover:bg-bg-hover/50 transition-colors"
             >
-              <td className="px-4 py-3">
+              <td className="px-4">
                 <div className="flex items-center gap-2">
                   <AssetIcon symbol={pos.symbol} size="sm" />
                   <span className="font-medium text-text-primary">{pos.symbol}</span>
                 </div>
               </td>
-              <td className="px-4 py-3 text-text-secondary font-mono text-xs">{pos.poolId}</td>
-              <td className="px-4 py-3 text-right">
+              <td className="px-4 text-text-secondary font-mono text-xs">{pos.poolId}</td>
+              <td className="px-4 text-right">
                 <div className="flex flex-col items-end">
                   <span className="font-mono text-text-primary">
                     {pos.depositedAmount.toLocaleString('en-US')}
@@ -305,10 +219,10 @@ function SupplyPositionsTable({
                   <span className="text-xs text-text-tertiary">{formatUSD(pos.currentValueUSD)}</span>
                 </div>
               </td>
-              <td className="px-4 py-3 text-right">
+              <td className="px-4 text-right">
                 <span className="font-mono text-positive">{(pos.apy * 100).toFixed(2)}%</span>
               </td>
-              <td className="px-4 py-3 text-right">
+              <td className="px-4 text-right">
                 <Badge variant="success" size="sm">Active</Badge>
               </td>
             </tr>
@@ -342,23 +256,23 @@ function BorrowPositionsTable({
 
   if (positions.length === 0) {
     return (
-      <div className="flex flex-col items-center gap-3 rounded-md border border-border-default bg-surface-card py-12">
+      <div className="flex flex-col items-center gap-3 rounded-lg border border-border-default bg-surface-card py-12">
         <p className="text-text-tertiary text-sm">No active borrows</p>
       </div>
     );
   }
 
   return (
-    <div className="overflow-x-auto rounded-md border border-border-default bg-surface-card">
+    <div className="overflow-x-auto rounded-lg border border-border-default bg-surface-card">
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-b border-border-default">
-            <th className="px-4 py-3 text-left font-medium text-text-secondary">Asset</th>
-            <th className="px-4 py-3 text-left font-medium text-text-secondary">Pool</th>
-            <th className="px-4 py-3 text-right font-medium text-text-secondary">Debt</th>
-            <th className="px-4 py-3 text-center font-medium text-text-secondary">Health Factor</th>
-            <th className="px-4 py-3 text-center font-medium text-text-secondary">Credit Tier</th>
-            <th className="px-4 py-3 text-right font-medium text-text-secondary">Status</th>
+          <tr className="border-b border-border-default backdrop-blur">
+            <th className="text-label px-4 h-10 text-left">Asset</th>
+            <th className="text-label px-4 h-10 text-left">Pool</th>
+            <th className="text-label px-4 h-10 text-right">Debt</th>
+            <th className="text-label px-4 h-10 text-center">Health Factor</th>
+            <th className="text-label px-4 h-10 text-center">Credit Tier</th>
+            <th className="text-label px-4 h-10 text-right">Status</th>
           </tr>
         </thead>
         <tbody>
@@ -366,33 +280,33 @@ function BorrowPositionsTable({
             <tr
               key={pos.positionId}
               className={cn(
-                'border-b border-border-default last:border-b-0 hover:bg-bg-hover transition-colors',
+                'border-b border-border-default last:border-b-0 h-14 hover:bg-bg-hover/50 transition-colors',
                 pos.healthFactor < 1.2 && 'bg-negative/5'
               )}
             >
-              <td className="px-4 py-3">
+              <td className="px-4">
                 <div className="flex items-center gap-2">
                   <AssetIcon symbol={pos.symbol} size="sm" />
                   <span className="font-medium text-text-primary">{pos.symbol}</span>
                 </div>
               </td>
-              <td className="px-4 py-3 text-text-secondary font-mono text-xs">{pos.poolId}</td>
-              <td className="px-4 py-3 text-right">
+              <td className="px-4 text-text-secondary font-mono text-xs">{pos.poolId}</td>
+              <td className="px-4 text-right">
                 <span className="font-mono text-text-primary">
                   {formatUSD(pos.currentDebt)}
                 </span>
               </td>
-              <td className="px-4 py-3">
+              <td className="px-4">
                 <div className="flex justify-center">
                   <HealthFactorGauge value={pos.healthFactor} size="sm" showLabel={false} />
                 </div>
               </td>
-              <td className="px-4 py-3">
+              <td className="px-4">
                 <div className="flex justify-center">
                   <CreditTierBadge tier={pos.creditTier as CreditTier} size="sm" />
                 </div>
               </td>
-              <td className="px-4 py-3 text-right">
+              <td className="px-4 text-right">
                 {pos.isLiquidatable ? (
                   <Badge variant="danger" size="sm">Liquidatable</Badge>
                 ) : (
@@ -430,37 +344,37 @@ function SecLendingDealsTable({
 
   if (deals.length === 0) {
     return (
-      <div className="flex flex-col items-center gap-3 rounded-md border border-border-default bg-surface-card py-12">
+      <div className="flex flex-col items-center gap-3 rounded-lg border border-border-default bg-surface-card py-12">
         <p className="text-text-tertiary text-sm">No active deals</p>
       </div>
     );
   }
 
   return (
-    <div className="overflow-x-auto rounded-md border border-border-default bg-surface-card">
+    <div className="overflow-x-auto rounded-lg border border-border-default bg-surface-card">
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-b border-border-default">
-            <th className="px-4 py-3 text-left font-medium text-text-secondary">Security</th>
-            <th className="px-4 py-3 text-left font-medium text-text-secondary">Role</th>
-            <th className="px-4 py-3 text-right font-medium text-text-secondary">Fee Accrued</th>
-            <th className="px-4 py-3 text-center font-medium text-text-secondary">Status</th>
-            <th className="px-4 py-3 text-right font-medium text-text-secondary">Day</th>
+          <tr className="border-b border-border-default backdrop-blur">
+            <th className="text-label px-4 h-10 text-left">Security</th>
+            <th className="text-label px-4 h-10 text-left">Role</th>
+            <th className="text-label px-4 h-10 text-right">Fee Accrued</th>
+            <th className="text-label px-4 h-10 text-center">Status</th>
+            <th className="text-label px-4 h-10 text-right">Day</th>
           </tr>
         </thead>
         <tbody>
           {deals.map((deal) => (
             <tr
               key={deal.dealId}
-              className="border-b border-border-default last:border-b-0 hover:bg-bg-hover transition-colors"
+              className="border-b border-border-default last:border-b-0 h-14 hover:bg-bg-hover/50 transition-colors"
             >
-              <td className="px-4 py-3">
+              <td className="px-4">
                 <div className="flex items-center gap-2">
                   <AssetIcon symbol={deal.security.symbol} size="sm" />
                   <span className="font-medium text-text-primary">{deal.security.symbol}</span>
                 </div>
               </td>
-              <td className="px-4 py-3">
+              <td className="px-4">
                 <Badge
                   variant={deal.role === 'lender' ? 'info' : 'warning'}
                   size="sm"
@@ -468,10 +382,10 @@ function SecLendingDealsTable({
                   {deal.role === 'lender' ? 'Lender' : 'Borrower'}
                 </Badge>
               </td>
-              <td className="px-4 py-3 text-right">
+              <td className="px-4 text-right">
                 <span className="font-mono text-text-primary">{formatUSD(deal.feeAccrued)}</span>
               </td>
-              <td className="px-4 py-3">
+              <td className="px-4">
                 <div className="flex justify-center">
                   <Badge
                     variant={deal.status === 'Active' ? 'success' : 'default'}
@@ -481,7 +395,7 @@ function SecLendingDealsTable({
                   </Badge>
                 </div>
               </td>
-              <td className="px-4 py-3 text-right">
+              <td className="px-4 text-right">
                 <span className="font-mono text-text-secondary">
                   {daysElapsed(deal.startDate)}d
                 </span>
@@ -522,7 +436,7 @@ function PortfolioComposition({ segments, totalValue, isLoading }: PortfolioComp
 
   if (segments.length === 0) {
     return (
-      <div className="flex items-center justify-center rounded-md border border-border-default bg-surface-card py-12">
+      <div className="flex items-center justify-center rounded-lg border border-border-default bg-surface-card py-12">
         <p className="text-text-tertiary text-sm">No positions to display</p>
       </div>
     );
@@ -534,7 +448,7 @@ function PortfolioComposition({ segments, totalValue, isLoading }: PortfolioComp
       <div className="flex-1 flex justify-center">
         <DonutChart
           segments={segments}
-          size={220}
+          size={180}
           centerLabel="Total Value"
           centerValue={formatUSD(totalValue)}
         />
@@ -542,13 +456,13 @@ function PortfolioComposition({ segments, totalValue, isLoading }: PortfolioComp
 
       {/* Summary table */}
       <div className="w-full md:w-80">
-        <div className="overflow-hidden rounded-md border border-border-default bg-surface-card">
+        <div className="overflow-hidden rounded-lg border border-border-default bg-surface-card">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-border-default">
-                <th className="px-4 py-2.5 text-left font-medium text-text-secondary">Asset</th>
-                <th className="px-4 py-2.5 text-right font-medium text-text-secondary">Value</th>
-                <th className="px-4 py-2.5 text-right font-medium text-text-secondary">%</th>
+              <tr className="border-b border-border-default backdrop-blur">
+                <th className="text-label px-4 h-10 text-left">Asset</th>
+                <th className="text-label px-4 h-10 text-right">Value</th>
+                <th className="text-label px-4 h-10 text-right">%</th>
               </tr>
             </thead>
             <tbody>
@@ -590,7 +504,7 @@ function PortfolioComposition({ segments, totalValue, isLoading }: PortfolioComp
 // ---------------------------------------------------------------------------
 
 export default function OverviewPage() {
-  const { isConnected, walletAddress, creditTier } = useWalletStore();
+  const { creditTier } = useWalletStore();
   const {
     supplyPositions,
     borrowPositions,
@@ -599,6 +513,8 @@ export default function OverviewPage() {
     fetchPositions,
   } = usePositionStore();
   const { fetchPools } = useProtocolStore();
+
+  const [positionTab, setPositionTab] = useState<'supply' | 'borrow' | 'seclend'>('supply');
 
   useEffect(() => {
     fetchPositions('mock');
@@ -642,10 +558,16 @@ export default function OverviewPage() {
 
   // ---------- Render ----------
 
+  const POSITION_TABS = [
+    { key: 'supply' as const, label: 'Supply' },
+    { key: 'borrow' as const, label: 'Borrow' },
+    { key: 'seclend' as const, label: 'SecLend' },
+  ];
+
   return (
-    <div className="space-y-12">
-      {/* 1. Welcome Header */}
-      <WelcomeHeader isConnected={isConnected} walletAddress={walletAddress} />
+    <div className="space-y-8">
+      {/* 1. Page title */}
+      <h1 className="text-lg font-medium text-text-primary">Overview</h1>
 
       {/* 2. KPI Grid */}
       <section>
@@ -659,27 +581,39 @@ export default function OverviewPage() {
         />
       </section>
 
-      {/* 3. Your Positions */}
-      <section className="space-y-10">
-        <div>
-          <h2 className="mb-4 text-lg font-semibold text-text-primary">Supply Positions</h2>
+      {/* 3. Your Positions — Tab Switcher */}
+      <section className="space-y-4">
+        <div className="flex items-center gap-1 border-b border-border-default">
+          {POSITION_TABS.map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => setPositionTab(tab.key)}
+              className={cn(
+                'px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px',
+                positionTab === tab.key
+                  ? 'border-accent-teal text-text-primary'
+                  : 'border-transparent text-text-tertiary hover:text-text-secondary'
+              )}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {positionTab === 'supply' && (
           <SupplyPositionsTable positions={supplyPositions} isLoading={positionsLoading} />
-        </div>
-
-        <div>
-          <h2 className="mb-4 text-lg font-semibold text-text-primary">Borrow Positions</h2>
+        )}
+        {positionTab === 'borrow' && (
           <BorrowPositionsTable positions={borrowPositions} isLoading={positionsLoading} />
-        </div>
-
-        <div>
-          <h2 className="mb-4 text-lg font-semibold text-text-primary">Securities Lending Deals</h2>
+        )}
+        {positionTab === 'seclend' && (
           <SecLendingDealsTable deals={secLendingDeals} isLoading={positionsLoading} />
-        </div>
+        )}
       </section>
 
       {/* 4. Portfolio Composition */}
       <section>
-        <h2 className="mb-4 text-lg font-semibold text-text-primary">Portfolio Composition</h2>
+        <h2 className="text-label mb-4">Portfolio Composition</h2>
         <PortfolioComposition
           segments={donutSegments}
           totalValue={totalSupplied}

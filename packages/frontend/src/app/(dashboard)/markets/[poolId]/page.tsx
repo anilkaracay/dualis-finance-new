@@ -249,7 +249,7 @@ export default function PoolDetailPage() {
               <span className="inline-flex items-center gap-2">
                 <AssetIcon symbol={pool.symbol} size="md" />
                 {pool.symbol}
-                <Badge variant="outline" size="sm">
+                <Badge variant="default" size="sm">
                   {pool.instrumentType}
                 </Badge>
               </span>
@@ -367,7 +367,7 @@ export default function PoolDetailPage() {
                           }
                         />
 
-                        <div className="flex items-center justify-between rounded-sm bg-bg-tertiary px-3 py-2 text-sm">
+                        <div className="flex items-center justify-between rounded-md bg-bg-tertiary px-3 py-2 text-sm">
                           <span className="text-text-tertiary">You will receive</span>
                           <span className="font-mono tabular-nums text-text-primary">
                             ~{estimatedShares.toLocaleString('en-US', { maximumFractionDigits: 2 })} shares
@@ -426,7 +426,7 @@ export default function PoolDetailPage() {
                           }
                         />
 
-                        <div className="flex items-center justify-between rounded-sm bg-bg-tertiary px-3 py-2 text-sm">
+                        <div className="flex items-center justify-between rounded-md bg-bg-tertiary px-3 py-2 text-sm">
                           <span className="text-text-tertiary">Available to withdraw</span>
                           <span className="font-mono tabular-nums text-text-primary">
                             0.00 {pool.symbol}

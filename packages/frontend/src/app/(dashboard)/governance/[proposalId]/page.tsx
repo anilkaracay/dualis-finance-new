@@ -454,7 +454,7 @@ export default function ProposalDetailPage() {
 
       {/* Title + Badges */}
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
-        <h1 className="text-2xl font-bold text-text-primary">{proposal.title}</h1>
+        <h1 className="text-lg font-medium text-text-primary">{proposal.title}</h1>
         <div className="flex items-center gap-2">
           <Badge variant={proposal.categoryVariant} size="sm">{proposal.category}</Badge>
           <Badge variant={statusVariant} size="sm">{statusLabel}</Badge>
@@ -506,7 +506,7 @@ export default function ProposalDetailPage() {
 
       {/* Recent Votes */}
       <section>
-        <h2 className="mb-4 text-lg font-semibold text-text-primary">Recent Votes</h2>
+        <h2 className="text-label mb-4">Recent Votes</h2>
         <RecentVotesTable votes={RECENT_VOTES} />
       </section>
     </div>

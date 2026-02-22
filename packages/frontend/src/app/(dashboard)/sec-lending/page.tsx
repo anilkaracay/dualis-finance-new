@@ -176,31 +176,31 @@ const SECURITY_OPTIONS = ['SPY-2026', 'T-BILL-2026', 'AAPL-2026', 'ETH', 'wBTC']
 
 function AvailableOffersTable({ offers }: { offers: MarketplaceOffer[] }) {
   return (
-    <div className="overflow-x-auto rounded-md border border-border-default bg-surface-card">
+    <div className="overflow-x-auto rounded-lg border border-border-default bg-surface-card">
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-b border-border-default">
-            <th className="px-4 py-3 text-left font-medium text-text-secondary">Security</th>
-            <th className="px-4 py-3 text-left font-medium text-text-secondary">Lender</th>
-            <th className="px-4 py-3 text-left font-medium text-text-secondary">Fee</th>
-            <th className="px-4 py-3 text-left font-medium text-text-secondary">Duration</th>
-            <th className="px-4 py-3 text-left font-medium text-text-secondary">Collateral</th>
-            <th className="px-4 py-3 text-right font-medium text-text-secondary">Action</th>
+          <tr className="border-b border-border-default backdrop-blur">
+            <th className="text-label px-4 h-10 text-left">Security</th>
+            <th className="text-label px-4 h-10 text-left">Lender</th>
+            <th className="text-label px-4 h-10 text-left">Fee</th>
+            <th className="text-label px-4 h-10 text-left">Duration</th>
+            <th className="text-label px-4 h-10 text-left">Collateral</th>
+            <th className="text-label px-4 h-10 text-right">Action</th>
           </tr>
         </thead>
         <tbody>
           {offers.map((offer) => (
             <tr
               key={offer.id}
-              className="border-b border-border-default last:border-b-0 hover:bg-bg-hover transition-colors"
+              className="border-b border-border-default last:border-b-0 h-14 hover:bg-bg-hover/50 transition-colors"
             >
-              <td className="px-4 py-3">
+              <td className="px-4">
                 <div className="flex items-center gap-2">
                   <AssetIcon symbol={offer.security} size="sm" />
                   <span className="font-medium text-text-primary">{offer.security}</span>
                 </div>
               </td>
-              <td className="px-4 py-3">
+              <td className="px-4">
                 <div className="flex items-center gap-2">
                   <span className="font-mono text-xs text-text-secondary">
                     {truncateAddress(offer.lenderAddress)}
@@ -208,23 +208,23 @@ function AvailableOffersTable({ offers }: { offers: MarketplaceOffer[] }) {
                   <CreditTierBadge tier={offer.lenderTier} size="sm" />
                 </div>
               </td>
-              <td className="px-4 py-3">
+              <td className="px-4">
                 <div className="flex items-center gap-2">
                   <span className="font-mono text-text-primary">{offer.feeBps} bps</span>
-                  <Badge variant="outline" size="sm">{offer.feeType}</Badge>
+                  <Badge variant="default" size="sm">{offer.feeType}</Badge>
                 </div>
               </td>
-              <td className="px-4 py-3">
+              <td className="px-4">
                 <span className="text-text-primary">{offer.durationDays} days</span>
               </td>
-              <td className="px-4 py-3">
+              <td className="px-4">
                 <div className="flex items-center gap-1 flex-wrap">
                   {offer.acceptedCollateral.map((col) => (
                     <Badge key={col} variant="default" size="sm">{col}</Badge>
                   ))}
                 </div>
               </td>
-              <td className="px-4 py-3 text-right">
+              <td className="px-4 text-right">
                 <Button variant="primary" size="sm">
                   Accept
                 </Button>
@@ -242,39 +242,39 @@ function MyDealsTable() {
 
   if (secLendingDeals.length === 0) {
     return (
-      <div className="flex flex-col items-center gap-3 rounded-md border border-border-default bg-surface-card py-12">
+      <div className="flex flex-col items-center gap-3 rounded-lg border border-border-default bg-surface-card py-12">
         <p className="text-text-tertiary text-sm">No active deals</p>
       </div>
     );
   }
 
   return (
-    <div className="overflow-x-auto rounded-md border border-border-default bg-surface-card">
+    <div className="overflow-x-auto rounded-lg border border-border-default bg-surface-card">
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-b border-border-default">
-            <th className="px-4 py-3 text-left font-medium text-text-secondary">Deal ID</th>
-            <th className="px-4 py-3 text-left font-medium text-text-secondary">Role</th>
-            <th className="px-4 py-3 text-left font-medium text-text-secondary">Security</th>
-            <th className="px-4 py-3 text-center font-medium text-text-secondary">Status</th>
-            <th className="px-4 py-3 text-right font-medium text-text-secondary">Fee Accrued</th>
-            <th className="px-4 py-3 text-right font-medium text-text-secondary">Action</th>
+          <tr className="border-b border-border-default backdrop-blur">
+            <th className="text-label px-4 h-10 text-left">Deal ID</th>
+            <th className="text-label px-4 h-10 text-left">Role</th>
+            <th className="text-label px-4 h-10 text-left">Security</th>
+            <th className="text-label px-4 h-10 text-center">Status</th>
+            <th className="text-label px-4 h-10 text-right">Fee Accrued</th>
+            <th className="text-label px-4 h-10 text-right">Action</th>
           </tr>
         </thead>
         <tbody>
           {secLendingDeals.map((deal) => (
             <tr
               key={deal.dealId}
-              className="border-b border-border-default last:border-b-0 hover:bg-bg-hover transition-colors"
+              className="border-b border-border-default last:border-b-0 h-14 hover:bg-bg-hover/50 transition-colors"
             >
-              <td className="px-4 py-3">
+              <td className="px-4">
                 <span className="font-mono text-xs text-text-secondary">
                   {deal.dealId.length > 12
                     ? `${deal.dealId.slice(0, 8)}...${deal.dealId.slice(-4)}`
                     : deal.dealId}
                 </span>
               </td>
-              <td className="px-4 py-3">
+              <td className="px-4">
                 <Badge
                   variant={deal.role === 'lender' ? 'info' : 'warning'}
                   size="sm"
@@ -282,23 +282,23 @@ function MyDealsTable() {
                   {deal.role === 'lender' ? 'Lender' : 'Borrower'}
                 </Badge>
               </td>
-              <td className="px-4 py-3">
+              <td className="px-4">
                 <div className="flex items-center gap-2">
                   <AssetIcon symbol={deal.security.symbol} size="sm" />
                   <span className="font-medium text-text-primary">{deal.security.symbol}</span>
                 </div>
               </td>
-              <td className="px-4 py-3">
+              <td className="px-4">
                 <div className="flex justify-center">
                   <Badge variant={getStatusBadgeVariant(deal.status)} size="sm">
                     {deal.status}
                   </Badge>
                 </div>
               </td>
-              <td className="px-4 py-3 text-right">
+              <td className="px-4 text-right">
                 <span className="font-mono text-text-primary">{formatUSD(deal.feeAccrued)}</span>
               </td>
-              <td className="px-4 py-3 text-right">
+              <td className="px-4 text-right">
                 <Button variant="secondary" size="sm" icon={<ArrowRight className="h-3 w-3" />}>
                   Details
                 </Button>
@@ -314,50 +314,50 @@ function MyDealsTable() {
 function MyOffersTable({ offers }: { offers: MyOffer[] }) {
   if (offers.length === 0) {
     return (
-      <div className="flex flex-col items-center gap-3 rounded-md border border-border-default bg-surface-card py-12">
+      <div className="flex flex-col items-center gap-3 rounded-lg border border-border-default bg-surface-card py-12">
         <p className="text-text-tertiary text-sm">No offers posted</p>
       </div>
     );
   }
 
   return (
-    <div className="overflow-x-auto rounded-md border border-border-default bg-surface-card">
+    <div className="overflow-x-auto rounded-lg border border-border-default bg-surface-card">
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-b border-border-default">
-            <th className="px-4 py-3 text-left font-medium text-text-secondary">Security</th>
-            <th className="px-4 py-3 text-left font-medium text-text-secondary">Fee</th>
-            <th className="px-4 py-3 text-center font-medium text-text-secondary">Status</th>
-            <th className="px-4 py-3 text-left font-medium text-text-secondary">Created</th>
-            <th className="px-4 py-3 text-right font-medium text-text-secondary">Action</th>
+          <tr className="border-b border-border-default backdrop-blur">
+            <th className="text-label px-4 h-10 text-left">Security</th>
+            <th className="text-label px-4 h-10 text-left">Fee</th>
+            <th className="text-label px-4 h-10 text-center">Status</th>
+            <th className="text-label px-4 h-10 text-left">Created</th>
+            <th className="text-label px-4 h-10 text-right">Action</th>
           </tr>
         </thead>
         <tbody>
           {offers.map((offer) => (
             <tr
               key={offer.id}
-              className="border-b border-border-default last:border-b-0 hover:bg-bg-hover transition-colors"
+              className="border-b border-border-default last:border-b-0 h-14 hover:bg-bg-hover/50 transition-colors"
             >
-              <td className="px-4 py-3">
+              <td className="px-4">
                 <div className="flex items-center gap-2">
                   <AssetIcon symbol={offer.security} size="sm" />
                   <span className="font-medium text-text-primary">{offer.security}</span>
                 </div>
               </td>
-              <td className="px-4 py-3">
+              <td className="px-4">
                 <div className="flex items-center gap-2">
                   <span className="font-mono text-text-primary">{offer.feeBps} bps</span>
-                  <Badge variant="outline" size="sm">{offer.feeType}</Badge>
+                  <Badge variant="default" size="sm">{offer.feeType}</Badge>
                 </div>
               </td>
-              <td className="px-4 py-3">
+              <td className="px-4">
                 <div className="flex justify-center">
                   <Badge variant={getStatusBadgeVariant(offer.status)} size="sm">
                     {offer.status}
                   </Badge>
                 </div>
               </td>
-              <td className="px-4 py-3">
+              <td className="px-4">
                 <span className="text-xs text-text-secondary">
                   {new Date(offer.createdAt).toLocaleDateString('en-US', {
                     month: 'short',
@@ -366,7 +366,7 @@ function MyOffersTable({ offers }: { offers: MyOffer[] }) {
                   })}
                 </span>
               </td>
-              <td className="px-4 py-3 text-right">
+              <td className="px-4 text-right">
                 {offer.status === 'Active' ? (
                   <Button variant="danger" size="sm" icon={<X className="h-3 w-3" />}>
                     Cancel
@@ -418,7 +418,7 @@ function NewOfferForm({ onClose }: { onClose: () => void }) {
         <select
           value={selectedSecurity}
           onChange={(e) => setSelectedSecurity(e.target.value)}
-          className="h-10 w-full rounded-sm bg-surface-input border border-border-default px-3 text-sm text-text-primary focus-ring"
+          className="h-9 w-full rounded-md bg-surface-input border border-border-default px-3 text-sm text-text-primary focus-ring"
         >
           {SECURITY_OPTIONS.map((sec) => (
             <option key={sec} value={sec}>{sec}</option>
@@ -525,7 +525,7 @@ export default function SecLendingPage() {
     <div className="space-y-8">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-text-primary">Securities Lending Marketplace</h1>
+        <h1 className="text-lg font-medium text-text-primary">Securities Lending</h1>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
             <Button variant="primary" size="sm" icon={<Plus className="h-4 w-4" />}>

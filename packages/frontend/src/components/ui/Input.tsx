@@ -21,7 +21,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
         {label && (
           <label
             htmlFor={inputId}
-            className="text-sm font-medium text-text-secondary"
+            className="text-sm font-medium text-text-secondary text-label"
           >
             {label}
           </label>
@@ -37,7 +37,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
             id={inputId}
             disabled={disabled}
             className={cn(
-              'h-10 w-full rounded-sm bg-surface-input border text-sm text-text-primary placeholder:text-text-disabled',
+              'h-9 w-full rounded-md bg-surface-input border text-sm text-text-primary placeholder:text-text-disabled',
               'transition-colors duration-100 focus-ring',
               'disabled:opacity-50 disabled:cursor-not-allowed',
               error

@@ -2,17 +2,17 @@ import { forwardRef } from 'react';
 import { cn } from '@/lib/utils/cn';
 
 const badgeVariants = {
-  default: 'bg-bg-tertiary text-text-primary border border-border-default',
-  success: 'bg-positive-muted text-positive border border-positive/20',
-  warning: 'bg-warning-muted text-warning border border-warning/20',
-  danger: 'bg-negative-muted text-negative border border-negative/20',
-  info: 'bg-info-muted text-info border border-info/20',
-  outline: 'bg-transparent text-text-secondary border border-border-default',
+  default: 'text-text-secondary border border-border-default',
+  success: 'text-positive border border-positive/20',
+  warning: 'text-warning border border-warning/20',
+  danger: 'text-negative border border-negative/20',
+  info: 'text-info border border-info/20',
+  outline: 'text-text-tertiary border border-border-default',
 } as const;
 
 const badgeSizes = {
-  sm: 'text-xs px-1.5 py-0.5',
-  md: 'text-sm px-2 py-0.5',
+  sm: 'text-[10px] px-1.5 py-0.5 rounded-md',
+  md: 'text-xs px-2 py-0.5 rounded-md',
 } as const;
 
 type BadgeVariant = keyof typeof badgeVariants;
@@ -31,7 +31,7 @@ const Badge = forwardRef<HTMLSpanElement, BadgeProps>(
       <span
         ref={ref}
         className={cn(
-          'inline-flex items-center rounded-full font-medium whitespace-nowrap',
+          'inline-flex items-center font-semibold whitespace-nowrap',
           badgeVariants[variant],
           badgeSizes[size],
           className

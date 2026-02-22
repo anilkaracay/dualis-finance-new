@@ -160,71 +160,82 @@ export default function MarketsPage() {
     return result;
   }, [pools, instrumentFilter, sortKey, sortDir, getSortValue]);
 
+  // Compute total TVL
+  const totalTVL = useMemo(() => {
+    return pools.reduce((sum, pool) => sum + pool.totalDeposits * pool.priceUSD, 0);
+  }, [pools]);
+
+  const formatTVL = (value: number): string => {
+    if (value >= 1_000_000_000) return `$${(value / 1_000_000_000).toFixed(1)}B`;
+    if (value >= 1_000_000) return `$${(value / 1_000_000).toFixed(1)}M`;
+    return `$${(value / 1_000).toFixed(0)}K`;
+  };
+
   return (
     <div className="flex flex-col gap-6">
-      {/* Header Row */}
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-text-primary">Markets</h1>
-        <Button
-          variant="ghost"
-          size="sm"
-          icon={<Zap className="h-4 w-4" />}
-        >
-          Flash Loan
-        </Button>
-      </div>
+      {/* Header Row with filters inline */}
+      <div className="flex flex-wrap items-center gap-4">
+        <h1 className="text-lg font-medium text-text-primary">Markets</h1>
+        <span className="text-sm text-text-tertiary font-mono">TVL {formatTVL(totalTVL)}</span>
 
-      {/* Filter Bar */}
-      <div className="flex flex-wrap items-center gap-3">
-        <select
-          value={instrumentFilter}
-          onChange={(e) => setInstrumentFilter(e.target.value as InstrumentFilter)}
-          className="h-8 rounded-sm border border-border-default bg-bg-tertiary px-3 text-sm text-text-primary focus:border-border-focus focus:outline-none"
-        >
-          {INSTRUMENT_OPTIONS.map((opt) => (
-            <option key={opt} value={opt}>
-              {opt === 'All' ? 'All Types' : opt.replace(/([A-Z])/g, ' $1').trim()}
-            </option>
-          ))}
-        </select>
+        <div className="ml-auto flex flex-wrap items-center gap-3">
+          <select
+            value={instrumentFilter}
+            onChange={(e) => setInstrumentFilter(e.target.value as InstrumentFilter)}
+            className="h-9 rounded-md border border-border-default bg-surface-input px-3 text-sm text-text-primary focus:border-border-focus focus:outline-none"
+          >
+            {INSTRUMENT_OPTIONS.map((opt) => (
+              <option key={opt} value={opt}>
+                {opt === 'All' ? 'All Types' : opt.replace(/([A-Z])/g, ' $1').trim()}
+              </option>
+            ))}
+          </select>
 
-        <select
-          value={sortKey}
-          onChange={(e) => {
-            setSortKey(e.target.value as SortKey);
-            setSortDir('desc');
-          }}
-          className="h-8 rounded-sm border border-border-default bg-bg-tertiary px-3 text-sm text-text-primary focus:border-border-focus focus:outline-none"
-        >
-          {SORT_OPTIONS.map((opt) => (
-            <option key={opt.value} value={opt.value}>
-              Sort: {opt.label}
-            </option>
-          ))}
-        </select>
+          <select
+            value={sortKey}
+            onChange={(e) => {
+              setSortKey(e.target.value as SortKey);
+              setSortDir('desc');
+            }}
+            className="h-9 rounded-md border border-border-default bg-surface-input px-3 text-sm text-text-primary focus:border-border-focus focus:outline-none"
+          >
+            {SORT_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                Sort: {opt.label}
+              </option>
+            ))}
+          </select>
 
-        <Button
-          variant="ghost"
-          size="sm"
-          icon={<RotateCcw className="h-3.5 w-3.5" />}
-          onClick={handleResetFilters}
-        >
-          Reset
-        </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            icon={<RotateCcw className="h-3.5 w-3.5" />}
+            onClick={handleResetFilters}
+          >
+            Reset
+          </Button>
+
+          <Button
+            variant="ghost"
+            size="sm"
+            icon={<Zap className="h-4 w-4" />}
+          >
+            Flash Loan
+          </Button>
+        </div>
       </div>
 
       {/* Markets Table */}
-      <div className="overflow-x-auto rounded-md border border-border-default bg-surface-card">
+      <div className="overflow-x-auto rounded-lg border border-border-default bg-surface-card">
         <table className="w-full">
           <thead>
-            <tr className="border-b border-border-default">
+            <tr className="border-b border-border-default backdrop-blur">
               {COLUMNS.map((col) => (
                 <th
                   key={col.key}
                   onClick={() => handleColumnSort(col.key)}
                   className={cn(
-                    'px-4 py-3 text-xs font-medium uppercase tracking-wider text-text-tertiary',
-                    'cursor-pointer select-none transition-colors hover:text-text-secondary',
+                    'text-label px-4 h-10 cursor-pointer select-none transition-colors hover:text-text-secondary',
                     col.align === 'right' && 'text-right',
                     col.align === 'center' && 'text-center',
                   )}
@@ -237,7 +248,7 @@ export default function MarketsPage() {
                   </span>
                 </th>
               ))}
-              <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-text-tertiary">
+              <th className="text-label px-4 h-10 text-right">
                 Actions
               </th>
             </tr>
@@ -282,51 +293,51 @@ export default function MarketsPage() {
                   <tr
                     key={pool.poolId}
                     onClick={() => handleRowClick(pool.poolId)}
-                    className="border-b border-border-subtle transition-colors hover:bg-bg-hover cursor-pointer"
+                    className="border-b border-border-subtle h-14 transition-colors hover:bg-bg-hover/50 cursor-pointer"
                   >
                     {/* Asset */}
-                    <td className="px-4 py-3">
+                    <td className="px-4">
                       <div className="flex items-center gap-2">
                         <AssetIcon symbol={pool.symbol} size="sm" />
                         <span className="font-medium text-text-primary">{pool.symbol}</span>
-                        <Badge variant="outline" size="sm">
+                        <Badge variant="default" size="sm">
                           {pool.instrumentType}
                         </Badge>
                       </div>
                     </td>
 
                     {/* Total Supply */}
-                    <td className="px-4 py-3 text-right font-mono tabular-nums text-text-primary">
+                    <td className="px-4 text-right font-mono tabular-nums text-text-primary">
                       {formatUSD(pool.totalDeposits * pool.priceUSD)}
                     </td>
 
                     {/* Supply APY */}
-                    <td className="px-4 py-3 text-right">
+                    <td className="px-4 text-right">
                       <APYDisplay value={pool.supplyAPY} size="sm" />
                     </td>
 
                     {/* Total Borrow */}
-                    <td className="px-4 py-3 text-right font-mono tabular-nums text-text-primary">
+                    <td className="px-4 text-right font-mono tabular-nums text-text-primary">
                       {formatUSD(pool.totalBorrows * pool.priceUSD)}
                     </td>
 
                     {/* Borrow APY */}
-                    <td className="px-4 py-3 text-right">
+                    <td className="px-4 text-right">
                       <APYDisplay value={pool.borrowAPY} size="sm" />
                     </td>
 
                     {/* Utilization */}
-                    <td className="px-4 py-3">
+                    <td className="px-4">
                       <UtilizationBar value={pool.utilization} />
                     </td>
 
                     {/* Price */}
-                    <td className="px-4 py-3 text-right font-mono tabular-nums text-text-primary">
+                    <td className="px-4 text-right font-mono tabular-nums text-text-primary">
                       {formatPrice(pool.priceUSD)}
                     </td>
 
                     {/* Actions */}
-                    <td className="px-4 py-3 text-right">
+                    <td className="px-4 text-right">
                       <div className="flex items-center justify-end gap-2">
                         <Button
                           variant="primary"
