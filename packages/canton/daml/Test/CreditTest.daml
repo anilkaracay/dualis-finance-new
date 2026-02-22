@@ -4,6 +4,7 @@
 
 module Test.CreditTest where
 
+import Daml.Script
 import Dualis.Types
 import Dualis.Credit.CompositeScore
 import Dualis.Credit.Attestation
@@ -15,7 +16,7 @@ testCreateCompositeCredit = script do
   operator <- allocateParty "Operator"
   alice <- allocateParty "Alice"
 
-  scoreCid <- submit operator do
+  scoreCid <- submitMulti [operator, alice] [] do
     createCmd CompositeCredit with
       operator
       owner = alice
@@ -51,7 +52,7 @@ testRecalculateScore = script do
   operator <- allocateParty "Operator"
   alice <- allocateParty "Alice"
 
-  scoreCid <- submit operator do
+  scoreCid <- submitMulti [operator, alice] [] do
     createCmd CompositeCredit with
       operator; owner = alice
       compositeScore = 500; tier = Silver
@@ -115,7 +116,7 @@ testCreateAttestationBundle = script do
   operator <- allocateParty "Operator"
   alice <- allocateParty "Alice"
 
-  bundleCid <- submit operator do
+  bundleCid <- submitMulti [operator, alice] [] do
     createCmd CreditAttestationBundle with
       operator
       owner = alice
@@ -151,28 +152,26 @@ testPruneExpired = script do
   operator <- allocateParty "Operator"
   alice <- allocateParty "Alice"
 
-  bundleCid <- submit operator do
+  let expiredAtt = OffChainAttestation with
+        attestationId = "att-001"; attestationType = CreditBureau
+        provider = "findeks"; claimedRange = "above_700"
+        proof = ZKProof with proofData = ""; verifierKey = ""; publicInputs = []; circuit = ""; generatedAt = ""
+        issuedAt = "2025-01-01T00:00:00Z"
+        expiresAt = "2025-12-31T00:00:00Z"  -- Expired!
+        revoked = False; verified = True
+  let validAtt = OffChainAttestation with
+        attestationId = "att-002"; attestationType = IncomeVerification
+        provider = "experian"; claimedRange = "high_income"
+        proof = ZKProof with proofData = ""; verifierKey = ""; publicInputs = []; circuit = ""; generatedAt = ""
+        issuedAt = "2026-01-01T00:00:00Z"
+        expiresAt = "2027-01-01T00:00:00Z"  -- Still valid
+        revoked = False; verified = True
+
+  bundleCid <- submitMulti [operator, alice] [] do
     createCmd CreditAttestationBundle with
       operator
       owner = alice
-      attestations = [
-        OffChainAttestation with
-          attestationId = "att-001"; attestationType = CreditBureau
-          provider = "findeks"; claimedRange = "above_700"
-          proof = ZKProof with proofData = ""; verifierKey = ""
-            publicInputs = []; circuit = ""; generatedAt = ""
-          issuedAt = "2025-01-01T00:00:00Z"
-          expiresAt = "2025-12-31T00:00:00Z"  -- Expired!
-          revoked = False; verified = True,
-        OffChainAttestation with
-          attestationId = "att-002"; attestationType = IncomeVerification
-          provider = "experian"; claimedRange = "high_income"
-          proof = ZKProof with proofData = ""; verifierKey = ""
-            publicInputs = []; circuit = ""; generatedAt = ""
-          issuedAt = "2026-01-01T00:00:00Z"
-          expiresAt = "2027-01-01T00:00:00Z"  -- Still valid
-          revoked = False; verified = True
-        ]
+      attestations = [expiredAtt, validAtt]
       lastVerified = "2026-01-01T00:00:00Z"
 
   -- Prune with current time in 2026

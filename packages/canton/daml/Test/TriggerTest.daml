@@ -4,6 +4,7 @@
 
 module Test.TriggerTest where
 
+import Daml.Script
 import Dualis.Types
 import Dualis.Trigger.InterestAccrual
 import Dualis.Trigger.LiquidationScanner
@@ -131,14 +132,14 @@ testRunScan = script do
       lastScanResults = []
 
   -- Run scan with results
+  let sr1 = ScanResult with positionId = "pos-001"; healthFactor = 2.5; status = "safe"
+  let sr2 = ScanResult with positionId = "pos-002"; healthFactor = 1.1; status = "warning"
+  let sr3 = ScanResult with positionId = "pos-003"; healthFactor = 0.8; status = "liquidatable"
+
   newScannerCid <- submit operator do
     exerciseCmd scannerCid RunScan with
       currentTs = 1000030
-      scanResults = [
-        ScanResult with positionId = "pos-001"; healthFactor = 2.5; status = "safe",
-        ScanResult with positionId = "pos-002"; healthFactor = 1.1; status = "warning",
-        ScanResult with positionId = "pos-003"; healthFactor = 0.8; status = "liquidatable"
-        ]
+      scanResults = [sr1, sr2, sr3]
 
   scanner <- queryContractId operator newScannerCid
   case scanner of
@@ -191,14 +192,14 @@ testRunAggregation = script do
       lastAggregationTs = 1000000
       totalAggregations = 0; lastResults = []; outlierCount = 0
 
+  let aggEntry = AggregationEntry with
+        asset = "ETH"; aggregatedPrice = 3000.0
+        sourceCount = 3; maxDeviation = 0.02; isValid = True
+
   newAggCid <- submit operator do
     exerciseCmd aggCid RunAggregation with
       currentTs = 1000060
-      results = [
-        AggregationEntry with
-          asset = "ETH"; aggregatedPrice = 3000.0
-          sourceCount = 3; maxDeviation = 0.02; isValid = True
-        ]
+      results = [aggEntry]
 
   agg <- queryContractId operator newAggCid
   case agg of
@@ -248,14 +249,14 @@ testRunStalenessCheck = script do
       lastCheckTs = 1000000
       totalChecks = 0; staleFeeds = []; lastReport = []
 
+  let se1 = StalenessEntry with asset = "ETH"; lastUpdateAge = 120; maxAllowedAge = 300; isStale = False
+  let se2 = StalenessEntry with asset = "wBTC"; lastUpdateAge = 400; maxAllowedAge = 300; isStale = True
+  let se3 = StalenessEntry with asset = "USDC"; lastUpdateAge = 50; maxAllowedAge = 300; isStale = False
+
   newCheckerCid <- submit operator do
     exerciseCmd checkerCid RunStalenessCheck with
       currentTs = 1000060
-      report = [
-        StalenessEntry with asset = "ETH"; lastUpdateAge = 120; maxAllowedAge = 300; isStale = False,
-        StalenessEntry with asset = "wBTC"; lastUpdateAge = 400; maxAllowedAge = 300; isStale = True,
-        StalenessEntry with asset = "USDC"; lastUpdateAge = 50; maxAllowedAge = 300; isStale = False
-        ]
+      report = [se1, se2, se3]
 
   checker <- queryContractId operator newCheckerCid
   case checker of

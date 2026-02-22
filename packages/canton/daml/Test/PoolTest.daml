@@ -4,6 +4,7 @@
 
 module Test.PoolTest where
 
+import Daml.Script
 import Dualis.Types
 import Dualis.Lending.Math
 import Dualis.Lending.Pool
@@ -90,7 +91,7 @@ testDeposit = script do
       contractRef = "canton::pool::usdc-main::001"
 
   -- Alice deposits 10,000 USDC
-  (newPoolCid, supplyPosCid) <- submit alice do
+  (newPoolCid, supplyPosCid) <- submitMulti [alice] [operator] do
     exerciseCmd poolCid Deposit with
       depositor = alice
       amount = 10000.0
@@ -180,7 +181,7 @@ testSupplyPositionWithdraw = script do
   alice <- allocateParty "Alice"
 
   -- Create supply position directly
-  posCid <- submit operator do
+  posCid <- submitMulti [operator, alice] [] do
     createCmd SupplyPosition with
       operator
       depositor = alice

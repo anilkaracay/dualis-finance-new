@@ -113,15 +113,15 @@ template BorrowPosition
         assertMsg "Cannot remove all collateral from active borrow" (not (null remaining))
 
         -- Recalculate HF without the removed collateral
-        let collInputs = map (\c -> CollateralInput with
+        let toCollInput c = CollateralInput with
               symbol = c.symbol
               amount = c.amount
-              priceUSD = c.valueUSD / c.amount  -- derive price
+              priceUSD = c.valueUSD / c.amount
               ltv = this.tierParams.maxLTV
-              liqThreshold = 0.82  -- default
+              liqThreshold = 0.82
               liqPenalty = 0.05
               tier = CryptoTier
-              ) remaining
+        let collInputs = map toCollInput remaining
         let currentDebt = calculateCurrentBalance
               this.borrowedAmountPrincipal
               this.borrowIndexAtEntry

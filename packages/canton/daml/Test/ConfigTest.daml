@@ -4,6 +4,7 @@
 
 module Test.ConfigTest where
 
+import Daml.Script
 import Dualis.Types
 import Dualis.Core.Config
 

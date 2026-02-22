@@ -7,6 +7,7 @@
 
 module Test.IntegrationTest where
 
+import Daml.Script
 import Dualis.Types
 import Dualis.Lending.Math
 import Dualis.Core.Config
@@ -59,8 +60,8 @@ testFullLendingLifecycle = script do
       accrual = AccrualState with borrowIndex = 1.0; supplyIndex = 1.0; lastAccrualTs = 1000000
       isActive = True; contractRef = "canton::pool::usdc-main::001"
 
-  -- Step 3: Alice deposits 100,000 USDC
-  (pool2Cid, aliceSupplyCid) <- submit alice do
+  -- Step 3: Alice deposits 100,000 USDC (readAs operator for pool visibility)
+  (pool2Cid, aliceSupplyCid) <- submitMulti [alice] [operator] do
     exerciseCmd poolCid Deposit with
       depositor = alice; amount = 100000.0
       depositTime = "2026-01-15T10:00:00Z"
@@ -71,7 +72,7 @@ testFullLendingLifecycle = script do
     None -> abort "Pool not found after Alice deposit"
 
   -- Step 4: Create Bob's credit score (Gold tier)
-  bobScoreCid <- submit operator do
+  bobScoreCid <- submitMulti [operator, bob] [] do
     createCmd CompositeCredit with
       operator; owner = bob
       compositeScore = 720; tier = Gold
@@ -91,20 +92,18 @@ testFullLendingLifecycle = script do
       lastCalculated = "2026-01-15T10:00:00Z"
 
   -- Step 5: Create ETH price feed
+  let ethChainlink = PriceSourceEntry with source = Chainlink; priceUSD = 3000.0; timestamp = "2026-01-15T10:00:00Z"; confidence = 0.99; isActive = True
+  let ethPyth = PriceSourceEntry with source = Pyth; priceUSD = 3000.0; timestamp = "2026-01-15T10:00:00Z"; confidence = 0.98; isActive = True
+
   ethPriceCid <- submit operator do
     createCmd PriceFeed with
       operator; asset = "ETH"; aggregatedPrice = 3000.0
-      sources = [
-        PriceSourceEntry with source = Chainlink; priceUSD = 3000.0
-          timestamp = "2026-01-15T10:00:00Z"; confidence = 0.99; isActive = True,
-        PriceSourceEntry with source = Pyth; priceUSD = 3000.0
-          timestamp = "2026-01-15T10:00:00Z"; confidence = 0.98; isActive = True
-        ]
+      sources = [ethChainlink, ethPyth]
       lastUpdated = "2026-01-15T10:00:00Z"
       maxStaleness = 300; minSources = 2; isValid = True
 
   -- Step 6: Bob posts ETH collateral
-  bobVaultCid <- submit operator do
+  bobVaultCid <- submitMulti [operator, bob] [] do
     createCmd CollateralVault with
       operator; owner = bob; vaultId = "vault-bob-001"
       borrowPositionId = "borrow-bob-001"
@@ -136,7 +135,7 @@ testFullLendingLifecycle = script do
     exerciseCmd pool2Cid RecordBorrow with borrowAmount = 15000.0
 
   -- Create borrow position
-  borrowCid <- submit operator do
+  borrowCid <- submitMulti [operator, bob] [] do
     createCmd BorrowPosition with
       operator; borrower = bob
       positionId = "borrow-bob-001"; poolId = "usdc-main"
@@ -163,14 +162,12 @@ testFullLendingLifecycle = script do
     None -> abort "Pool not found after accrual"
 
   -- Step 9: ETH price drops dramatically
+  let dropChainlink = PriceSourceEntry with source = Chainlink; priceUSD = 1500.0; timestamp = "2026-01-22T10:00:00Z"; confidence = 0.99; isActive = True
+  let dropPyth = PriceSourceEntry with source = Pyth; priceUSD = 1500.0; timestamp = "2026-01-22T10:00:00Z"; confidence = 0.98; isActive = True
+
   ethPrice2Cid <- submit operator do
     exerciseCmd ethPriceCid BatchUpdatePrices with
-      newSources = [
-        PriceSourceEntry with source = Chainlink; priceUSD = 1500.0
-          timestamp = "2026-01-22T10:00:00Z"; confidence = 0.99; isActive = True,
-        PriceSourceEntry with source = Pyth; priceUSD = 1500.0
-          timestamp = "2026-01-22T10:00:00Z"; confidence = 0.98; isActive = True
-        ]
+      newSources = [dropChainlink, dropPyth]
       updateTime = "2026-01-22T10:00:00Z"
 
   -- Step 10: Recalculate Bob's HF with new prices
@@ -203,8 +200,8 @@ testFullLendingLifecycle = script do
         triggeredAt = "2026-01-22T10:00:00Z"
       isProcessed = False
 
-  -- Step 12: Liquidator executes liquidation
-  liqResultCid <- submit liquidator do
+  -- Step 12: Liquidator executes liquidation (readAs operator for trigger visibility)
+  liqResultCid <- submitMulti [liquidator] [operator] do
     exerciseCmd liqTriggerCid ExecuteLiquidation with
       liquidator
       debtAsset = "USDC"

@@ -4,6 +4,7 @@
 
 module Test.TokenTest where
 
+import Daml.Script
 import Dualis.Types
 import Dualis.Token.DUAL
 
@@ -102,7 +103,7 @@ testCreateStakingPosition = script do
   operator <- allocateParty "Operator"
   alice <- allocateParty "Alice"
 
-  posCid <- submit operator do
+  posCid <- submitMulti [operator, alice] [] do
     createCmd StakingPosition with
       operator
       staker = alice
@@ -133,7 +134,7 @@ testAddStake = script do
   operator <- allocateParty "Operator"
   alice <- allocateParty "Alice"
 
-  posCid <- submit operator do
+  posCid <- submitMulti [operator, alice] [] do
     createCmd StakingPosition with
       operator; staker = alice
       positionId = "stake-002"; stakedAmount = 3000.0
@@ -164,7 +165,7 @@ testUnstakeLocked = script do
   operator <- allocateParty "Operator"
   alice <- allocateParty "Alice"
 
-  posCid <- submit operator do
+  posCid <- submitMulti [operator, alice] [] do
     createCmd StakingPosition with
       operator; staker = alice
       positionId = "stake-003"; stakedAmount = 10000.0
@@ -186,7 +187,7 @@ testUnstakePartial = script do
   operator <- allocateParty "Operator"
   alice <- allocateParty "Alice"
 
-  posCid <- submit operator do
+  posCid <- submitMulti [operator, alice] [] do
     createCmd StakingPosition with
       operator; staker = alice
       positionId = "stake-004"; stakedAmount = 10000.0
@@ -219,7 +220,7 @@ testClaimRewards = script do
   operator <- allocateParty "Operator"
   alice <- allocateParty "Alice"
 
-  posCid <- submit operator do
+  posCid <- submitMulti [operator, alice] [] do
     createCmd StakingPosition with
       operator; staker = alice
       positionId = "stake-005"; stakedAmount = 10000.0
@@ -256,7 +257,7 @@ testTokenVesting = script do
   operator <- allocateParty "Operator"
   teamMember <- allocateParty "TeamMember"
 
-  vestCid <- submit operator do
+  vestCid <- submitMulti [operator, teamMember] [] do
     createCmd TokenVesting with
       operator
       beneficiary = teamMember

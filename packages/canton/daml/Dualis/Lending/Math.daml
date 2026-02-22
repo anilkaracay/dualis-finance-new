@@ -328,27 +328,4 @@ approximateLog10 x
 
 -- ─── HELPERS ──────────────────────────────────────────────────────────────
 
--- | Convert Int to Decimal
-intToDecimal : Int -> Decimal
-intToDecimal n = fromIntegerToDecimal (toInteger n)
-
--- | Convert Integer to Decimal
-fromIntegerToDecimal : Integer -> Decimal
-fromIntegerToDecimal n = intToDecimal' n
-  where
-    intToDecimal' : Integer -> Decimal
-    intToDecimal' 0 = 0.0
-    intToDecimal' i = if i > 0
-                      then intToDecimal' (i - 1) + 1.0
-                      else intToDecimal' (i + 1) - 1.0
-
--- | Truncate Decimal to Int (floor)
-truncate : Decimal -> Int
-truncate d = if d >= 0.0
-             then truncatePositive d 0
-             else negate (truncatePositive (negate d) 0)
-  where
-    truncatePositive : Decimal -> Int -> Int
-    truncatePositive remaining acc
-      | remaining < 1.0 = acc
-      | otherwise = truncatePositive (remaining - 1.0) (acc + 1)
+-- Note: intToDecimal and truncate are provided by Prelude.

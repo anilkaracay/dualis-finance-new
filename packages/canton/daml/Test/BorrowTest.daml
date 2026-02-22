@@ -4,6 +4,7 @@
 
 module Test.BorrowTest where
 
+import Daml.Script
 import Dualis.Types
 import Dualis.Lending.Math
 import Dualis.Lending.Borrow
@@ -47,7 +48,7 @@ testCreateBorrow = script do
   operator <- allocateParty "Operator"
   alice <- allocateParty "Alice"
 
-  posCid <- submit operator do
+  posCid <- submitMulti [operator, alice] [] do
     createCmd BorrowPosition with
       operator
       borrower = alice
@@ -81,7 +82,7 @@ testGetCurrentDebt = script do
   operator <- allocateParty "Operator"
   alice <- allocateParty "Alice"
 
-  posCid <- submit operator do
+  posCid <- submitMulti [operator, alice] [] do
     createCmd BorrowPosition with
       operator; borrower = alice
       positionId = "borrow-pos-001"; poolId = "usdc-main"
@@ -107,7 +108,7 @@ testPartialRepay = script do
   operator <- allocateParty "Operator"
   alice <- allocateParty "Alice"
 
-  posCid <- submit operator do
+  posCid <- submitMulti [operator, alice] [] do
     createCmd BorrowPosition with
       operator; borrower = alice
       positionId = "borrow-pos-001"; poolId = "usdc-main"
@@ -142,7 +143,7 @@ testFullRepay = script do
   operator <- allocateParty "Operator"
   alice <- allocateParty "Alice"
 
-  posCid <- submit operator do
+  posCid <- submitMulti [operator, alice] [] do
     createCmd BorrowPosition with
       operator; borrower = alice
       positionId = "borrow-pos-002"; poolId = "usdc-main"
@@ -173,7 +174,7 @@ testAddCollateral = script do
   operator <- allocateParty "Operator"
   alice <- allocateParty "Alice"
 
-  posCid <- submit operator do
+  posCid <- submitMulti [operator, alice] [] do
     createCmd BorrowPosition with
       operator; borrower = alice
       positionId = "borrow-pos-003"; poolId = "usdc-main"
@@ -205,7 +206,7 @@ testUpdateHealthFactor = script do
   operator <- allocateParty "Operator"
   alice <- allocateParty "Alice"
 
-  posCid <- submit operator do
+  posCid <- submitMulti [operator, alice] [] do
     createCmd BorrowPosition with
       operator; borrower = alice
       positionId = "borrow-pos-004"; poolId = "usdc-main"

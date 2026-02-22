@@ -4,6 +4,7 @@
 
 module Test.OracleTest where
 
+import Daml.Script
 import Dualis.Types
 import Dualis.Oracle.PriceFeed
 
@@ -13,15 +14,15 @@ testCreatePriceFeed : Script ()
 testCreatePriceFeed = script do
   operator <- allocateParty "Operator"
 
+  let srcChainlink = PriceSourceEntry with source = Chainlink; priceUSD = 3001.0; timestamp = "2026-02-15T10:00:00Z"; confidence = 0.99; isActive = True
+  let srcPyth = PriceSourceEntry with source = Pyth; priceUSD = 2999.0; timestamp = "2026-02-15T10:00:00Z"; confidence = 0.98; isActive = True
+
   feedCid <- submit operator do
     createCmd PriceFeed with
       operator
       asset = "ETH"
       aggregatedPrice = 3000.0
-      sources = [
-        PriceSourceEntry with source = Chainlink; priceUSD = 3001.0; timestamp = "2026-02-15T10:00:00Z"; confidence = 0.99; isActive = True,
-        PriceSourceEntry with source = Pyth; priceUSD = 2999.0; timestamp = "2026-02-15T10:00:00Z"; confidence = 0.98; isActive = True
-        ]
+      sources = [srcChainlink, srcPyth]
       lastUpdated = "2026-02-15T10:00:00Z"
       maxStaleness = 300
       minSources = 2
@@ -42,14 +43,14 @@ testSubmitPrice : Script ()
 testSubmitPrice = script do
   operator <- allocateParty "Operator"
 
+  let oneSrc = PriceSourceEntry with source = Chainlink; priceUSD = 3001.0; timestamp = "2026-02-15T10:00:00Z"; confidence = 0.99; isActive = True
+
   feedCid <- submit operator do
     createCmd PriceFeed with
       operator
       asset = "ETH"
       aggregatedPrice = 3000.0
-      sources = [
-        PriceSourceEntry with source = Chainlink; priceUSD = 3001.0; timestamp = "2026-02-15T10:00:00Z"; confidence = 0.99; isActive = True
-        ]
+      sources = [oneSrc]
       lastUpdated = "2026-02-15T10:00:00Z"
       maxStaleness = 300
       minSources = 2
@@ -92,13 +93,13 @@ testBatchUpdate = script do
       isValid = False
 
   -- Batch update with 3 sources
+  let bSrc1 = PriceSourceEntry with source = Chainlink; priceUSD = 62000.0; timestamp = "2026-02-15T10:05:00Z"; confidence = 0.99; isActive = True
+  let bSrc2 = PriceSourceEntry with source = Pyth; priceUSD = 62100.0; timestamp = "2026-02-15T10:05:00Z"; confidence = 0.98; isActive = True
+  let bSrc3 = PriceSourceEntry with source = InternalFeed; priceUSD = 61950.0; timestamp = "2026-02-15T10:05:00Z"; confidence = 0.95; isActive = True
+
   newFeedCid <- submit operator do
     exerciseCmd feedCid BatchUpdatePrices with
-      newSources = [
-        PriceSourceEntry with source = Chainlink; priceUSD = 62000.0; timestamp = "2026-02-15T10:05:00Z"; confidence = 0.99; isActive = True,
-        PriceSourceEntry with source = Pyth; priceUSD = 62100.0; timestamp = "2026-02-15T10:05:00Z"; confidence = 0.98; isActive = True,
-        PriceSourceEntry with source = InternalFeed; priceUSD = 61950.0; timestamp = "2026-02-15T10:05:00Z"; confidence = 0.95; isActive = True
-        ]
+      newSources = [bSrc1, bSrc2, bSrc3]
       updateTime = "2026-02-15T10:05:00Z"
 
   feed <- queryContractId operator newFeedCid

@@ -170,7 +170,7 @@ data AccrualState = AccrualState
 
 -- ─── Pool Position Types ───────────────────────────────────────────────────
 
-data PositionType = SupplyPosition | BorrowPosition_
+data PositionType = SupplyPos | BorrowPos
   deriving (Eq, Show, Ord)
 
 -- ─── Liquidation Constants ─────────────────────────────────────────────────

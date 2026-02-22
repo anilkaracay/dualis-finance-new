@@ -4,6 +4,7 @@
 
 module Test.LiquidationTest where
 
+import Daml.Script
 import Dualis.Types
 import Dualis.Lending.Math
 import Dualis.Liquidation.Engine
@@ -57,8 +58,8 @@ testExecuteLiquidation = script do
         triggeredAt = "2026-02-15T10:00:00Z"
       isProcessed = False
 
-  -- Liquidator executes liquidation
-  resultCid <- submit liquidator do
+  -- Liquidator executes liquidation (readAs operator for visibility)
+  resultCid <- submitMulti [liquidator] [operator] do
     exerciseCmd triggerCid ExecuteLiquidation with
       liquidator
       debtAsset = "USDC"
@@ -115,7 +116,7 @@ testFlashLiquidation = script do
   operator <- allocateParty "Operator"
   liquidator <- allocateParty "Liquidator"
 
-  flashCid <- submit operator do
+  flashCid <- submitMulti [operator, liquidator] [] do
     createCmd FlashLiquidation with
       operator
       liquidator

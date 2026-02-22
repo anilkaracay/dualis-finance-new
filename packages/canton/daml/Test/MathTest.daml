@@ -4,6 +4,8 @@
 
 module Test.MathTest where
 
+import Daml.Script
+import DA.Foldable (mapA_)
 import Dualis.Types
 import Dualis.Lending.Math
 
@@ -170,14 +172,13 @@ testHealthFactorSingleCollateral = script do
 
 testHealthFactorMultiCollateral : Script ()
 testHealthFactorMultiCollateral = script do
-  let colls = [
-        CollateralInput with
-          symbol = "ETH"; amount = 5.0; priceUSD = 3000.0
-          ltv = 0.75; liqThreshold = 0.82; liqPenalty = 0.05; tier = CryptoTier,
-        CollateralInput with
-          symbol = "T-BILL"; amount = 10000.0; priceUSD = 1.0
-          ltv = 0.90; liqThreshold = 0.95; liqPenalty = 0.02; tier = RWATier
-        ]
+  let ethColl = CollateralInput with
+        symbol = "ETH"; amount = 5.0; priceUSD = 3000.0
+        ltv = 0.75; liqThreshold = 0.82; liqPenalty = 0.05; tier = CryptoTier
+  let tbillColl = CollateralInput with
+        symbol = "T-BILL"; amount = 10000.0; priceUSD = 1.0
+        ltv = 0.90; liqThreshold = 0.95; liqPenalty = 0.02; tier = RWATier
+  let colls = [ethColl, tbillColl]
   let debts = [DebtInput with symbol = "USDC"; amount = 20000.0; priceUSD = 1.0]
   let hf = calculateHealthFactor colls debts
   -- ETH weighted: 5 * 3000 * 0.82 * 1.00 = 12300

@@ -9,6 +9,9 @@ build/
 out/
 *.tsbuildinfo
 
+# DAML build artifacts
+packages/canton/daml/.daml/
+
 # Turborepo
 .turbo/
 
