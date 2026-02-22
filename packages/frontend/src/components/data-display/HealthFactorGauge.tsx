@@ -1,0 +1,130 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import { cn } from '@/lib/utils/cn';
+
+type GaugeSize = 'sm' | 'md' | 'lg';
+
+interface HealthFactorGaugeProps {
+  value: number;
+  liquidationThreshold?: number;
+  size?: GaugeSize;
+  showLabel?: boolean;
+  animated?: boolean;
+  className?: string;
+}
+
+const sizeMap: Record<GaugeSize, { dim: number; strokeWidth: number; fontSize: string; showLabel: boolean }> = {
+  sm: { dim: 80, strokeWidth: 6, fontSize: 'text-lg', showLabel: false },
+  md: { dim: 140, strokeWidth: 8, fontSize: 'text-3xl', showLabel: true },
+  lg: { dim: 200, strokeWidth: 10, fontSize: 'text-4xl', showLabel: true },
+};
+
+function getColor(value: number): string {
+  if (value >= 2.0) return '#10B981';
+  if (value >= 1.5) return '#F59E0B';
+  if (value >= 1.0) return '#F97316';
+  return '#EF4444';
+}
+
+function getStatus(value: number): { text: string; colorClass: string } {
+  if (value >= 2.0) return { text: 'Safe', colorClass: 'text-positive' };
+  if (value >= 1.5) return { text: 'Caution', colorClass: 'text-warning' };
+  if (value >= 1.0) return { text: 'At Risk', colorClass: 'text-orange-400' };
+  return { text: 'Liquidatable', colorClass: 'text-negative' };
+}
+
+function HealthFactorGauge({
+  value,
+  size = 'md',
+  showLabel = true,
+  animated = true,
+  className,
+}: HealthFactorGaugeProps) {
+  const [animatedProgress, setAnimatedProgress] = useState(animated ? 0 : 1);
+  const config = sizeMap[size];
+  const displayLabel = showLabel && config.showLabel;
+
+  useEffect(() => {
+    if (!animated) {
+      setAnimatedProgress(1);
+      return;
+    }
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (prefersReducedMotion) {
+      setAnimatedProgress(1);
+      return;
+    }
+
+    let start: number | null = null;
+    const duration = 600;
+
+    const tick = (ts: number) => {
+      if (!start) start = ts;
+      const elapsed = ts - start;
+      const progress = Math.min(elapsed / duration, 1);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      setAnimatedProgress(eased);
+      if (progress < 1) requestAnimationFrame(tick);
+    };
+
+    requestAnimationFrame(tick);
+  }, [value, animated]);
+
+  const radius = (config.dim - config.strokeWidth) / 2;
+  const cx = config.dim / 2;
+  const cy = config.dim / 2;
+  const circumference = Math.PI * radius;
+  const clampedValue = Math.min(Math.max(value, 0), 3);
+  const fillPercent = (clampedValue / 3) * animatedProgress;
+  const dashOffset = circumference * (1 - fillPercent);
+  const color = getColor(value);
+  const status = getStatus(value);
+  const isDanger = value < 1.0;
+
+  return (
+    <div className={cn('flex flex-col items-center', isDanger && 'animate-pulse-danger rounded-full', className)}>
+      <svg
+        width={config.dim}
+        height={config.dim / 2 + config.strokeWidth}
+        viewBox={`0 0 ${config.dim} ${config.dim / 2 + config.strokeWidth}`}
+        className="overflow-visible"
+      >
+        <path
+          d={`M ${config.strokeWidth / 2} ${cy} A ${radius} ${radius} 0 0 1 ${config.dim - config.strokeWidth / 2} ${cy}`}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={config.strokeWidth}
+          className="text-bg-tertiary"
+          strokeLinecap="round"
+        />
+        <path
+          d={`M ${config.strokeWidth / 2} ${cy} A ${radius} ${radius} 0 0 1 ${config.dim - config.strokeWidth / 2} ${cy}`}
+          fill="none"
+          stroke={color}
+          strokeWidth={config.strokeWidth}
+          strokeLinecap="round"
+          strokeDasharray={circumference}
+          strokeDashoffset={dashOffset}
+          style={{ transition: animated ? 'none' : 'stroke-dashoffset 0.3s ease' }}
+        />
+        <text
+          x={cx}
+          y={cy - 4}
+          textAnchor="middle"
+          className="fill-text-primary font-mono font-bold"
+          style={{ fontSize: config.fontSize === 'text-4xl' ? '2.4rem' : config.fontSize === 'text-3xl' ? '1.9rem' : '1.1rem' }}
+        >
+          {value.toFixed(2)}
+        </text>
+      </svg>
+      {displayLabel && (
+        <span className={cn('text-sm font-medium mt-1', status.colorClass)}>
+          {status.text}
+        </span>
+      )}
+    </div>
+  );
+}
+
+export { HealthFactorGauge, type HealthFactorGaugeProps, type GaugeSize };
