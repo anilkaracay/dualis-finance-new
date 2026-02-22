@@ -71,16 +71,16 @@ function InterestRateChart({
     <div className={cn('w-full', className)}>
       <ResponsiveContainer width="100%" height={height}>
         <LineChart data={data} margin={{ top: 8, right: 16, left: 8, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#162032" vertical={false} />
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" vertical={false} />
           <XAxis
             dataKey="utilization"
-            tick={{ fill: '#6B7280', fontSize: 11 }}
-            axisLine={{ stroke: '#1E293B' }}
+            tick={{ fill: 'var(--chart-axis-text)', fontSize: 11 }}
+            axisLine={{ stroke: 'var(--chart-axis-line)' }}
             tickLine={false}
             tickFormatter={(v: number) => `${v}%`}
           />
           <YAxis
-            tick={{ fill: '#6B7280', fontSize: 11 }}
+            tick={{ fill: 'var(--chart-axis-text)', fontSize: 11 }}
             axisLine={false}
             tickLine={false}
             tickFormatter={(v: number) => `${v.toFixed(0)}%`}
@@ -96,14 +96,14 @@ function InterestRateChart({
           />
           <ReferenceLine
             x={kink * 100}
-            stroke="#6B7280"
+            stroke="var(--chart-axis-text)"
             strokeDasharray="4 4"
             strokeWidth={1}
           />
           <Line
             type="monotone"
             dataKey="supplyRate"
-            stroke="#00D4AA"
+            stroke="var(--color-accent-teal)"
             strokeWidth={2}
             dot={false}
             name="Supply Rate"
@@ -120,7 +120,7 @@ function InterestRateChart({
             <>
               <ReferenceLine
                 x={currentUtilization * 100}
-                stroke="#F9FAFB"
+                stroke="var(--color-text-primary)"
                 strokeDasharray="4 4"
                 strokeWidth={1}
               />
@@ -129,15 +129,15 @@ function InterestRateChart({
                 y={currentPoint.borrowRate}
                 r={4}
                 fill="#6366F1"
-                stroke="#0A0E17"
+                stroke="var(--color-bg-primary)"
                 strokeWidth={2}
               />
               <ReferenceDot
                 x={currentUtilization * 100}
                 y={currentPoint.supplyRate}
                 r={4}
-                fill="#00D4AA"
-                stroke="#0A0E17"
+                fill="var(--color-accent-teal)"
+                stroke="var(--color-bg-primary)"
                 strokeWidth={2}
               />
             </>

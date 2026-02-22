@@ -1,29 +1,37 @@
 'use client';
 
 import { cn } from '@/lib/utils/cn';
-import { Search, Bell, Moon, Sun } from 'lucide-react';
+import { Search, Bell, Moon, Sun, Monitor } from 'lucide-react';
+import type { ThemePreference } from '@/stores/useUIStore';
 
 interface TopbarProps {
   title?: string | undefined;
   onSearchClick?: (() => void) | undefined;
   onNotificationClick?: (() => void) | undefined;
-  onThemeToggle?: (() => void) | undefined;
-  theme?: 'dark' | 'light' | undefined;
+  onThemeCycle?: (() => void) | undefined;
+  themePreference?: ThemePreference | undefined;
   unreadCount?: number | undefined;
   walletSlot?: React.ReactNode | undefined;
   className?: string | undefined;
 }
 
+const THEME_ICONS: Record<ThemePreference, React.ElementType> = {
+  dark: Moon,
+  light: Sun,
+  system: Monitor,
+};
+
 function Topbar({
   title,
   onSearchClick,
   onNotificationClick,
-  onThemeToggle,
-  theme = 'dark',
+  onThemeCycle,
+  themePreference = 'dark',
   unreadCount = 0,
   walletSlot,
   className,
 }: TopbarProps) {
+  const ThemeIcon = THEME_ICONS[themePreference];
   return (
     <header
       className={cn(
@@ -67,10 +75,11 @@ function Topbar({
 
         {/* Theme Toggle */}
         <button
-          onClick={onThemeToggle}
+          onClick={onThemeCycle}
+          title={`Theme: ${themePreference}`}
           className="flex items-center justify-center h-7 w-7 rounded-md text-text-tertiary hover:text-text-primary hover:bg-bg-hover transition-colors"
         >
-          {theme === 'dark' ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
+          <ThemeIcon className="h-4 w-4" />
         </button>
 
         {/* Wallet */}

@@ -5,7 +5,6 @@ import {
   Sun,
   Moon,
   Monitor,
-  Check,
   ExternalLink,
   Key,
   Languages,
@@ -22,19 +21,18 @@ import { useWalletStore } from '@/stores/useWalletStore';
 // Types
 // ---------------------------------------------------------------------------
 
-type ThemeOption = 'dark' | 'light';
+import type { ThemePreference } from '@/stores/useUIStore';
 
 interface ThemeChoice {
-  readonly value: ThemeOption | 'system';
+  readonly value: ThemePreference;
   readonly label: string;
   readonly icon: React.ElementType;
-  readonly disabled: boolean;
 }
 
 const THEME_OPTIONS: readonly ThemeChoice[] = [
-  { value: 'dark', label: 'Dark', icon: Moon, disabled: false },
-  { value: 'light', label: 'Light', icon: Sun, disabled: false },
-  { value: 'system', label: 'System', icon: Monitor, disabled: true },
+  { value: 'dark', label: 'Dark', icon: Moon },
+  { value: 'light', label: 'Light', icon: Sun },
+  { value: 'system', label: 'System', icon: Monitor },
 ] as const;
 
 // ---------------------------------------------------------------------------
@@ -118,7 +116,7 @@ function ToggleRow({ label, description, pressed, onPressedChange, children }: T
 // ---------------------------------------------------------------------------
 
 export default function SettingsPage() {
-  const { theme, setTheme } = useUIStore();
+  const { themePreference, setTheme } = useUIStore();
   const { isConnected, walletAddress, walletType, party, disconnect } = useWalletStore();
 
   const [notifications, setNotifications] = useState<NotificationState>(INITIAL_NOTIFICATION_STATE);
@@ -157,29 +155,22 @@ export default function SettingsPage() {
           <div className="flex flex-wrap gap-3">
             {THEME_OPTIONS.map((opt) => {
               const Icon = opt.icon;
-              const isSelected = !opt.disabled && theme === opt.value;
+              const isSelected = themePreference === opt.value;
 
               return (
                 <button
                   key={opt.value}
-                  disabled={opt.disabled}
-                  onClick={() => {
-                    if (!opt.disabled && opt.value !== 'system') {
-                      setTheme(opt.value);
-                    }
-                  }}
+                  onClick={() => setTheme(opt.value)}
                   className={cn(
-                    'flex items-center gap-2.5 rounded-md border px-4 py-3 text-sm font-medium transition-all',
+                    'flex flex-col items-center gap-2 rounded-lg border w-20 py-3 text-xs font-medium transition-all',
                     'focus-ring',
                     isSelected
-                      ? 'border-accent-teal bg-accent-teal/10 text-accent-teal'
-                      : 'border-border-default text-text-secondary hover:border-border-focus/30 hover:text-text-primary',
-                    opt.disabled && 'cursor-not-allowed opacity-40',
+                      ? 'border-accent-teal bg-accent-teal-muted text-accent-teal shadow-card'
+                      : 'border-border-default text-text-secondary hover:border-border-hover hover:text-text-primary',
                   )}
                 >
-                  <Icon className="h-4 w-4" />
+                  <Icon className="h-5 w-5" />
                   <span>{opt.label}</span>
-                  {isSelected && <Check className="ml-1 h-4 w-4" />}
                 </button>
               );
             })}

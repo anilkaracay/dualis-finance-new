@@ -6,60 +6,60 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        // Backgrounds — layered depth
-        'bg-primary': '#06080F',
-        'bg-secondary': '#0C1019',
-        'bg-tertiary': '#141922',
-        'bg-hover': '#1A2030',
-        'bg-active': '#242D3D',
+        // Backgrounds — auto-switch via CSS variables
+        'bg-primary': 'var(--color-bg-primary)',
+        'bg-secondary': 'var(--color-bg-secondary)',
+        'bg-tertiary': 'var(--color-bg-tertiary)',
+        'bg-hover': 'var(--color-bg-hover)',
+        'bg-active': 'var(--color-bg-active)',
 
         // Surfaces
-        'surface-card': '#0E1420',
-        'surface-input': '#080C14',
-        'surface-modal': '#111827',
-        'surface-selected': 'rgba(0,230,184,0.06)',
+        'surface-card': 'var(--color-surface-card)',
+        'surface-input': 'var(--color-surface-input)',
+        'surface-modal': 'var(--color-surface-modal)',
+        'surface-selected': 'var(--color-surface-selected)',
 
-        // Borders — ultra-subtle
-        'border-default': 'rgba(255,255,255,0.06)',
-        'border-subtle': 'rgba(255,255,255,0.03)',
-        'border-hover': 'rgba(255,255,255,0.10)',
-        'border-focus': '#00E6B8',
-        'border-error': '#FF4C6A',
+        // Borders
+        'border-default': 'var(--color-border-default)',
+        'border-subtle': 'var(--color-border-subtle)',
+        'border-hover': 'var(--color-border-hover)',
+        'border-focus': 'var(--color-border-focus)',
+        'border-error': 'var(--color-border-error)',
 
-        // Text — refined hierarchy
-        'text-primary': '#F0F2F5',
-        'text-secondary': '#8A94A6',
-        'text-tertiary': '#5A6478',
-        'text-disabled': '#3D4556',
-        'text-inverse': '#06080F',
+        // Text
+        'text-primary': 'var(--color-text-primary)',
+        'text-secondary': 'var(--color-text-secondary)',
+        'text-tertiary': 'var(--color-text-tertiary)',
+        'text-disabled': 'var(--color-text-disabled)',
+        'text-inverse': 'var(--color-text-inverse)',
 
-        // Accent — luminous
-        'accent-teal': '#00E6B8',
-        'accent-teal-hover': '#00FFD0',
-        'accent-teal-muted': 'rgba(0,230,184,0.12)',
-        'accent-teal-glow': 'rgba(0,230,184,0.15)',
-        'accent-indigo': '#7C6FF7',
-        'accent-indigo-hover': '#9B8FFF',
-        'accent-indigo-muted': 'rgba(124,111,247,0.12)',
-        'accent-gold': '#FFB020',
-        'accent-blue': '#4C9AFF',
+        // Accent
+        'accent-teal': 'var(--color-accent-teal)',
+        'accent-teal-hover': 'var(--color-accent-teal-hover)',
+        'accent-teal-muted': 'var(--color-accent-teal-muted)',
+        'accent-teal-glow': 'var(--color-accent-teal-glow)',
+        'accent-indigo': 'var(--color-accent-indigo)',
+        'accent-indigo-hover': 'var(--color-accent-indigo-hover)',
+        'accent-indigo-muted': 'var(--color-accent-indigo-muted)',
+        'accent-gold': 'var(--color-accent-gold)',
+        'accent-blue': 'var(--color-accent-blue)',
 
-        // Semantic — more nuanced
-        positive: '#00D68F',
-        'positive-muted': 'rgba(0,214,143,0.08)',
-        negative: '#FF4C6A',
-        'negative-muted': 'rgba(255,76,106,0.08)',
-        warning: '#FFB020',
-        'warning-muted': 'rgba(255,176,32,0.08)',
-        info: '#4C9AFF',
-        'info-muted': 'rgba(76,154,255,0.08)',
+        // Semantic
+        positive: 'var(--color-positive)',
+        'positive-muted': 'var(--color-positive-muted)',
+        negative: 'var(--color-negative)',
+        'negative-muted': 'var(--color-negative-muted)',
+        warning: 'var(--color-warning)',
+        'warning-muted': 'var(--color-warning-muted)',
+        info: 'var(--color-info)',
+        'info-muted': 'var(--color-info-muted)',
 
-        // Tiers — refined
-        'tier-diamond': '#A8E8FF',
-        'tier-gold': '#FFB020',
-        'tier-silver': '#B8C4D4',
-        'tier-bronze': '#D4956A',
-        'tier-unrated': '#5A6478',
+        // Tiers
+        'tier-diamond': 'var(--color-tier-diamond)',
+        'tier-gold': 'var(--color-tier-gold)',
+        'tier-silver': 'var(--color-tier-silver)',
+        'tier-bronze': 'var(--color-tier-bronze)',
+        'tier-unrated': 'var(--color-tier-unrated)',
       },
       fontFamily: {
         sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'sans-serif'],
@@ -95,6 +95,9 @@ const config: Config = {
         full: '9999px',
       },
       boxShadow: {
+        card: 'var(--shadow-card)',
+        'card-hover': 'var(--shadow-card-hover)',
+        elevated: 'var(--shadow-elevated)',
         sm: '0 1px 2px rgba(0,0,0,0.3), 0 1px 3px rgba(0,0,0,0.15)',
         md: '0 4px 6px rgba(0,0,0,0.25), 0 2px 4px rgba(0,0,0,0.12)',
         lg: '0 10px 15px rgba(0,0,0,0.3), 0 4px 6px rgba(0,0,0,0.15)',

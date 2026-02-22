@@ -1,19 +1,17 @@
 import type { Metadata } from 'next';
-import localFont from 'next/font/local';
+import { Inter, JetBrains_Mono } from 'next/font/google';
 import '@/styles/globals.css';
 
-const inter = localFont({
-  src: '../../public/fonts/Inter-Variable.woff2',
+const inter = Inter({
+  subsets: ['latin'],
   variable: '--font-inter',
   display: 'swap',
-  preload: true,
 });
 
-const jetbrainsMono = localFont({
-  src: '../../public/fonts/JetBrainsMono-Variable.woff2',
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ['latin'],
   variable: '--font-jetbrains',
   display: 'swap',
-  preload: true,
 });
 
 export const metadata: Metadata = {
@@ -33,6 +31,13 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" data-theme="dark" suppressHydrationWarning>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var s=JSON.parse(localStorage.getItem('dualis-ui')||'{}');var p=s.state&&s.state.themePreference||'dark';var t=p;if(p==='system'){t=window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light'}document.documentElement.setAttribute('data-theme',t)}catch(e){}})()`,
+          }}
+        />
+      </head>
       <body
         className={`${inter.variable} ${jetbrainsMono.variable} font-sans bg-bg-primary text-text-primary`}
       >

@@ -38,15 +38,15 @@ function HistogramChart({ data, height = 240, className }: HistogramChartProps) 
     <div className={cn('w-full', className)}>
       <ResponsiveContainer width="100%" height={height}>
         <BarChart data={data} margin={{ top: 4, right: 4, left: 4, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#162032" vertical={false} />
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" vertical={false} />
           <XAxis
             dataKey="label"
-            tick={{ fill: '#6B7280', fontSize: 11 }}
-            axisLine={{ stroke: '#1E293B' }}
+            tick={{ fill: 'var(--chart-axis-text)', fontSize: 11 }}
+            axisLine={{ stroke: 'var(--chart-axis-line)' }}
             tickLine={false}
           />
           <YAxis
-            tick={{ fill: '#6B7280', fontSize: 11 }}
+            tick={{ fill: 'var(--chart-axis-text)', fontSize: 11 }}
             axisLine={false}
             tickLine={false}
             width={40}

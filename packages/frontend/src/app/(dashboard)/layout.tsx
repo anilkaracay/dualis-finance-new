@@ -10,7 +10,7 @@ import { NotificationPanel } from '@/components/layout/NotificationPanel';
 import { MobileNav } from '@/components/layout/MobileNav';
 import { WalletDropdown } from '@/components/wallet/WalletDropdown';
 import { ToastProvider, ToastViewport } from '@/components/ui/Toast';
-import { useUIStore } from '@/stores/useUIStore';
+import { useUIStore, resolveTheme, applyTheme } from '@/stores/useUIStore';
 import { useNotificationStore } from '@/stores/useNotificationStore';
 import { useProtocolStore } from '@/stores/useProtocolStore';
 import { useWebSocket } from '@/hooks/useWebSocket';
@@ -24,10 +24,19 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   // Connect WebSocket for real-time price and notification updates
   useWebSocket();
 
-  // Apply theme to html element
+  // Apply theme to html element and listen for system preference changes
   useEffect(() => {
-    document.documentElement.setAttribute('data-theme', ui.theme);
-  }, [ui.theme]);
+    applyTheme(ui.themePreference);
+
+    if (ui.themePreference === 'system') {
+      const mq = window.matchMedia('(prefers-color-scheme: dark)');
+      const handler = () => {
+        document.documentElement.setAttribute('data-theme', resolveTheme('system'));
+      };
+      mq.addEventListener('change', handler);
+      return () => mq.removeEventListener('change', handler);
+    }
+  }, [ui.themePreference]);
 
   // Try to fetch data from backend API on mount; falls back to mock data
   useEffect(() => {
@@ -53,8 +62,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <Topbar
             onSearchClick={() => ui.setCommandPaletteOpen(true)}
             onNotificationClick={() => ui.toggleNotificationPanel()}
-            onThemeToggle={ui.toggleTheme}
-            theme={ui.theme}
+            onThemeCycle={ui.cycleTheme}
+            themePreference={ui.themePreference}
             unreadCount={notifs.unreadCount}
             walletSlot={<WalletDropdown />}
           />

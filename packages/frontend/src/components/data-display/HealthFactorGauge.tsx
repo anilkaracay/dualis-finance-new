@@ -95,7 +95,7 @@ function HealthFactorGauge({
         <path
           d={`M ${config.strokeWidth / 2} ${cy} A ${radius} ${radius} 0 0 1 ${config.dim - config.strokeWidth / 2} ${cy}`}
           fill="none"
-          stroke="rgba(255,255,255,0.04)"
+          stroke="var(--chart-grid)"
           strokeWidth={config.strokeWidth}
           strokeLinecap="round"
         />

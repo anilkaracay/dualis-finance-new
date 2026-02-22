@@ -2,7 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ─── CSS Custom Properties ─── */
+/* ─── CSS Custom Properties (Dark Mode — Default) ─── */
 :root {
   /* Backgrounds — layered depth */
   --color-bg-primary: #06080F;
@@ -17,6 +17,7 @@
   --color-surface-input: #080C14;
   --color-surface-modal: #111827;
   --color-surface-glass: rgba(14,20,32,0.85);
+  --color-surface-selected: rgba(0,230,184,0.06);
 
   /* Borders — barely there */
   --color-border-default: rgba(255,255,255,0.06);
@@ -60,10 +61,30 @@
   --color-tier-bronze: #D4956A;
   --color-tier-unrated: #5A6478;
 
+  /* Shadows — dark mode uses borders, no card shadow */
+  --shadow-card: none;
+  --shadow-card-hover: none;
+  --shadow-elevated: 0 4px 8px rgba(0,0,0,0.40), 0 12px 32px rgba(0,0,0,0.50);
+
   /* Glass */
   --glass-bg: rgba(14,20,32,0.85);
   --glass-blur: 20px;
   --glass-border: 1px solid rgba(255,255,255,0.06);
+
+  /* Skeleton */
+  --skeleton-base: rgba(255,255,255,0.04);
+  --skeleton-shine: rgba(255,255,255,0.08);
+
+  /* Chart */
+  --chart-grid: rgba(255,255,255,0.04);
+  --chart-axis-text: #5A6478;
+  --chart-axis-line: rgba(255,255,255,0.06);
+  --chart-tooltip-bg: #1A2030;
+  --chart-tooltip-text: #F0F2F5;
+
+  /* Scrollbar */
+  --scrollbar-thumb: rgba(255,255,255,0.08);
+  --scrollbar-thumb-hover: rgba(255,255,255,0.14);
 
   /* Typography */
   --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -73,24 +94,95 @@
   --sidebar-width: 240px;
   --sidebar-collapsed: 56px;
   --topbar-height: 56px;
+
+  color-scheme: dark;
 }
 
 /* ─── Light Mode ─── */
 [data-theme='light'] {
-  --color-bg-primary: #FFFFFF;
-  --color-bg-secondary: #F8F9FB;
-  --color-bg-tertiary: #F0F2F5;
-  --color-bg-hover: #E8EBF0;
-  --color-bg-active: #D8DCE4;
+  /* Backgrounds — warm whites, not clinical */
+  --color-bg-primary: #FAFBFC;
+  --color-bg-secondary: #FFFFFF;
+  --color-bg-tertiary: #F3F5F7;
+  --color-bg-hover: #ECEEF1;
+  --color-bg-active: #E2E5E9;
+  --color-bg-overlay: rgba(0,0,0,0.40);
+
+  /* Surfaces */
   --color-surface-card: #FFFFFF;
-  --color-surface-input: #F8F9FB;
+  --color-surface-input: #F5F7F9;
+  --color-surface-modal: #FFFFFF;
+  --color-surface-glass: rgba(255,255,255,0.80);
+  --color-surface-selected: rgba(0,184,150,0.06);
+
+  /* Borders — subtle, shadows do the work */
   --color-border-default: rgba(0,0,0,0.06);
   --color-border-subtle: rgba(0,0,0,0.03);
   --color-border-hover: rgba(0,0,0,0.10);
-  --color-text-primary: #0F1419;
-  --color-text-secondary: #5A6478;
-  --color-text-tertiary: #8A94A6;
-  --color-text-disabled: #C0C8D4;
+  --color-border-focus: #00C9A7;
+  --color-border-error: #E5384B;
+
+  /* Text — rich darks, not pure black */
+  --color-text-primary: #1A1D23;
+  --color-text-secondary: #5F6980;
+  --color-text-tertiary: #8E99AB;
+  --color-text-disabled: #BCC3CF;
+  --color-text-inverse: #FAFBFC;
+
+  /* Accent — slightly deeper for white bg contrast */
+  --color-accent-teal: #00B896;
+  --color-accent-teal-hover: #00A085;
+  --color-accent-teal-muted: rgba(0,184,150,0.10);
+  --color-accent-teal-glow: rgba(0,184,150,0.10);
+  --color-accent-indigo: #6C63F0;
+  --color-accent-indigo-hover: #5B52E0;
+  --color-accent-indigo-muted: rgba(108,99,240,0.08);
+  --color-accent-gold: #E09B00;
+  --color-accent-blue: #3B82F6;
+
+  /* Semantic — adjusted for white backgrounds */
+  --color-positive: #00A878;
+  --color-positive-muted: rgba(0,168,120,0.08);
+  --color-negative: #E5384B;
+  --color-negative-muted: rgba(229,56,75,0.06);
+  --color-warning: #E09B00;
+  --color-warning-muted: rgba(224,155,0,0.06);
+  --color-info: #3B82F6;
+  --color-info-muted: rgba(59,130,246,0.06);
+
+  /* Tiers — deeper for light backgrounds */
+  --color-tier-diamond: #5BB8D4;
+  --color-tier-gold: #D49000;
+  --color-tier-silver: #7A8899;
+  --color-tier-bronze: #B07848;
+  --color-tier-unrated: #8E99AB;
+
+  /* Shadows — light mode uses shadows for depth */
+  --shadow-card: 0 1px 2px rgba(0,0,0,0.04), 0 2px 8px rgba(0,0,0,0.04);
+  --shadow-card-hover: 0 2px 4px rgba(0,0,0,0.04), 0 4px 16px rgba(0,0,0,0.06);
+  --shadow-elevated: 0 4px 8px rgba(0,0,0,0.06), 0 12px 32px rgba(0,0,0,0.08);
+
+  /* Glass */
+  --glass-bg: rgba(255,255,255,0.80);
+  --glass-blur: 20px;
+  --glass-border: 1px solid rgba(0,0,0,0.06);
+
+  /* Skeleton */
+  --skeleton-base: rgba(0,0,0,0.04);
+  --skeleton-shine: rgba(0,0,0,0.08);
+
+  /* Chart */
+  --chart-grid: rgba(0,0,0,0.04);
+  --chart-axis-text: #8E99AB;
+  --chart-axis-line: rgba(0,0,0,0.06);
+  --chart-tooltip-bg: #1A1D23;
+  --chart-tooltip-text: #F0F2F5;
+
+  /* Scrollbar */
+  --scrollbar-thumb: rgba(0,0,0,0.08);
+  --scrollbar-thumb-hover: rgba(0,0,0,0.14);
+
+  color-scheme: light;
 }
 
 /* ─── CSS Reset ─── */
@@ -116,6 +208,14 @@ body {
   font-size: 0.833rem;
   line-height: 1.5;
   min-height: 100vh;
+}
+
+/* ─── Smooth Theme Transition ─── */
+html.theme-transitioning,
+html.theme-transitioning *,
+html.theme-transitioning *::before,
+html.theme-transitioning *::after {
+  transition: background-color 300ms ease, border-color 300ms ease, color 200ms ease, box-shadow 300ms ease, fill 200ms ease !important;
 }
 
 /* ─── Typography Utilities ─── */
@@ -156,7 +256,7 @@ body {
   background:
     radial-gradient(ellipse 80% 50% at 50% -20%, rgba(0,230,184,0.08), transparent),
     radial-gradient(ellipse 60% 40% at 80% 50%, rgba(124,111,247,0.05), transparent),
-    #06080F;
+    var(--color-bg-primary);
 }
 
 .bg-gradient-landing-section {
@@ -168,14 +268,14 @@ body {
 /* Grid mesh for landing hero */
 .bg-grid-mesh {
   background-image:
-    linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+    linear-gradient(var(--chart-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--chart-grid) 1px, transparent 1px);
   background-size: 60px 60px;
 }
 
 /* Glow effects */
 .border-glow-teal {
-  box-shadow: 0 0 0 1px rgba(0,230,184,0.08), 0 0 20px rgba(0,230,184,0.04);
+  box-shadow: 0 0 0 1px var(--color-accent-teal-glow), 0 0 20px rgba(0,230,184,0.04);
 }
 
 .border-glow-gold {
@@ -193,12 +293,12 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(255,255,255,0.08);
+  background: var(--scrollbar-thumb);
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255,255,255,0.14);
+  background: var(--scrollbar-thumb-hover);
 }
 
 /* ─── Focus Ring ─── */
@@ -209,7 +309,7 @@ body {
 .focus-ring:focus-visible {
   outline: 2px solid var(--color-border-focus);
   outline-offset: 2px;
-  box-shadow: 0 0 0 4px rgba(0,230,184,0.15);
+  box-shadow: 0 0 0 4px var(--color-accent-teal-glow);
 }
 
 /* ─── Glass Morphism ─── */
@@ -220,7 +320,7 @@ body {
   border: var(--glass-border);
 }
 
-/* ─── Skeleton Shimmer (more subtle) ─── */
+/* ─── Skeleton Shimmer ─── */
 @keyframes shimmer {
   0% { background-position: -200% 0; }
   100% { background-position: 200% 0; }
@@ -266,6 +366,6 @@ body {
 
 /* ─── Selection Color ─── */
 ::selection {
-  background: rgba(0,230,184,0.20);
+  background: var(--color-accent-teal-glow);
   color: var(--color-text-primary);
 }

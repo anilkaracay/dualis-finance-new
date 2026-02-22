@@ -8,10 +8,10 @@ interface UtilizationBarProps {
 }
 
 function getBarGradient(v: number): string {
-  if (v <= 0.6) return '#00E6B8';
-  if (v <= 0.8) return '#FFB020';
+  if (v <= 0.6) return 'var(--color-positive)';
+  if (v <= 0.8) return 'var(--color-warning)';
   if (v <= 0.9) return '#FF8C42';
-  return '#FF4C6A';
+  return 'var(--color-negative)';
 }
 
 function UtilizationBar({ value, showLabel = true, size = 'sm', className }: UtilizationBarProps) {
@@ -25,7 +25,7 @@ function UtilizationBar({ value, showLabel = true, size = 'sm', className }: Uti
       {showLabel && (
         <span className="text-xs font-mono text-text-tertiary tabular-nums w-8 text-right shrink-0">{percent}%</span>
       )}
-      <div className={cn('relative flex-1 rounded-full overflow-hidden', barHeight)} style={{ backgroundColor: 'rgba(255,255,255,0.04)' }}>
+      <div className={cn('relative flex-1 rounded-full overflow-hidden', barHeight)} style={{ backgroundColor: 'var(--skeleton-base)' }}>
         <div
           className="h-full rounded-full transition-all duration-500 ease-out"
           style={{ width: `${percent}%`, backgroundColor: color }}

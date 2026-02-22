@@ -42,7 +42,7 @@ function DualisAreaChart({
   data,
   xKey,
   yKey,
-  color = '#00D4AA',
+  color = 'var(--color-accent-teal)',
   height = 320,
   timeRange = '30d',
   onTimeRangeChange,
@@ -90,17 +90,17 @@ function DualisAreaChart({
           </defs>
           <CartesianGrid
             strokeDasharray="3 3"
-            stroke="#162032"
+            stroke="var(--chart-grid)"
             vertical={false}
           />
           <XAxis
             dataKey={xKey}
-            tick={{ fill: '#6B7280', fontSize: 11 }}
-            axisLine={{ stroke: '#1E293B' }}
+            tick={{ fill: 'var(--chart-axis-text)', fontSize: 11 }}
+            axisLine={{ stroke: 'var(--chart-axis-line)' }}
             tickLine={false}
           />
           <YAxis
-            tick={{ fill: '#6B7280', fontSize: 11 }}
+            tick={{ fill: 'var(--chart-axis-text)', fontSize: 11 }}
             axisLine={false}
             tickLine={false}
             tickFormatter={formatCompact}

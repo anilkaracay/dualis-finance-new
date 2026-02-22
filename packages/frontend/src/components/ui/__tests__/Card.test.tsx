@@ -13,7 +13,7 @@ describe('Card', () => {
   });
   it('applies elevated variant', () => {
     const { container } = render(<Card variant="elevated">Elevated</Card>);
-    expect(container.firstChild).toHaveClass('shadow-md');
+    expect(container.firstChild).toHaveClass('shadow-card-hover');
   });
   it('applies outlined variant', () => {
     const { container } = render(<Card variant="outlined">Outlined</Card>);

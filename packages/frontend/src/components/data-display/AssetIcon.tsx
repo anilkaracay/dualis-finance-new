@@ -47,7 +47,7 @@ function AssetIcon({ symbol, size = 'md', className }: AssetIconProps) {
   return (
     <div
       className={cn('inline-flex items-center justify-center rounded-full shrink-0 font-semibold select-none', className)}
-      style={{ width: px, height: px, backgroundColor: bg, color: '#F0F2F5', fontSize }}
+      style={{ width: px, height: px, backgroundColor: bg, color: 'var(--color-text-primary)', fontSize }}
       role="img"
       aria-label={symbol}
     >

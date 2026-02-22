@@ -3,7 +3,8 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-type Theme = 'dark' | 'light';
+type ThemePreference = 'dark' | 'light' | 'system';
+type ResolvedTheme = 'dark' | 'light';
 
 interface UIState {
   sidebarCollapsed: boolean;
@@ -12,7 +13,7 @@ interface UIState {
   rightPanelContent: string | null;
   commandPaletteOpen: boolean;
   notificationPanelOpen: boolean;
-  theme: Theme;
+  themePreference: ThemePreference;
 }
 
 interface UIActions {
@@ -24,20 +25,41 @@ interface UIActions {
   setCommandPaletteOpen: (open: boolean) => void;
   toggleNotificationPanel: () => void;
   setNotificationPanelOpen: (open: boolean) => void;
-  setTheme: (theme: Theme) => void;
-  toggleTheme: () => void;
+  setTheme: (theme: ThemePreference) => void;
+  cycleTheme: () => void;
 }
+
+function resolveTheme(pref: ThemePreference): ResolvedTheme {
+  if (pref !== 'system') return pref;
+  if (typeof window === 'undefined') return 'dark';
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+
+function applyTheme(pref: ThemePreference) {
+  if (typeof document === 'undefined') return;
+  const resolved = resolveTheme(pref);
+  const el = document.documentElement;
+
+  // Add transition class for smooth switch
+  el.classList.add('theme-transitioning');
+  el.setAttribute('data-theme', resolved);
+
+  // Remove transition class after animation completes
+  setTimeout(() => el.classList.remove('theme-transitioning'), 350);
+}
+
+const CYCLE_ORDER: ThemePreference[] = ['dark', 'light', 'system'];
 
 export const useUIStore = create<UIState & UIActions>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       sidebarCollapsed: false,
       rightPanelOpen: false,
       rightPanelTitle: '',
       rightPanelContent: null,
       commandPaletteOpen: false,
       notificationPanelOpen: false,
-      theme: 'dark' as Theme,
+      themePreference: 'dark' as ThemePreference,
 
       toggleSidebar: () => set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
       setSidebarCollapsed: (collapsed) => set({ sidebarCollapsed: collapsed }),
@@ -54,13 +76,24 @@ export const useUIStore = create<UIState & UIActions>()(
         set((s) => ({ notificationPanelOpen: !s.notificationPanelOpen })),
       setNotificationPanelOpen: (open) => set({ notificationPanelOpen: open }),
 
-      setTheme: (theme) => set({ theme }),
-      toggleTheme: () =>
-        set((s) => ({ theme: s.theme === 'dark' ? 'light' as Theme : 'dark' as Theme })),
+      setTheme: (theme) => {
+        set({ themePreference: theme });
+        applyTheme(theme);
+      },
+      cycleTheme: () => {
+        const current = get().themePreference;
+        const idx = CYCLE_ORDER.indexOf(current);
+        const next = CYCLE_ORDER[(idx + 1) % CYCLE_ORDER.length]!;
+        set({ themePreference: next });
+        applyTheme(next);
+      },
     }),
     {
       name: 'dualis-ui',
-      partialize: (state) => ({ theme: state.theme, sidebarCollapsed: state.sidebarCollapsed }),
+      partialize: (state) => ({ themePreference: state.themePreference, sidebarCollapsed: state.sidebarCollapsed }),
     }
   )
 );
+
+export { resolveTheme, applyTheme };
+export type { ThemePreference, ResolvedTheme };

@@ -16,7 +16,7 @@ function SparklineChart({
   data,
   width = 80,
   height = 32,
-  color = '#00E6B8',
+  color = 'var(--color-accent-teal)',
   animated = true,
   showArea = false,
   className,
