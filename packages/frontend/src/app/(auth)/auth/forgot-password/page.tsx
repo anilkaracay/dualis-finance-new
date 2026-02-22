@@ -31,10 +31,10 @@ export default function ForgotPasswordPage() {
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 12 }}
+      initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.2 }}
-      className="w-full max-w-[440px]"
+      transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+      className="w-full max-w-[460px] pt-4"
     >
       <AnimatePresence mode="wait">
         {!sent ? (
@@ -42,77 +42,119 @@ export default function ForgotPasswordPage() {
             key="form"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            transition={{ duration: 0.3 }}
           >
+            {/* Headline */}
             <div className="text-center mb-8">
-              <h1 className="font-jakarta font-bold text-[28px] text-text-primary tracking-[-0.02em]">
+              <h1 className="font-display text-[clamp(1.75rem,4vw,2.25rem)] text-text-primary leading-tight tracking-tight">
                 Reset Password
               </h1>
-              <p className="font-jakarta text-[15px] text-text-secondary mt-2">
+              <p className="font-jakarta text-[14px] text-text-secondary mt-2">
                 Enter your email and we&apos;ll send you a reset link
               </p>
             </div>
 
-            <div className="bg-bg-tertiary border border-border-default rounded-2xl p-10">
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <Input
-                  label="Email Address"
-                  type="email"
-                  placeholder="you@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  iconRight={<Mail className="w-4 h-4 text-text-tertiary" />}
-                />
+            {/* Glass card */}
+            <div className="relative rounded-2xl p-[1px]"
+              style={{
+                background: 'linear-gradient(135deg, rgba(45,212,191,0.1) 0%, rgba(129,140,248,0.06) 50%, rgba(45,212,191,0.04) 100%)',
+              }}
+            >
+              <div className="relative bg-bg-tertiary/80 backdrop-blur-xl rounded-2xl p-8 sm:p-10 border border-border-default/30">
+                {/* Animated mail icon */}
+                <div className="flex justify-center mb-6">
+                  <motion.div
+                    animate={{ y: [0, -3, 0] }}
+                    transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
+                    className="w-14 h-14 rounded-xl flex items-center justify-center"
+                    style={{
+                      background: 'linear-gradient(135deg, rgba(45,212,191,0.12) 0%, rgba(6,182,212,0.08) 100%)',
+                    }}
+                  >
+                    <Mail className="w-6 h-6 text-accent-teal" />
+                  </motion.div>
+                </div>
 
-                {error && (
-                  <div className="flex items-center gap-2 text-xs text-negative font-jakarta">
-                    <AlertCircle className="w-3 h-3 shrink-0" />
-                    {error}
-                  </div>
-                )}
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  <Input
+                    label="Email Address"
+                    type="email"
+                    placeholder="you@example.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                  />
 
-                <Button
-                  type="submit"
-                  variant="primary"
-                  size="lg"
-                  className="w-full h-12"
-                  loading={isLoading}
-                >
-                  Send Reset Link
-                </Button>
-              </form>
+                  <AnimatePresence>
+                    {error && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -4 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -4 }}
+                        className="flex items-center gap-2 text-xs text-negative font-jakarta bg-negative/5 rounded-lg px-3 py-2"
+                      >
+                        <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                        {error}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
+                  <Button
+                    type="submit"
+                    variant="primary"
+                    size="lg"
+                    className="w-full h-12"
+                    loading={isLoading}
+                  >
+                    Send Reset Link
+                  </Button>
+                </form>
+              </div>
             </div>
           </motion.div>
         ) : (
           <motion.div
             key="success"
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
+            initial={{ opacity: 0, scale: 0.95, y: 8 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
             className="text-center"
           >
-            <div className="bg-bg-tertiary border border-border-default rounded-2xl p-10">
-              <div className="w-14 h-14 rounded-full bg-accent-teal/10 flex items-center justify-center mx-auto mb-5">
-                <CheckCircle2 className="w-7 h-7 text-accent-teal" />
+            {/* Glass card */}
+            <div className="relative rounded-2xl p-[1px]"
+              style={{
+                background: 'linear-gradient(135deg, rgba(45,212,191,0.1) 0%, rgba(129,140,248,0.06) 50%, rgba(45,212,191,0.04) 100%)',
+              }}
+            >
+              <div className="relative bg-bg-tertiary/80 backdrop-blur-xl rounded-2xl p-8 sm:p-10 border border-border-default/30">
+                <motion.div
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ type: 'spring', stiffness: 200, damping: 15, delay: 0.1 }}
+                  className="w-16 h-16 rounded-full bg-accent-teal/10 flex items-center justify-center mx-auto mb-6"
+                >
+                  <CheckCircle2 className="w-8 h-8 text-accent-teal" />
+                </motion.div>
+                <h2 className="font-display text-2xl text-text-primary mb-2">
+                  Check Your Email
+                </h2>
+                <p className="font-jakarta text-sm text-text-secondary mb-1">
+                  We sent a password reset link to
+                </p>
+                <p className="font-jakarta text-sm text-text-primary font-medium mb-6">
+                  {email}
+                </p>
+                <p className="font-jakarta text-xs text-text-disabled">
+                  The link will expire in 1 hour. If you don&apos;t see the email, check your spam folder.
+                </p>
               </div>
-              <h2 className="font-jakarta font-bold text-xl text-text-primary mb-2">
-                Check Your Email
-              </h2>
-              <p className="font-jakarta text-sm text-text-secondary mb-1">
-                We sent a password reset link to
-              </p>
-              <p className="font-jakarta text-sm text-text-primary font-medium mb-6">
-                {email}
-              </p>
-              <p className="font-jakarta text-xs text-text-tertiary">
-                The link will expire in 1 hour. If you don&apos;t see the email, check your spam folder.
-              </p>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      <div className="mt-6 text-center">
+      <div className="mt-8 text-center">
         <Link
           href="/auth/login"
           className="inline-flex items-center gap-1.5 text-sm text-text-tertiary hover:text-accent-teal font-jakarta transition-colors"
