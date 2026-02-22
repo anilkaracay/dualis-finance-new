@@ -1,31 +1,81 @@
 /* ─── Landing Page Specific Styles ─── */
-/* Dark mode only for landing — always force dark */
+/* Supports both dark (default) and light modes */
 
-/* ─── Landing CSS Variables ─── */
+/* ─── Landing CSS Variables — Dark Mode (Default) ─── */
 .landing-page {
+  /* Backgrounds */
   --lp-bg-primary:    #09090B;
   --lp-bg-secondary:  #0F0F12;
   --lp-bg-tertiary:   #18181B;
   --lp-bg-elevated:   #1C1C21;
 
+  /* Text */
   --lp-text-primary:   #FAFAFA;
   --lp-text-secondary: #A1A1AA;
   --lp-text-tertiary:  #71717A;
+  --lp-text-muted:     #3F3F46;
 
+  /* Accent — unchanged across modes */
   --lp-accent:         #2DD4BF;
   --lp-accent-dim:     #14B8A6;
   --lp-accent-glow:    rgba(45, 212, 191, 0.15);
   --lp-accent-subtle:  rgba(45, 212, 191, 0.08);
 
+  /* Borders & Glass */
   --lp-border:         rgba(255, 255, 255, 0.06);
   --lp-border-hover:   rgba(255, 255, 255, 0.12);
+  --lp-border-medium:  rgba(255, 255, 255, 0.08);
   --lp-glass:          rgba(255, 255, 255, 0.03);
   --lp-glass-hover:    rgba(255, 255, 255, 0.06);
 
-  --lp-gradient-hero:  linear-gradient(135deg, #0F172A 0%, #09090B 50%, #0C1220 100%);
-  --lp-gradient-card:  linear-gradient(145deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%);
+  /* Gradients */
+  --lp-gradient-hero:   linear-gradient(135deg, #0F172A 0%, #09090B 50%, #0C1220 100%);
+  --lp-gradient-card:   linear-gradient(145deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%);
   --lp-gradient-accent: linear-gradient(135deg, #2DD4BF 0%, #06B6D4 50%, #818CF8 100%);
-  --lp-gradient-text:  linear-gradient(135deg, #F0FDFA 0%, #2DD4BF 50%, #818CF8 100%);
+  --lp-gradient-text:   linear-gradient(135deg, #F0FDFA 0%, #2DD4BF 50%, #818CF8 100%);
+
+  /* Hero-specific */
+  --lp-hero-mesh: radial-gradient(ellipse 80% 60% at 50% 0%, rgba(45,212,191,0.08) 0%, transparent 60%),
+                  radial-gradient(ellipse 60% 50% at 20% 50%, rgba(129,140,248,0.06) 0%, transparent 50%),
+                  radial-gradient(ellipse 60% 50% at 80% 50%, rgba(6,182,212,0.05) 0%, transparent 50%),
+                  radial-gradient(ellipse 50% 40% at 50% 100%, rgba(45,212,191,0.04) 0%, transparent 50%),
+                  linear-gradient(135deg, #0F172A 0%, #09090B 50%, #0C1220 100%);
+  --lp-hero-glow:  radial-gradient(ellipse 100% 100% at 50% 0%, rgba(45,212,191,0.12) 0%, transparent 70%);
+  --lp-hero-fade:  linear-gradient(to top, #0F0F12 0%, transparent 100%);
+  --lp-orb-opacity-1: 0.07;
+  --lp-orb-opacity-2: 0.05;
+  --lp-orb-opacity-3: 0.04;
+
+  /* Navigation */
+  --lp-nav-bg:       rgba(9, 9, 11, 0.80);
+  --lp-nav-border:   rgba(255, 255, 255, 0.06);
+  --lp-mobile-bg:    rgba(9, 9, 11, 0.95);
+  --lp-hamburger:    #FAFAFA;
+
+  /* Patterns */
+  --lp-grid-color:   rgba(255, 255, 255, 0.06);
+  --lp-dot-color:    rgba(255, 255, 255, 0.3);
+  --lp-dot-subtle:   rgba(255, 255, 255, 0.4);
+  --lp-pattern-opacity: 0.03;
+
+  /* Comparison Table */
+  --lp-comparison-hover:  rgba(255, 255, 255, 0.02);
+  --lp-dualis-col-bg:     rgba(45, 212, 191, 0.04);
+  --lp-dualis-col-head:   rgba(45, 212, 191, 0.06);
+
+  /* Code block (always dark) */
+  --lp-code-bg: #0F0F12;
+
+  /* SVG node fills */
+  --lp-node-fill:    #18181B;
+  --lp-node-stroke:  rgba(255, 255, 255, 0.15);
+
+  /* Avatar border */
+  --lp-avatar-border: #09090B;
+
+  /* CTA section gradients */
+  --lp-cta-mesh-1: rgba(45, 212, 191, 0.08);
+  --lp-cta-mesh-2: rgba(129, 140, 248, 0.06);
 
   /* Typography scale */
   --lp-text-hero:    clamp(3.5rem, 8vw, 7rem);
@@ -36,10 +86,89 @@
   --lp-text-small:   clamp(0.813rem, 1vw, 0.875rem);
   --lp-text-mono:    clamp(2rem, 4vw, 3.5rem);
 
-  /* Force dark mode */
+  /* Apply dark mode */
   background-color: var(--lp-bg-primary);
   color: var(--lp-text-primary);
   color-scheme: dark;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* ─── Landing CSS Variables — Light Mode ─── */
+.landing-page[data-lp-theme="light"] {
+  /* Backgrounds */
+  --lp-bg-primary:    #FFFFFF;
+  --lp-bg-secondary:  #F8FAFC;
+  --lp-bg-tertiary:   #F1F5F9;
+  --lp-bg-elevated:   #E2E8F0;
+
+  /* Text */
+  --lp-text-primary:   #0F172A;
+  --lp-text-secondary: #475569;
+  --lp-text-tertiary:  #94A3B8;
+  --lp-text-muted:     #CBD5E1;
+
+  /* Accent — slightly richer for light backgrounds */
+  --lp-accent:         #0D9488;
+  --lp-accent-dim:     #14B8A6;
+  --lp-accent-glow:    rgba(13, 148, 136, 0.12);
+  --lp-accent-subtle:  rgba(13, 148, 136, 0.06);
+
+  /* Borders & Glass */
+  --lp-border:         rgba(0, 0, 0, 0.08);
+  --lp-border-hover:   rgba(0, 0, 0, 0.15);
+  --lp-border-medium:  rgba(0, 0, 0, 0.10);
+  --lp-glass:          rgba(0, 0, 0, 0.02);
+  --lp-glass-hover:    rgba(0, 0, 0, 0.04);
+
+  /* Gradients */
+  --lp-gradient-hero:   linear-gradient(135deg, #F0FDFA 0%, #FFFFFF 50%, #EEF2FF 100%);
+  --lp-gradient-card:   linear-gradient(145deg, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.5) 100%);
+  --lp-gradient-text:   linear-gradient(135deg, #0D9488 0%, #14B8A6 50%, #6366F1 100%);
+
+  /* Hero-specific */
+  --lp-hero-mesh: radial-gradient(ellipse 80% 60% at 50% 0%, rgba(13,148,136,0.06) 0%, transparent 60%),
+                  radial-gradient(ellipse 60% 50% at 20% 50%, rgba(99,102,241,0.05) 0%, transparent 50%),
+                  radial-gradient(ellipse 60% 50% at 80% 50%, rgba(6,182,212,0.04) 0%, transparent 50%),
+                  radial-gradient(ellipse 50% 40% at 50% 100%, rgba(13,148,136,0.03) 0%, transparent 50%),
+                  linear-gradient(135deg, #F0FDFA 0%, #FFFFFF 50%, #EEF2FF 100%);
+  --lp-hero-glow:  radial-gradient(ellipse 100% 100% at 50% 0%, rgba(13,148,136,0.08) 0%, transparent 70%);
+  --lp-hero-fade:  linear-gradient(to top, #F8FAFC 0%, transparent 100%);
+  --lp-orb-opacity-1: 0.06;
+  --lp-orb-opacity-2: 0.04;
+  --lp-orb-opacity-3: 0.035;
+
+  /* Navigation */
+  --lp-nav-bg:       rgba(255, 255, 255, 0.85);
+  --lp-nav-border:   rgba(0, 0, 0, 0.06);
+  --lp-mobile-bg:    rgba(255, 255, 255, 0.95);
+  --lp-hamburger:    #0F172A;
+
+  /* Patterns */
+  --lp-grid-color:   rgba(0, 0, 0, 0.04);
+  --lp-dot-color:    rgba(0, 0, 0, 0.12);
+  --lp-dot-subtle:   rgba(0, 0, 0, 0.15);
+  --lp-pattern-opacity: 0.03;
+
+  /* Comparison Table */
+  --lp-comparison-hover:  rgba(0, 0, 0, 0.02);
+  --lp-dualis-col-bg:     rgba(13, 148, 136, 0.04);
+  --lp-dualis-col-head:   rgba(13, 148, 136, 0.06);
+
+  /* SVG node fills */
+  --lp-node-fill:    #E2E8F0;
+  --lp-node-stroke:  rgba(0, 0, 0, 0.12);
+
+  /* Avatar border */
+  --lp-avatar-border: #FFFFFF;
+
+  /* CTA section gradients */
+  --lp-cta-mesh-1: rgba(13, 148, 136, 0.06);
+  --lp-cta-mesh-2: rgba(99, 102, 241, 0.04);
+
+  /* Apply light mode */
+  background-color: var(--lp-bg-primary);
+  color: var(--lp-text-primary);
+  color-scheme: light;
 }
 
 /* ─── Landing Typography ─── */
@@ -85,7 +214,7 @@
 .lp-card:hover {
   border-color: var(--lp-border-hover);
   transform: translateY(-2px);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
 }
 
 /* ─── Noise Overlay ─── */
@@ -94,25 +223,15 @@
   position: absolute;
   inset: 0;
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
-  opacity: 0.03;
+  opacity: var(--lp-pattern-opacity);
   pointer-events: none;
   z-index: 1;
-}
-
-/* ─── Hero Video Scrim ─── */
-.lp-video-scrim {
-  background: linear-gradient(
-    to bottom,
-    rgba(9, 9, 11, 0.7) 0%,
-    rgba(9, 9, 11, 0.4) 40%,
-    rgba(9, 9, 11, 0.85) 100%
-  );
 }
 
 /* ─── Primary Button ─── */
 .lp-btn-primary {
   background: var(--lp-gradient-accent);
-  color: #09090B;
+  color: #FFFFFF;
   font-weight: 600;
   border: none;
   border-radius: 12px;
@@ -153,16 +272,6 @@
   border-left: 3px solid var(--lp-accent);
 }
 
-/* ─── Scroll Indicator ─── */
-@keyframes lp-scroll-bounce {
-  0%, 100% { transform: translateY(0); opacity: 0.4; }
-  50% { transform: translateY(8px); opacity: 1; }
-}
-
-.lp-scroll-indicator {
-  animation: lp-scroll-bounce 2.5s ease-in-out infinite;
-}
-
 /* ─── Pulse Dot ─── */
 @keyframes lp-pulse {
   0%, 100% { opacity: 1; transform: scale(1); }
@@ -187,7 +296,7 @@
 /* ─── Code Block Syntax Highlighting ─── */
 .lp-code .keyword { color: #2DD4BF; }
 .lp-code .string { color: #FBBF24; }
-.lp-code .comment { color: var(--lp-text-tertiary); }
+.lp-code .comment { color: #71717A; }
 .lp-code .function { color: #818CF8; }
 .lp-code .number { color: #FB923C; }
 .lp-code .property { color: #A1A1AA; }
@@ -198,7 +307,7 @@
 }
 
 .lp-comparison-row:hover {
-  background-color: rgba(255, 255, 255, 0.02);
+  background-color: var(--lp-comparison-hover);
 }
 
 /* ─── Responsive Adjustments ─── */
@@ -210,9 +319,25 @@
   }
 }
 
+/* ─── Hero Floating Orb Animations ─── */
+@keyframes heroOrbFloat1 {
+  0%, 100% { transform: translateX(-50%) translateY(0); }
+  50% { transform: translateX(-50%) translateY(20px); }
+}
+
+@keyframes heroOrbFloat2 {
+  0%, 100% { transform: translateY(0) translateX(0); }
+  33% { transform: translateY(-15px) translateX(10px); }
+  66% { transform: translateY(10px) translateX(-5px); }
+}
+
+@keyframes heroOrbFloat3 {
+  0%, 100% { transform: translateY(0) translateX(0); }
+  50% { transform: translateY(-25px) translateX(-15px); }
+}
+
 /* ─── Reduced Motion ─── */
 @media (prefers-reduced-motion: reduce) {
-  .lp-scroll-indicator,
   .lp-pulse-dot,
   .lp-particle-line {
     animation: none;

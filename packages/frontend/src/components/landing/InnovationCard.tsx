@@ -95,19 +95,19 @@ export function InnovationCard({ innovation }: InnovationCardProps) {
         </div>
 
         {/* Title */}
-        <h3 className="font-display text-2xl md:text-3xl text-[#FAFAFA] tracking-[-0.02em] mb-4">
+        <h3 className="font-display text-2xl md:text-3xl text-[var(--lp-text-primary)] tracking-[-0.02em] mb-4">
           {innovation.title}
         </h3>
 
         {/* Description */}
-        <p className="font-jakarta text-[#A1A1AA] text-base leading-relaxed mb-6">
+        <p className="font-jakarta text-[var(--lp-text-secondary)] text-base leading-relaxed mb-6">
           {innovation.description}
         </p>
       </div>
 
       {/* Bottom stat */}
-      <div className="relative z-10 pt-4 border-t border-[rgba(255,255,255,0.06)]">
-        <span className="font-data text-xs text-[#71717A] tracking-wide">
+      <div className="relative z-10 pt-4 border-t border-[var(--lp-border)]">
+        <span className="font-data text-xs text-[var(--lp-text-tertiary)] tracking-wide">
           {innovation.stat}
         </span>
       </div>

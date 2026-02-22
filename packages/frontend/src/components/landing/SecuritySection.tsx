@@ -43,7 +43,7 @@ export function SecuritySection() {
     <section className="relative py-24 md:py-32 px-6">
       <div className="max-w-[1200px] mx-auto">
         <SectionLabel className="mb-4">TRUST &amp; SECURITY</SectionLabel>
-        <h2 className="font-display text-[clamp(2rem,4vw,3.5rem)] text-[#FAFAFA] tracking-[-0.02em] leading-[1.1] mb-12">
+        <h2 className="font-display text-[clamp(2rem,4vw,3.5rem)] text-[var(--lp-text-primary)] tracking-[-0.02em] leading-[1.1] mb-12">
           Institutional-Grade From Day One
         </h2>
 
@@ -51,15 +51,15 @@ export function SecuritySection() {
           {SECURITY_CARDS.map((card) => (
             <div
               key={card.title}
-              className="border border-[rgba(255,255,255,0.06)] rounded-2xl p-8 hover:border-[rgba(255,255,255,0.12)] transition-colors"
+              className="border border-[var(--lp-border)] rounded-2xl p-8 hover:border-[var(--lp-border-hover)] transition-colors"
             >
               <div className="mb-4">
                 <SecurityIcon type={card.icon} />
               </div>
-              <h3 className="font-jakarta font-semibold text-lg text-[#FAFAFA] mb-2">
+              <h3 className="font-jakarta font-semibold text-lg text-[var(--lp-text-primary)] mb-2">
                 {card.title}
               </h3>
-              <p className="font-jakarta text-sm text-[#A1A1AA] leading-relaxed">
+              <p className="font-jakarta text-sm text-[var(--lp-text-secondary)] leading-relaxed">
                 {card.description}
               </p>
             </div>

@@ -60,14 +60,14 @@ export function MissionStatement() {
         <SectionLabel className="mb-8">{MISSION.label}</SectionLabel>
 
         <h2
-          className="font-display text-[clamp(2rem,5vw,3.5rem)] leading-[1.15] tracking-[-0.02em] text-[#FAFAFA] mb-8"
+          className="font-display text-[clamp(2rem,5vw,3.5rem)] leading-[1.15] tracking-[-0.02em] text-[var(--lp-text-primary)] mb-8"
           style={{ opacity: 0.2 + progress * 0.8 }}
         >
           {renderStatement()}
         </h2>
 
         <p
-          className="font-jakarta text-[clamp(1rem,1.2vw,1.125rem)] text-[#A1A1AA] leading-relaxed max-w-[700px]"
+          className="font-jakarta text-[clamp(1rem,1.2vw,1.125rem)] text-[var(--lp-text-secondary)] leading-relaxed max-w-[700px]"
           style={{ opacity: Math.max(0, (progress - 0.3) * 1.4) }}
         >
           {MISSION.detail}

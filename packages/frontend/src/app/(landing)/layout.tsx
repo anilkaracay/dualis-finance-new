@@ -24,7 +24,15 @@ export default function LandingLayout({
         href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&display=swap"
         rel="stylesheet"
       />
-      <div className="landing-page">{children}</div>
+      <div className="landing-page" suppressHydrationWarning>
+        {/* Prevent flash of wrong theme */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem('lp-theme');if(t==='light'){document.currentScript.parentElement.setAttribute('data-lp-theme','light')}}catch(e){}})()`,
+          }}
+        />
+        {children}
+      </div>
     </>
   );
 }

@@ -14,12 +14,12 @@ function highlightCode(code: string): string {
 
 export function DeveloperSection() {
   return (
-    <section id="developers" className="relative py-24 md:py-32 px-6 bg-[#0F0F12]">
+    <section id="developers" className="relative py-24 md:py-32 px-6 bg-[var(--lp-bg-secondary)]">
       {/* Subtle dot pattern */}
       <div
         className="absolute inset-0 opacity-[0.02] pointer-events-none"
         style={{
-          backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.4) 1px, transparent 1px)',
+          backgroundImage: 'radial-gradient(circle, var(--lp-dot-subtle) 1px, transparent 1px)',
           backgroundSize: '24px 24px',
         }}
       />
@@ -28,10 +28,10 @@ export function DeveloperSection() {
         {/* Left */}
         <div>
           <SectionLabel className="mb-4">{DEV_SECTION.label}</SectionLabel>
-          <h2 className="font-display text-[clamp(2rem,4vw,3.5rem)] text-[#FAFAFA] tracking-[-0.02em] leading-[1.1] mb-4">
+          <h2 className="font-display text-[clamp(2rem,4vw,3.5rem)] text-[var(--lp-text-primary)] tracking-[-0.02em] leading-[1.1] mb-4">
             {DEV_SECTION.title}
           </h2>
-          <p className="font-jakarta text-[#A1A1AA] text-base leading-relaxed mb-8">
+          <p className="font-jakarta text-[var(--lp-text-secondary)] text-base leading-relaxed mb-8">
             {DEV_SECTION.subtitle}
           </p>
           <ul className="space-y-3">
@@ -41,30 +41,30 @@ export function DeveloperSection() {
                   <circle cx="10" cy="10" r="10" fill="rgba(45,212,191,0.15)" />
                   <path d="M6 10l3 3 5-6" stroke="#2DD4BF" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
-                <span className="font-jakarta text-sm text-[#A1A1AA]">{b}</span>
+                <span className="font-jakarta text-sm text-[var(--lp-text-secondary)]">{b}</span>
               </li>
             ))}
           </ul>
         </div>
 
         {/* Right — Code Block */}
-        <div className="relative rounded-2xl border border-[rgba(255,255,255,0.06)] bg-[#09090B] overflow-hidden">
+        <div className="relative rounded-2xl border border-[var(--lp-border)] bg-[var(--lp-code-bg)] overflow-hidden">
           {/* Header */}
-          <div className="flex items-center justify-between px-4 py-3 border-b border-[rgba(255,255,255,0.06)]">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--lp-border)]">
             <div className="flex items-center gap-1.5">
               <div className="w-2.5 h-2.5 rounded-full bg-[#FF5F57]" />
               <div className="w-2.5 h-2.5 rounded-full bg-[#FEBC2E]" />
               <div className="w-2.5 h-2.5 rounded-full bg-[#28C840]" />
             </div>
-            <span className="font-mono text-[10px] text-[#71717A]">example.ts</span>
-            <button className="font-jakarta text-[10px] text-[#71717A] hover:text-[#A1A1AA] transition-colors px-2 py-1 rounded border border-[rgba(255,255,255,0.06)]">
+            <span className="font-mono text-[10px] text-[var(--lp-text-tertiary)]">example.ts</span>
+            <button className="font-jakarta text-[10px] text-[var(--lp-text-tertiary)] hover:text-[var(--lp-text-secondary)] transition-colors px-2 py-1 rounded border border-[var(--lp-border)]">
               Copy
             </button>
           </div>
 
           {/* Code */}
           <div className="p-6 overflow-x-auto">
-            <pre className="lp-code font-mono text-sm leading-relaxed text-[#A1A1AA]">
+            <pre className="lp-code font-mono text-sm leading-relaxed text-[var(--lp-text-secondary)]">
               <code dangerouslySetInnerHTML={{ __html: highlightCode(DEV_SECTION.code) }} />
             </pre>
           </div>

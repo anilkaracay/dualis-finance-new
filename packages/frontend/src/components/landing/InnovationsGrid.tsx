@@ -14,10 +14,10 @@ export function InnovationsGrid() {
         {/* Header */}
         <div className="mb-16">
           <SectionLabel className="mb-4">FIVE INNOVATIONS</SectionLabel>
-          <h2 className="font-display text-[clamp(2.5rem,5vw,4.5rem)] text-[#FAFAFA] tracking-[-0.02em] leading-[1.1] mb-4">
+          <h2 className="font-display text-[clamp(2.5rem,5vw,4.5rem)] text-[var(--lp-text-primary)] tracking-[-0.02em] leading-[1.1] mb-4">
             Built Different. By Design.
           </h2>
-          <p className="font-jakarta text-[#A1A1AA] text-[clamp(1rem,1.2vw,1.125rem)] max-w-[600px] leading-relaxed">
+          <p className="font-jakarta text-[var(--lp-text-secondary)] text-[clamp(1rem,1.2vw,1.125rem)] max-w-[600px] leading-relaxed">
             Every feature exists because existing DeFi couldn&apos;t serve institutions. We rebuilt
             from first principles.
           </p>

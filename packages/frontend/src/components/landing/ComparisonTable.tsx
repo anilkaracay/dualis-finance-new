@@ -8,7 +8,7 @@ export function ComparisonTable() {
     <section id="comparison" className="relative py-24 md:py-32 px-6">
       <div className="max-w-[1000px] mx-auto">
         <SectionLabel className="mb-4">{COMPARISON.label}</SectionLabel>
-        <h2 className="font-display text-[clamp(2rem,4vw,3.5rem)] text-[#FAFAFA] tracking-[-0.02em] leading-[1.1] mb-12">
+        <h2 className="font-display text-[clamp(2rem,4vw,3.5rem)] text-[var(--lp-text-primary)] tracking-[-0.02em] leading-[1.1] mb-12">
           {COMPARISON.title}
         </h2>
 
@@ -23,8 +23,8 @@ export function ComparisonTable() {
                     i === 4
                       ? 'text-[#2DD4BF] font-semibold'
                       : i === 0
-                        ? 'text-[#71717A]'
-                        : 'text-[#3F3F46]'
+                        ? 'text-[var(--lp-text-tertiary)]'
+                        : 'text-[var(--lp-text-muted)]'
                   }`}
                 >
                   {h}
@@ -38,7 +38,7 @@ export function ComparisonTable() {
                 key={row.feature}
                 className="grid grid-cols-5 gap-1 mb-1 lp-comparison-row rounded-lg"
               >
-                <div className="px-4 py-3.5 font-jakarta text-sm font-medium text-[#FAFAFA]">
+                <div className="px-4 py-3.5 font-jakarta text-sm font-medium text-[var(--lp-text-primary)]">
                   {row.feature}
                 </div>
                 {row.values.map((val, i) => {
@@ -50,7 +50,7 @@ export function ComparisonTable() {
                       key={`${row.feature}-${i}`}
                       className={`px-4 py-3.5 font-jakarta text-sm ${
                         isDualis
-                          ? 'bg-[rgba(45,212,191,0.04)] rounded-lg'
+                          ? 'bg-[var(--lp-dualis-col-bg)] rounded-lg'
                           : ''
                       }`}
                     >
@@ -63,7 +63,7 @@ export function ComparisonTable() {
                           <span className="text-[#2DD4BF] font-medium">{val}</span>
                         </span>
                       ) : (
-                        <span className={isNegative ? 'text-[#3F3F46]' : 'text-[#71717A]'}>
+                        <span className={isNegative ? 'text-[var(--lp-text-muted)]' : 'text-[var(--lp-text-tertiary)]'}>
                           {val}
                         </span>
                       )}

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { NAV_LINKS } from '@/lib/landing-data';
+import { ThemeToggle } from './shared/ThemeToggle';
 
 export function Navbar() {
   const [scrolled, setScrolled] = useState(false);
@@ -30,7 +31,7 @@ export function Navbar() {
     <nav
       className={`fixed top-0 left-0 right-0 z-50 h-16 flex items-center transition-all duration-300 ${
         scrolled
-          ? 'backdrop-blur-xl bg-[#09090B]/80 border-b border-[rgba(255,255,255,0.06)]'
+          ? 'backdrop-blur-xl bg-[var(--lp-nav-bg)] border-b border-[var(--lp-border)]'
           : 'bg-transparent'
       }`}
     >
@@ -38,10 +39,10 @@ export function Navbar() {
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2">
           <span className="font-jakarta font-bold text-lg">
-            <span className="text-[#2DD4BF]">D</span>
-            <span className="text-[#FAFAFA]">UALIS</span>
+            <span className="text-[var(--lp-accent)]">D</span>
+            <span className="text-[var(--lp-text-primary)]">UALIS</span>
           </span>
-          <span className="font-jakarta font-light text-xs tracking-[0.2em] text-[#71717A]">
+          <span className="font-jakarta font-light text-xs tracking-[0.2em] text-[var(--lp-text-tertiary)]">
             FINANCE
           </span>
         </Link>
@@ -52,7 +53,7 @@ export function Navbar() {
             <a
               key={link.label}
               href={link.href}
-              className="font-jakarta text-sm text-[#A1A1AA] hover:text-[#FAFAFA] transition-colors duration-200"
+              className="font-jakarta text-sm text-[var(--lp-text-secondary)] hover:text-[var(--lp-text-primary)] transition-colors duration-200"
             >
               {link.label}
             </a>
@@ -61,6 +62,7 @@ export function Navbar() {
 
         {/* Desktop CTAs */}
         <div className="hidden md:flex items-center gap-3">
+          <ThemeToggle />
           <a
             href="#developers"
             className="lp-btn-ghost px-4 py-2 text-sm font-jakarta"
@@ -82,17 +84,17 @@ export function Navbar() {
           aria-label="Toggle menu"
         >
           <span
-            className={`block w-5 h-[1.5px] bg-[#FAFAFA] transition-transform duration-300 ${
+            className={`block w-5 h-[1.5px] bg-[var(--lp-hamburger)] transition-transform duration-300 ${
               mobileOpen ? 'rotate-45 translate-y-[4.5px]' : ''
             }`}
           />
           <span
-            className={`block w-5 h-[1.5px] bg-[#FAFAFA] transition-opacity duration-300 ${
+            className={`block w-5 h-[1.5px] bg-[var(--lp-hamburger)] transition-opacity duration-300 ${
               mobileOpen ? 'opacity-0' : ''
             }`}
           />
           <span
-            className={`block w-5 h-[1.5px] bg-[#FAFAFA] transition-transform duration-300 ${
+            className={`block w-5 h-[1.5px] bg-[var(--lp-hamburger)] transition-transform duration-300 ${
               mobileOpen ? '-rotate-45 -translate-y-[4.5px]' : ''
             }`}
           />
@@ -101,14 +103,14 @@ export function Navbar() {
 
       {/* Mobile Menu */}
       {mobileOpen && (
-        <div className="fixed inset-0 top-16 bg-[#09090B]/95 backdrop-blur-xl z-40 md:hidden">
+        <div className="fixed inset-0 top-16 bg-[var(--lp-mobile-bg)] backdrop-blur-xl z-40 md:hidden">
           <div className="flex flex-col items-center justify-center h-full gap-8">
             {NAV_LINKS.map((link, i) => (
               <a
                 key={link.label}
                 href={link.href}
                 onClick={() => setMobileOpen(false)}
-                className="font-jakarta text-2xl text-[#FAFAFA] opacity-0 animate-fade-in-up"
+                className="font-jakarta text-2xl text-[var(--lp-text-primary)] opacity-0 animate-fade-in-up"
                 style={{
                   animationDelay: `${i * 80}ms`,
                   animationFillMode: 'forwards',
@@ -117,6 +119,7 @@ export function Navbar() {
                 {link.label}
               </a>
             ))}
+            <ThemeToggle />
             <Link
               href="/overview"
               className="lp-btn-primary px-8 py-3 text-base font-jakarta mt-4"

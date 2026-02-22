@@ -10,17 +10,17 @@ export function CTASection() {
         className="absolute inset-0 pointer-events-none"
         style={{
           background: `
-            radial-gradient(ellipse at 30% 50%, rgba(45,212,191,0.08), transparent 50%),
-            radial-gradient(ellipse at 70% 50%, rgba(129,140,248,0.06), transparent 50%)
+            radial-gradient(ellipse at 30% 50%, var(--lp-cta-mesh-1), transparent 50%),
+            radial-gradient(ellipse at 70% 50%, var(--lp-cta-mesh-2), transparent 50%)
           `,
         }}
       />
 
       <div className="relative max-w-[700px] mx-auto text-center">
-        <h2 className="font-display text-[clamp(2.5rem,5vw,4.5rem)] text-[#FAFAFA] tracking-[-0.02em] leading-[1.1] mb-6">
+        <h2 className="font-display text-[clamp(2.5rem,5vw,4.5rem)] text-[var(--lp-text-primary)] tracking-[-0.02em] leading-[1.1] mb-6">
           Ready to Reshape Finance?
         </h2>
-        <p className="font-jakarta text-[#A1A1AA] text-lg mb-10 leading-relaxed">
+        <p className="font-jakarta text-[var(--lp-text-secondary)] text-lg mb-10 leading-relaxed">
           Join the institutions and innovators building the future of capital markets.
         </p>
 
@@ -54,12 +54,12 @@ export function CTASection() {
             ].map((bg, i) => (
               <div
                 key={i}
-                className="w-8 h-8 rounded-full border-2 border-[#09090B]"
+                className="w-8 h-8 rounded-full border-2 border-[var(--lp-avatar-border)]"
                 style={{ background: bg }}
               />
             ))}
           </div>
-          <span className="font-jakarta text-sm text-[#71717A]">
+          <span className="font-jakarta text-sm text-[var(--lp-text-tertiary)]">
             +2,400 protocol participants
           </span>
         </div>

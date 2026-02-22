@@ -35,32 +35,29 @@ export default function LandingPage() {
         const sections = mainRef.current?.querySelectorAll<HTMLElement>('.lp-section');
         if (!sections || sections.length === 0) return;
 
+        // Mark that GSAP is ready — hide sections for animation
+        sections.forEach((s) => {
+          s.style.opacity = '0';
+          s.style.transform = 'translateY(60px)';
+        });
+
         ctx = gsap.context(() => {
           sections.forEach((section) => {
-            gsap.fromTo(
-              section,
-              { opacity: 0, y: 60 },
-              {
-                opacity: 1,
-                y: 0,
-                duration: 0.9,
-                ease: 'power3.out',
-                scrollTrigger: {
-                  trigger: section,
-                  start: 'top 85%',
-                  once: true,
-                },
+            gsap.to(section, {
+              opacity: 1,
+              y: 0,
+              duration: 0.9,
+              ease: 'power3.out',
+              scrollTrigger: {
+                trigger: section,
+                start: 'top 85%',
+                once: true,
               },
-            );
+            });
           });
         }, mainRef);
       } catch {
-        // Fallback: make all sections visible if GSAP fails to load
-        const sections = mainRef.current?.querySelectorAll<HTMLElement>('.lp-section');
-        sections?.forEach((el) => {
-          el.style.opacity = '1';
-          el.style.transform = 'none';
-        });
+        // GSAP failed — sections stay visible (no initial opacity:0)
       }
     };
 
@@ -84,39 +81,39 @@ export default function LandingPage() {
 
       {/* ── Each section below gets GSAP scroll-reveal via .lp-section ── */}
 
-      <div className="lp-section" style={{ opacity: 0 }}>
+      <div className="lp-section">
         <MissionStatement />
       </div>
 
-      <div className="lp-section" style={{ opacity: 0 }}>
+      <div className="lp-section">
         <InnovationsGrid />
       </div>
 
-      <div className="lp-section" style={{ opacity: 0 }}>
+      <div className="lp-section">
         <PlatformPreview />
       </div>
 
-      <div className="lp-section" style={{ opacity: 0 }}>
+      <div className="lp-section">
         <HowItWorks />
       </div>
 
-      <div className="lp-section" style={{ opacity: 0 }}>
+      <div className="lp-section">
         <EcosystemMap />
       </div>
 
-      <div className="lp-section" style={{ opacity: 0 }}>
+      <div className="lp-section">
         <ComparisonTable />
       </div>
 
-      <div className="lp-section" style={{ opacity: 0 }}>
+      <div className="lp-section">
         <SecuritySection />
       </div>
 
-      <div className="lp-section" style={{ opacity: 0 }}>
+      <div className="lp-section">
         <DeveloperSection />
       </div>
 
-      <div className="lp-section" style={{ opacity: 0 }}>
+      <div className="lp-section">
         <CTASection />
       </div>
 
