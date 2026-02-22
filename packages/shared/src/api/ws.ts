@@ -10,7 +10,12 @@ export type WsMessageType =
   | 'data'
   | 'error'
   | 'ping'
-  | 'pong';
+  | 'pong'
+  | 'composite_score_updated'
+  | 'productive_project_status'
+  | 'corporate_action_pending'
+  | 'kyb_status_changed'
+  | 'privacy_access_attempt';
 
 /** Base WebSocket message */
 export interface WsMessage {
@@ -99,7 +104,8 @@ export type WsServerMessage =
   | WsUnsubscribedMessage
   | WsDataMessage
   | WsErrorMessage
-  | WsPongMessage;
+  | WsPongMessage
+  | WsInnovationEvent;
 
 /** Price update payload */
 export interface WsPricePayload {
@@ -173,6 +179,52 @@ export interface WsNotificationPayload {
   ts: string;
 }
 
+/** Composite score update payload */
+export interface WsCompositeScorePayload {
+  partyId: string;
+  compositeScore: number;
+  tier: string;
+}
+
+/** Productive project status update payload */
+export interface WsProductiveProjectStatusPayload {
+  projectId: string;
+  status: string;
+  timestamp: string;
+}
+
+/** Corporate action pending payload */
+export interface WsCorporateActionPendingPayload {
+  dealId: string;
+  actionType: string;
+  valueUSD: string;
+}
+
+/** KYB status changed payload */
+export interface WsKybStatusChangedPayload {
+  institutionParty: string;
+  newStatus: string;
+}
+
+/** Privacy access attempt payload */
+export interface WsPrivacyAccessAttemptPayload {
+  partyId: string;
+  requesterParty: string;
+  dataScope: string;
+  granted: boolean;
+}
+
+/** Innovation event message types */
+export type WsInnovationEvent =
+  | { type: 'composite_score_updated'; payload: WsCompositeScorePayload }
+  | { type: 'productive_project_status'; payload: WsProductiveProjectStatusPayload }
+  | { type: 'corporate_action_pending'; payload: WsCorporateActionPendingPayload }
+  | { type: 'kyb_status_changed'; payload: WsKybStatusChangedPayload }
+  | { type: 'privacy_access_attempt'; payload: WsPrivacyAccessAttemptPayload };
+
+/** Innovation event type string literals */
+export type WsInnovationEventType = WsInnovationEvent['type'];
+
 /** WebSocket channel definitions */
 export type WsChannel =
   | `prices:${string}`
@@ -182,4 +234,9 @@ export type WsChannel =
   | 'sec-lending:offers'
   | `sec-lending:deal:${string}`
   | 'governance:votes'
-  | `notifications:${string}`;
+  | `notifications:${string}`
+  | 'composite-score'
+  | `productive:project:${string}`
+  | 'corporate-actions'
+  | 'kyb-status'
+  | 'privacy-access';

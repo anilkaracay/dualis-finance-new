@@ -1,0 +1,16 @@
+module Dualis.Types where
+
+-- Common types shared across Dualis contracts.
+-- Individual modules define their own domain-specific types.
+
+-- Represents a Canton party identity
+type PartyId = Text
+
+-- Represents a UTC timestamp in ISO 8601 format
+type Timestamp = Text
+
+-- Represents a monetary amount as a string for decimal precision
+type Amount = Text
+
+-- Represents a contract reference ID
+type ContractRef = Text

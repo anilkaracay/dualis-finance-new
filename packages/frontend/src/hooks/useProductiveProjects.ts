@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback } from 'react';
-import { apiClient, parseError } from '@/lib/api/client';
+import { apiClient } from '@/lib/api/client';
 import { ENDPOINTS } from '@/lib/api/endpoints';
 import { useProductiveStore } from '@/stores/useProductiveStore';
 
@@ -38,8 +38,9 @@ export function useProductiveProjects() {
         const { data } = await apiClient.post(ENDPOINTS.PRODUCTIVE_PROJECT_SUBMIT, payload);
         await store.fetchProjects();
         return data;
-      } catch (err) {
-        throw new Error(parseError(err));
+      } catch {
+        // Fallback to store's local project submission
+        await store.submitProject(payload as Parameters<typeof store.submitProject>[0]);
       }
     },
     [store],

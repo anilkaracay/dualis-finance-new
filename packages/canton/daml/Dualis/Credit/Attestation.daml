@@ -1,0 +1,59 @@
+module Dualis.Credit.Attestation where
+
+-- Off-chain attestation data (ZK-proof based)
+data ZKProof = ZKProof
+  with
+    proofData : Text
+    verifierKey : Text
+    publicInputs : [Text]
+    circuit : Text
+    generatedAt : Text -- ISO 8601
+  deriving (Eq, Show)
+
+data AttestationType = CreditBureau | IncomeVerification | BusinessVerification | KYCCompletion | TIFAPerformance | CrossProtocol
+  deriving (Eq, Show, Ord)
+
+data OffChainAttestation = OffChainAttestation
+  with
+    attestationId : Text
+    attestationType : AttestationType
+    provider : Text -- findeks, experian, transunion, tifa
+    claimedRange : Text -- excellent, good, above_700
+    proof : ZKProof
+    issuedAt : Text
+    expiresAt : Text
+    revoked : Bool
+    verified : Bool
+  deriving (Eq, Show)
+
+-- Template: CreditAttestationBundle
+-- Stores a collection of off-chain attestations for a party
+template CreditAttestationBundle
+  with
+    operator : Party
+    owner : Party
+    attestations : [OffChainAttestation]
+    lastVerified : Text
+  where
+    signatory operator, owner
+    key (operator, owner) : (Party, Party)
+    maintainer key._1
+
+    -- Owner can add a new attestation
+    choice AddAttestation : ContractId CreditAttestationBundle
+      with
+        newAttestation : OffChainAttestation
+      controller owner
+      do
+        create this with
+          attestations = newAttestation :: this.attestations
+          lastVerified = newAttestation.issuedAt
+
+    -- Operator can prune expired attestations
+    choice PruneExpired : ContractId CreditAttestationBundle
+      with
+        currentTime : Text
+      controller operator
+      do
+        let active = filter (\a -> not a.revoked && a.expiresAt > currentTime) this.attestations
+        create this with attestations = active

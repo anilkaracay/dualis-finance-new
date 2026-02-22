@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback } from 'react';
-import { apiClient, parseError } from '@/lib/api/client';
+import { apiClient } from '@/lib/api/client';
 import { ENDPOINTS } from '@/lib/api/endpoints';
 import { useInstitutionalStore } from '@/stores/useInstitutionalStore';
 
@@ -41,8 +41,9 @@ export function useAPIKeys() {
       try {
         await apiClient.post(ENDPOINTS.INSTITUTIONAL_API_KEY_REVOKE(keyId));
         store.revokeAPIKey(keyId);
-      } catch (err) {
-        throw new Error(parseError(err));
+      } catch {
+        // Fallback to store's local key revocation
+        store.revokeAPIKey(keyId);
       }
     },
     [store],

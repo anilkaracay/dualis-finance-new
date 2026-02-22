@@ -1,0 +1,139 @@
+module Dualis.Productive.Core where
+
+data ProjectCategory = SolarEnergy | WindEnergy | BatteryStorage | DataCenter | SupplyChain | ExportFinance | EquipmentLeasing | RealEstate | AgriInfra | TelecomInfra
+  deriving (Eq, Show, Ord)
+
+data ProjectStatus = Proposed | UnderReview | Approved | Funded | InConstruction | Operational | Repaying | Completed | Defaulted
+  deriving (Eq, Show, Ord)
+
+data ESGRating = ESGA | ESGB | ESGC | ESGUnrated
+  deriving (Eq, Show, Ord)
+
+data ProjectMetadata = ProjectMetadata
+  with
+    location : Text
+    capacity : Optional Text
+    offTaker : Optional Text
+    insurancePolicy : Optional Text
+    independentValue : Text -- USD Decimal as text
+    expectedIRR : Decimal
+    constructionPeriod : Int -- months
+    operationalLife : Int -- years
+    esgRating : ESGRating
+    iotFeedId : Optional Text
+  deriving (Eq, Show)
+
+data CashflowEntry = CashflowEntry
+  with
+    expectedDate : Text
+    expectedAmount : Text
+    actualAmount : Optional Text
+    source : Text -- energy_sales, lease_income, export_revenue
+    status : Text -- Projected, Received, Partial, Missed, Overdue
+  deriving (Eq, Show)
+
+data HybridCollateral = HybridCollateral
+  with
+    cryptoCollateral : Text -- USD value
+    projectAssetValue : Text
+    tifaCollateral : Text
+    totalValue : Text
+    cryptoRatio : Decimal -- 0.0 to 1.0
+  deriving (Eq, Show)
+
+-- Template: ProductiveProject
+template ProductiveProject
+  with
+    operator : Party
+    owner : Party
+    projectId : Text
+    category : ProjectCategory
+    status : ProjectStatus
+    metadata : ProjectMetadata
+    attestations : [Text]
+    requestedAmount : Text
+    fundedAmount : Text
+    createdAt : Text
+  where
+    signatory operator, owner
+    key (operator, projectId) : (Party, Text)
+    maintainer key._1
+
+    -- Update project status
+    choice UpdateProjectStatus : ContractId ProductiveProject
+      with
+        newStatus : ProjectStatus
+      controller operator
+      do
+        create this with status = newStatus
+
+    -- Add production attestation
+    choice AddProductionAttestation : ContractId ProductiveProject
+      with
+        attestationId : Text
+      controller owner
+      do
+        create this with
+          attestations = attestationId :: this.attestations
+
+-- Template: ProductiveLendingPool
+template ProductiveLendingPool
+  with
+    operator : Party
+    poolId : Text
+    category : ProjectCategory
+    totalDeposited : Text
+    totalLent : Text
+    activeProjects : Int
+    avgReturn : Decimal
+    defaultRate : Decimal
+    rateDiscount : Decimal
+    esgBonus : Decimal
+  where
+    signatory operator
+    key (operator, poolId) : (Party, Text)
+    maintainer key._1
+
+-- Template: ProductiveBorrow
+template ProductiveBorrow
+  with
+    operator : Party
+    borrower : Party
+    borrowId : Text
+    projectId : Text
+    poolId : Text
+    loanAmount : Text
+    outstandingDebt : Text
+    interestRate : Decimal
+    collateral : HybridCollateral
+    cashflowSchedule : [CashflowEntry]
+    gracePeriodEnd : Text
+    maturityDate : Text
+    status : Text -- Active, GracePeriod, Repaying, Completed, Warning, CollateralCall, Defaulted
+    createdAt : Text
+  where
+    signatory operator, borrower
+    key (operator, borrowId) : (Party, Text)
+    maintainer key._1
+
+    -- Process a cashflow repayment
+    choice CashflowRepayment : ContractId ProductiveBorrow
+      with
+        entry : CashflowEntry
+      controller borrower
+      do
+        let payment = entry.actualAmount
+        -- In production, would parse decimals and compute new outstanding
+        create this with
+          cashflowSchedule = entry :: this.cashflowSchedule
+
+    -- Check project health against expected vs actual production
+    choice CheckProjectHealth : ContractId ProductiveBorrow
+      with
+        actualProduction : Decimal
+        expectedProduction : Decimal
+      controller operator
+      do
+        let ratio = actualProduction / expectedProduction
+        let newStatus = if ratio < 0.5 then "Warning" else this.status
+        create this with status = newStatus

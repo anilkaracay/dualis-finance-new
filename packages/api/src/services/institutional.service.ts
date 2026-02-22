@@ -27,11 +27,53 @@ function buildTransactionMeta(): TransactionMeta {
 
 const MOCK_INSTITUTIONS: Map<string, VerifiedInstitution> = new Map([
   [
+    'party::inst_cayvox_001',
+    {
+      institutionParty: 'party::inst_cayvox_001',
+      legalName: 'Cayvox Labs A.Ş.',
+      registrationNo: 'TR-MKK-2024-001',
+      jurisdiction: 'TR',
+      kybStatus: 'Verified',
+      kybLevel: 'Full',
+      riskProfile: {
+        riskCategory: 'low',
+        maxSingleExposure: '50000000',
+        maxTotalExposure: '200000000',
+        allowedProducts: ['lending', 'secLending', 'staking', 'productive'],
+        jurisdictionRules: ['TR', 'EU'],
+      },
+      subAccounts: ['party::sub-cv-001', 'party::sub-cv-002', 'party::sub-cv-003'],
+      verifiedAt: '2025-12-20T10:00:00.000Z',
+      expiresAt: '2026-12-20T10:00:00.000Z',
+    },
+  ],
+  [
+    'party::inst_goldman_001',
+    {
+      institutionParty: 'party::inst_goldman_001',
+      legalName: 'Goldman Sachs Digital Assets',
+      registrationNo: 'US-SEC-2024-GS-001',
+      jurisdiction: 'US',
+      kybStatus: 'Verified',
+      kybLevel: 'Full',
+      riskProfile: {
+        riskCategory: 'low',
+        maxSingleExposure: '100000000',
+        maxTotalExposure: '500000000',
+        allowedProducts: ['lending', 'secLending', 'staking', 'productive'],
+        jurisdictionRules: ['US', 'EU', 'UK'],
+      },
+      subAccounts: ['party::sub-gs-001', 'party::sub-gs-002'],
+      verifiedAt: '2025-11-15T09:00:00.000Z',
+      expiresAt: '2026-11-15T09:00:00.000Z',
+    },
+  ],
+  [
     'party::institution-tr-001',
     {
       institutionParty: 'party::institution-tr-001',
       legalName: 'Cayvox Capital A.Ş.',
-      registrationNo: 'TR-MKK-2024-001',
+      registrationNo: 'TR-MKK-2024-002',
       jurisdiction: 'TR',
       kybStatus: 'Verified',
       kybLevel: 'Full',

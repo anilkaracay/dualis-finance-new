@@ -218,6 +218,13 @@ export type {
   WsSecLendingDealPayload,
   WsGovernancePayload,
   WsNotificationPayload,
+  WsCompositeScorePayload,
+  WsProductiveProjectStatusPayload,
+  WsCorporateActionPendingPayload,
+  WsKybStatusChangedPayload,
+  WsPrivacyAccessAttemptPayload,
+  WsInnovationEvent,
+  WsInnovationEventType,
   WsChannel,
 } from './api/ws';
 

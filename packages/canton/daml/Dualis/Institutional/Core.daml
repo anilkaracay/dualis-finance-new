@@ -1,0 +1,85 @@
+module Dualis.Institutional.Core where
+
+data KYBStatus = KYBPending | KYBInReview | KYBVerified | KYBExpired | KYBRejected
+  deriving (Eq, Show, Ord)
+
+data KYBLevel = Basic | Enhanced | Full
+  deriving (Eq, Show, Ord)
+
+data InstitutionalRiskProfile = InstitutionalRiskProfile
+  with
+    riskCategory : Text -- low, medium, high
+    maxSingleExposure : Text
+    maxTotalExposure : Text
+    allowedProducts : [Text]
+    jurisdictionRules : [Text]
+  deriving (Eq, Show)
+
+-- Template: VerifiedInstitution
+template VerifiedInstitution
+  with
+    operator : Party
+    institution : Party
+    legalName : Text
+    registrationNo : Text
+    jurisdiction : Text
+    kybStatus : KYBStatus
+    kybLevel : KYBLevel
+    riskProfile : InstitutionalRiskProfile
+    subAccounts : [Text] -- sub-account party IDs
+    verifiedAt : Optional Text
+    expiresAt : Optional Text
+  where
+    signatory operator, institution
+    key (operator, institution) : (Party, Party)
+    maintainer key._1
+
+    -- Add a sub-account
+    choice AddSubAccount : ContractId VerifiedInstitution
+      with
+        subAccountParty : Text
+      controller institution
+      do
+        create this with
+          subAccounts = subAccountParty :: this.subAccounts
+
+    -- Renew KYB verification
+    choice RenewKYB : ContractId VerifiedInstitution
+      with
+        newExpiry : Text
+        renewalTime : Text
+      controller operator
+      do
+        create this with
+          kybStatus = KYBVerified
+          verifiedAt = Some renewalTime
+          expiresAt = Some newExpiry
+
+-- Template: InstitutionalPool
+template InstitutionalPool
+  with
+    operator : Party
+    institution : Party
+    poolId : Text
+    totalDeposited : Text
+    totalBorrowed : Text
+    reserveRatio : Decimal
+  where
+    signatory operator, institution
+    key (operator, poolId) : (Party, Text)
+    maintainer key._1
+
+-- Template: BulkOperation
+template BulkOperation
+  with
+    operator : Party
+    institution : Party
+    opId : Text
+    operations : [Text] -- Serialized operation entries
+    status : Text -- Pending, Processing, Completed, PartialFail
+    results : [Text] -- Serialized result entries
+    submittedAt : Text
+  where
+    signatory operator, institution
+    key (operator, opId) : (Party, Text)
+    maintainer key._1

@@ -158,7 +158,12 @@ class ChannelManager {
     return (
       channel.startsWith('position:') ||
       channel.startsWith('notifications:') ||
-      channel.startsWith('sec-lending:deal:')
+      channel.startsWith('sec-lending:deal:') ||
+      channel === 'composite-score' ||
+      channel.startsWith('productive:project:') ||
+      channel === 'corporate-actions' ||
+      channel === 'kyb-status' ||
+      channel === 'privacy-access'
     );
   }
 

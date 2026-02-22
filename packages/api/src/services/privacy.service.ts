@@ -75,6 +75,101 @@ const MOCK_CONFIGS: Map<string, PrivacyConfig> = new Map([
       updatedAt: '2026-02-10T00:00:00.000Z',
     },
   ],
+  // Cross-referenced mock users
+  [
+    'party::retail_user_001',
+    {
+      partyId: 'party::retail_user_001',
+      privacyLevel: 'Selective',
+      disclosureRules: [
+        {
+          id: 'rule-r1-001',
+          discloseTo: 'party::regulator::spk',
+          displayName: 'SPK Denetim',
+          dataScope: 'All',
+          purpose: 'Sermaye Piyasası Kurulu regulatory compliance',
+          expiresAt: null,
+          isActive: true,
+          createdAt: '2026-01-20T10:00:00.000Z',
+        },
+      ],
+      auditTrailEnabled: true,
+      updatedAt: '2026-01-20T10:00:00.000Z',
+    },
+  ],
+  [
+    'party::inst_cayvox_001',
+    {
+      partyId: 'party::inst_cayvox_001',
+      privacyLevel: 'Selective',
+      disclosureRules: [
+        {
+          id: 'rule-cv-001',
+          discloseTo: 'party::regulator::spk',
+          displayName: 'SPK Denetim',
+          dataScope: 'All',
+          purpose: 'Turkish capital markets authority',
+          expiresAt: null,
+          isActive: true,
+          createdAt: '2025-12-20T10:00:00.000Z',
+        },
+        {
+          id: 'rule-cv-002',
+          discloseTo: 'party::auditor::pwc',
+          displayName: 'PwC Audit',
+          dataScope: 'Positions',
+          purpose: 'Annual financial audit',
+          expiresAt: '2026-12-31T23:59:59.000Z',
+          isActive: true,
+          createdAt: '2025-12-20T10:30:00.000Z',
+        },
+      ],
+      auditTrailEnabled: true,
+      updatedAt: '2025-12-20T10:30:00.000Z',
+    },
+  ],
+  [
+    'party::inst_goldman_001',
+    {
+      partyId: 'party::inst_goldman_001',
+      privacyLevel: 'Maximum',
+      disclosureRules: [
+        {
+          id: 'rule-gs-001',
+          discloseTo: 'party::regulator::sec',
+          displayName: 'SEC Reporting',
+          dataScope: 'All',
+          purpose: 'SEC regulatory compliance',
+          expiresAt: null,
+          isActive: true,
+          createdAt: '2025-11-15T09:00:00.000Z',
+        },
+      ],
+      auditTrailEnabled: true,
+      updatedAt: '2025-11-15T09:00:00.000Z',
+    },
+  ],
+  [
+    'party::sme_konya_001',
+    {
+      partyId: 'party::sme_konya_001',
+      privacyLevel: 'Selective',
+      disclosureRules: [
+        {
+          id: 'rule-sme-001',
+          discloseTo: 'party::tifa::bridge',
+          displayName: 'TIFA Bridge',
+          dataScope: 'CreditScore',
+          purpose: 'TIFA cross-reference for receivable financing',
+          expiresAt: '2026-08-01T00:00:00.000Z',
+          isActive: true,
+          createdAt: '2026-02-01T10:00:00.000Z',
+        },
+      ],
+      auditTrailEnabled: true,
+      updatedAt: '2026-02-01T10:00:00.000Z',
+    },
+  ],
 ]);
 
 const MOCK_AUDIT_LOG: PrivacyAuditEntry[] = [

@@ -1,0 +1,99 @@
+module Dualis.SecLending.Advanced where
+
+data FeeModel = FeeModel
+  with
+    baseFee : Decimal
+    demandMultiplier : Decimal
+    durationMultiplier : Decimal
+    creditMultiplier : Decimal
+  deriving (Eq, Show)
+
+-- Calculate dynamic fee from fee model components
+calculateDynamicFee : FeeModel -> Decimal -> Decimal
+calculateDynamicFee model utilization =
+  model.baseFee * (1.0 + model.demandMultiplier * utilization) * model.durationMultiplier * model.creditMultiplier
+
+-- Template: FractionalOffer
+-- Allows partial acceptance of securities lending offers
+template FractionalOffer
+  with
+    operator : Party
+    lender : Party
+    offerId : Text
+    security : Text -- asset symbol
+    totalAmount : Decimal
+    remainingAmount : Decimal
+    minAcceptAmount : Decimal
+    feeRate : Decimal
+    createdAt : Text
+  where
+    signatory operator, lender
+    key (operator, offerId) : (Party, Text)
+    maintainer key._1
+
+    -- Accept a fraction of the offer
+    choice AcceptFraction : (ContractId FractionalOffer, Text)
+      with
+        borrower : Party
+        amount : Decimal
+      controller borrower
+      do
+        assertMsg "Amount below minimum" (amount >= this.minAcceptAmount)
+        assertMsg "Amount exceeds remaining" (amount <= this.remainingAmount)
+        let newRemaining = this.remainingAmount - amount
+        -- Create deal reference (in production, creates SecLendingDeal)
+        let dealId = this.offerId <> "-" <> show borrower
+        newOffer <- create this with remainingAmount = newRemaining
+        return (newOffer, dealId)
+
+-- Template: CorporateActionHandler
+template CorporateActionHandler
+  with
+    operator : Party
+    handlerId : Text
+    dealId : Text
+    actionType : Text -- Dividend, CouponPayment, StockSplit, VotingRight, MandatoryAction
+    details : Text
+    valueUSD : Optional Text
+    processedAt : Optional Text
+    compensated : Bool
+  where
+    signatory operator
+    key (operator, handlerId) : (Party, Text)
+    maintainer key._1
+
+    -- Process the corporate action
+    choice ProcessCorporateAction : ContractId CorporateActionHandler
+      with
+        processingTime : Text
+      controller operator
+      do
+        create this with
+          processedAt = Some processingTime
+          compensated = True
+
+-- Template: NettingAgreement
+template NettingAgreement
+  with
+    operator : Party
+    partyA : Party
+    partyB : Party
+    nettingId : Text
+    dealIds : [Text]
+    netAmount : Decimal -- positive = A owes B, negative = B owes A
+    status : Text -- Proposed, Accepted, Executed
+    proposedAt : Text
+  where
+    signatory operator
+    observer partyA, partyB
+    key (operator, nettingId) : (Party, Text)
+    maintainer key._1
+
+    -- Execute the netting agreement
+    choice ExecuteNetting : ContractId NettingAgreement
+      with
+        executionTime : Text
+      controller operator
+      do
+        assertMsg "Must be accepted first" (this.status == "Accepted")
+        create this with status = "Executed"

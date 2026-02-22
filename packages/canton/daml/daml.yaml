@@ -1,0 +1,16 @@
+sdk-version: 2.9.3
+name: dualis-finance
+version: 2.0.0
+source: .
+parties:
+  - Operator
+  - Alice
+  - Bob
+  - Carol
+  - Dave
+  - Eve
+dependencies:
+  - daml-prim
+  - daml-stdlib
+build-options:
+  - --target=2.1

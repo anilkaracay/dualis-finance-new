@@ -1103,6 +1103,56 @@ Pre-launch verification:
 
 ---
 
+---
+
+## Phase 4: Strategic Innovations
+
+### Step 4.1: Credit Attestation System
+- Off-chain attestation types (credit bureau, income, business, KYC)
+- ZK-proof verification pipeline
+- AttestationBundle Daml template
+- Attestation service with CRUD + revocation
+- API routes for attestation management
+
+### Step 4.2: Composite Score Engine
+- 3-layer score calculation (on-chain 400 + off-chain 350 + ecosystem 250)
+- Tier derivation (Diamond/Gold/Silver/Bronze/Unrated)
+- Tier-based lending parameters (LTV, rate discount, collateral ratio)
+- Score simulation for hypothetical attestations
+- CompositeCredit Daml template with RecalculateComposite choice
+
+### Step 4.3: Productive Lending Framework
+- 10 project categories with metadata
+- Hybrid collateral model (crypto + project assets + TIFA)
+- Cash flow repayment from project revenue
+- IoT integration for production monitoring
+- ESG-adjusted interest rates
+- ProductiveProject, ProductiveBorrow, ProductiveLendingPool templates
+
+### Step 4.4: Advanced Securities Lending
+- Fractional offer splitting with minimum amounts
+- Dynamic fee model (base + demand + duration + credit)
+- Corporate action handling (dividends, coupons, splits)
+- Bilateral netting agreements
+- FractionalOffer, CorporateActionHandler, NettingAgreement templates
+
+### Step 4.5: Institutional Track
+- KYB verification workflow (Pending → InReview → Verified)
+- Sub-account management
+- API key lifecycle (create, list, revoke)
+- Bulk operations (deposit, withdraw, borrow)
+- Tiered fee schedules
+- VerifiedInstitution, InstitutionalPool, BulkOperation templates
+
+### Step 4.6: Privacy System
+- 3-level privacy (Public, Selective, Maximum)
+- Selective disclosure rules per party
+- Data scope access control
+- Privacy audit trail
+- PrivacyConfig template with CheckAccess non-consuming choice
+
+---
+
 **Total estimated build time: 25-32 weeks (as per v1.0.0 roadmap)**
 **With aggressive parallel development: 16-20 weeks**
 

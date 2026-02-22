@@ -1,0 +1,94 @@
+module Dualis.Privacy.Config where
+
+data PrivacyLevel = PLPublic | PLSelective | PLMaximum
+  deriving (Eq, Show, Ord)
+
+data DataScope = Positions | Transactions | CreditScore | SecLendingDeals | AllData
+  deriving (Eq, Show, Ord)
+
+data DisclosureRule = DisclosureRule
+  with
+    ruleId : Text
+    discloseTo : Text -- Party ID
+    displayName : Text -- "SEC Reporting", "KPMG Audit"
+    dataScope : DataScope
+    purpose : Text
+    expiresAt : Optional Text
+    isActive : Bool
+    createdAt : Text
+  deriving (Eq, Show)
+
+-- Template: PrivacyConfig
+template PrivacyConfig
+  with
+    operator : Party
+    user : Party
+    privacyLevel : PrivacyLevel
+    disclosureRules : [DisclosureRule]
+    auditTrailEnabled : Bool
+    updatedAt : Text
+  where
+    signatory operator, user
+    key (operator, user) : (Party, Party)
+    maintainer key._1
+
+    -- User sets their privacy level
+    choice SetPrivacyLevel : ContractId PrivacyConfig
+      with
+        newLevel : PrivacyLevel
+        updateTime : Text
+      controller user
+      do
+        create this with
+          privacyLevel = newLevel
+          updatedAt = updateTime
+
+    -- User adds a disclosure rule (e.g., for regulator or auditor)
+    choice AddDisclosure : ContractId PrivacyConfig
+      with
+        newRule : DisclosureRule
+        updateTime : Text
+      controller user
+      do
+        create this with
+          disclosureRules = newRule :: this.disclosureRules
+          updatedAt = updateTime
+
+    -- User removes a disclosure rule
+    choice RemoveDisclosure : ContractId PrivacyConfig
+      with
+        ruleId : Text
+        updateTime : Text
+      controller user
+      do
+        let remaining = filter (\r -> r.ruleId /= ruleId) this.disclosureRules
+        create this with
+          disclosureRules = remaining
+          updatedAt = updateTime
+
+    -- Non-consuming: Check if a requester has access to specific data scope
+    nonconsuming choice CheckAccess : Bool
+      with
+        requester : Text
+        scope : DataScope
+      controller operator
+      do
+        -- Owner always has access to own data
+        if requester == show user then
+          return True
+        else case this.privacyLevel of
+          PLPublic -> return True
+          PLSelective -> do
+            let matchingRules = filter (\r ->
+                  r.discloseTo == requester &&
+                  r.isActive &&
+                  (r.dataScope == scope || r.dataScope == AllData)
+                  ) this.disclosureRules
+            return (not (null matchingRules))
+          PLMaximum -> do
+            let matchingRules = filter (\r ->
+                  r.discloseTo == requester &&
+                  r.isActive &&
+                  (r.dataScope == scope || r.dataScope == AllData)
+                  ) this.disclosureRules
+            return (not (null matchingRules))

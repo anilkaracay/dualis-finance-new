@@ -881,3 +881,984 @@ Response 200: { "data": { "updated": true, "newConfigContractId": "..." }, "tran
 | `CANTON_ERROR` | 502 | Canton Ledger API error |
 | `RATE_LIMITED` | 429 | Too many requests |
 | `INTERNAL_ERROR` | 500 | Unexpected server error |
+| `ATTESTATION_NOT_FOUND` | 404 | Attestation not found |
+| `ATTESTATION_EXPIRED` | 422 | Attestation has expired |
+| `ZK_PROOF_INVALID` | 422 | ZK-proof verification failed |
+| `PROJECT_NOT_FOUND` | 404 | Productive project not found |
+| `PROJECT_NOT_OPERATIONAL` | 422 | Project is not in operational status |
+| `CASHFLOW_MISMATCH` | 422 | Cashflow amount does not match expected |
+| `FRACTIONAL_MIN_AMOUNT` | 422 | Below minimum accept amount |
+| `NETTING_NOT_AGREED` | 422 | Netting agreement not fully agreed |
+| `CORPORATE_ACTION_EXPIRED` | 422 | Corporate action deadline passed |
+| `KYB_NOT_VERIFIED` | 403 | Institutional KYB verification required |
+| `KYB_EXPIRED` | 403 | Institutional KYB verification expired |
+| `API_KEY_REVOKED` | 401 | Institutional API key has been revoked |
+| `BULK_PARTIAL_FAILURE` | 207 | Some operations in bulk request failed |
+| `PRIVACY_ACCESS_DENIED` | 403 | Privacy rules deny access to requested data |
+| `DISCLOSURE_NOT_FOUND` | 404 | Disclosure rule not found |
+
+---
+
+## Credit Attestation
+
+### `GET /v1/credit/attestations` 🔒
+Authenticated. Returns attestation bundle for authenticated user.
+
+```
+Response 200:
+{
+  "data": {
+    "owner": "party::abc123...",
+    "attestations": [
+      {
+        "id": "att-001",
+        "type": "CreditBureau",
+        "provider": "Experian",
+        "claimedRange": { "min": 700, "max": 750 },
+        "proof": {
+          "proofData": "0x...",
+          "verifierKey": "vk_...",
+          "publicInputs": ["700", "750"],
+          "circuit": "credit_range_v1"
+        },
+        "issuedAt": "2026-01-15T00:00:00Z",
+        "expiresAt": "2026-07-15T00:00:00Z",
+        "revoked": false
+      }
+    ],
+    "lastUpdated": "2026-02-22T06:00:00Z"
+  }
+}
+```
+
+### `POST /v1/credit/attestations` 🔒
+Authenticated. Add a new attestation with ZK-proof.
+
+```
+Request Body:
+{
+  "type": "CreditBureau",
+  "provider": "Experian",
+  "claimedRange": { "min": 700, "max": 750 },
+  "proof": {
+    "proofData": "0x...",
+    "verifierKey": "vk_...",
+    "publicInputs": ["700", "750"],
+    "circuit": "credit_range_v1"
+  },
+  "expiresAt": "2026-07-15T00:00:00Z"
+}
+
+Response 201:
+{
+  "data": {
+    "id": "att-002",
+    "type": "CreditBureau",
+    "provider": "Experian",
+    "claimedRange": { "min": 700, "max": 750 },
+    "issuedAt": "2026-02-22T12:00:00Z",
+    "expiresAt": "2026-07-15T00:00:00Z",
+    "revoked": false
+  },
+  "transaction": {
+    "id": "tx_att_001",
+    "status": "submitted",
+    "timestamp": "2026-02-22T12:00:00Z"
+  }
+}
+```
+
+### `DELETE /v1/credit/attestations/:id` 🔒
+Authenticated. Revoke an attestation.
+
+```
+Response 200:
+{
+  "data": { "revoked": true },
+  "transaction": {
+    "id": "tx_att_revoke_001",
+    "status": "submitted",
+    "timestamp": "2026-02-22T12:05:00Z"
+  }
+}
+```
+
+### `GET /v1/credit/composite-score` 🔒
+Authenticated. Get composite credit score for authenticated user.
+
+```
+Response 200:
+{
+  "data": {
+    "totalScore": 742,
+    "maxScore": 1000,
+    "tier": "gold",
+    "layers": {
+      "onChain": { "score": 310, "max": 400, "components": { "loanCompletion": 256, "repaymentSpeed": 218, "collateralHealth": 150, "protocolHistory": 42, "secLending": 20 } },
+      "offChain": { "score": 250, "max": 350, "components": { "creditBureau": 120, "incomeVerification": 80, "businessVerification": 50, "kyc": 0 } },
+      "ecosystem": { "score": 182, "max": 250, "components": { "tifaPerformance": 90, "crossProtocol": 52, "governanceStaking": 40 } }
+    },
+    "tierBenefits": {
+      "maxLTV": 0.78,
+      "rateDiscount": -0.15,
+      "minCollateralRatio": 1.25
+    },
+    "nextTier": {
+      "tier": "diamond",
+      "scoreRequired": 850,
+      "pointsNeeded": 108
+    },
+    "lastRecalculated": "2026-02-22T06:00:00Z"
+  }
+}
+```
+
+### `POST /v1/credit/composite-score/simulate` 🔒
+Authenticated. Simulate score with hypothetical attestations.
+
+```
+Request Body:
+{
+  "additionalAttestations": [
+    {
+      "type": "IncomeVerification",
+      "provider": "Plaid",
+      "claimedRange": { "min": 100000, "max": 150000 },
+      "proof": {
+        "proofData": "0x...",
+        "verifierKey": "vk_...",
+        "publicInputs": ["100000", "150000"],
+        "circuit": "income_range_v1"
+      },
+      "expiresAt": "2026-08-01T00:00:00Z"
+    }
+  ]
+}
+
+Response 200:
+{
+  "data": {
+    "totalScore": 822,
+    "maxScore": 1000,
+    "tier": "gold",
+    "delta": 80,
+    "wouldUpgradeTier": false,
+    "layers": {
+      "onChain": { "score": 310, "max": 400 },
+      "offChain": { "score": 330, "max": 350 },
+      "ecosystem": { "score": 182, "max": 250 }
+    },
+    "simulated": true
+  }
+}
+```
+
+---
+
+## Productive Lending
+
+### `GET /v1/productive/projects`
+Public. List productive projects with optional filters.
+
+**Query Parameters:**
+| Param | Type | Default | Description |
+|-------|------|---------|-------------|
+| category | `SolarEnergy\|WindEnergy\|BatteryStorage\|DataCenter\|SupplyChain\|ExportFinance\|Equipment\|RealEstate\|Agriculture\|Telecom\|all` | `all` | Filter by project category |
+| status | `Proposed\|UnderReview\|Approved\|Operational\|Completed\|Defaulted\|all` | `all` | Filter by status |
+| sortBy | `requestedAmount\|created\|category` | `created` | Sort field |
+| limit | `number (1-50)` | `20` | Page size |
+| offset | `number` | `0` | Offset |
+
+```
+Response 200:
+{
+  "data": [
+    {
+      "projectId": "proj-001",
+      "category": "SolarEnergy",
+      "metadata": {
+        "name": "Lagos Solar Farm Phase 2",
+        "location": "Lagos, Nigeria",
+        "capacityKW": 5000,
+        "expectedYieldPercent": 12.5,
+        "operatorName": "SunPower Africa Ltd"
+      },
+      "status": "Operational",
+      "requestedAmount": 2500000.00,
+      "fundedAmount": 2500000.00,
+      "repaidAmount": 875000.00,
+      "esgScore": 92,
+      "createdAt": "2025-11-01T00:00:00Z"
+    }
+  ],
+  "pagination": { "total": 24, "limit": 20, "offset": 0, "hasMore": true }
+}
+```
+
+### `GET /v1/productive/projects/:projectId`
+Public. Get project detail with IoT readings.
+
+```
+Response 200:
+{
+  "data": {
+    "project": {
+      "projectId": "proj-001",
+      "category": "SolarEnergy",
+      "metadata": {
+        "name": "Lagos Solar Farm Phase 2",
+        "location": "Lagos, Nigeria",
+        "capacityKW": 5000,
+        "expectedYieldPercent": 12.5,
+        "operatorName": "SunPower Africa Ltd"
+      },
+      "status": "Operational",
+      "requestedAmount": 2500000.00,
+      "fundedAmount": 2500000.00,
+      "repaidAmount": 875000.00,
+      "collateral": {
+        "cryptoPercent": 0.40,
+        "projectAssetPercent": 0.40,
+        "tifaPercent": 0.20
+      },
+      "interestRate": 0.0825,
+      "esgAdjustment": -0.015,
+      "effectiveRate": 0.0675,
+      "esgScore": 92,
+      "createdAt": "2025-11-01T00:00:00Z"
+    },
+    "iotReadings": [
+      {
+        "timestamp": "2026-02-22T12:00:00Z",
+        "productionKWh": 4250.5,
+        "capacityFactor": 0.85,
+        "revenueUSD": 425.05
+      }
+    ]
+  }
+}
+```
+
+### `POST /v1/productive/projects` 🔒
+Authenticated. Submit a new project proposal.
+
+```
+Request Body:
+{
+  "category": "SolarEnergy",
+  "metadata": {
+    "name": "Accra Solar Farm",
+    "location": "Accra, Ghana",
+    "capacityKW": 3000,
+    "expectedYieldPercent": 11.0,
+    "operatorName": "GreenTech Ghana"
+  },
+  "requestedAmount": "1500000.00"
+}
+
+Response 201:
+{
+  "data": {
+    "projectId": "proj-025",
+    "category": "SolarEnergy",
+    "status": "Proposed",
+    "requestedAmount": 1500000.00,
+    "createdAt": "2026-02-22T12:10:00Z"
+  },
+  "transaction": {
+    "id": "tx_proj_001",
+    "status": "submitted",
+    "timestamp": "2026-02-22T12:10:00Z"
+  }
+}
+```
+
+### `PUT /v1/productive/projects/:projectId/status` 🔒🔑
+Operator only. Update project status.
+
+```
+Request Body:
+{
+  "status": "Approved"
+}
+
+Response 200:
+{
+  "data": {
+    "projectId": "proj-025",
+    "status": "Approved",
+    "updatedAt": "2026-02-22T12:15:00Z"
+  },
+  "transaction": {
+    "id": "tx_proj_status_001",
+    "status": "submitted",
+    "timestamp": "2026-02-22T12:15:00Z"
+  }
+}
+```
+
+### `GET /v1/productive/pools`
+Public. List productive lending pools.
+
+```
+Response 200:
+{
+  "data": [
+    {
+      "poolId": "prod-usdc-solar",
+      "asset": { "symbol": "USDC", "type": "Stablecoin" },
+      "category": "SolarEnergy",
+      "totalSupply": 15000000.00,
+      "totalBorrowed": 12500000.00,
+      "availableLiquidity": 2500000.00,
+      "supplyAPY": 0.0924,
+      "borrowAPY": 0.0675,
+      "projectCount": 8,
+      "avgEsgScore": 88,
+      "isActive": true
+    }
+  ]
+}
+```
+
+### `POST /v1/productive/borrows` 🔒
+Authenticated. Request a productive borrow.
+
+```
+Request Body:
+{
+  "projectId": "proj-001",
+  "poolId": "prod-usdc-solar",
+  "loanAmount": "500000.00",
+  "collateral": {
+    "crypto": { "symbol": "USDC", "amount": "200000.00" },
+    "projectAssets": { "description": "Solar panel equipment", "valuationUSD": 200000.00 },
+    "tifaReceivables": { "contractId": "tifa-001", "valuationUSD": 100000.00 }
+  }
+}
+
+Response 201:
+{
+  "data": {
+    "borrowId": "prod-borrow-001",
+    "projectId": "proj-001",
+    "poolId": "prod-usdc-solar",
+    "loanAmount": 500000.00,
+    "effectiveRate": 0.0675,
+    "status": "Active",
+    "collateralRatio": 1.00,
+    "createdAt": "2026-02-22T12:20:00Z"
+  },
+  "transaction": {
+    "id": "tx_prod_borrow_001",
+    "status": "submitted",
+    "timestamp": "2026-02-22T12:20:00Z"
+  }
+}
+```
+
+### `POST /v1/productive/borrows/:borrowId/cashflow` 🔒
+Authenticated. Process cashflow repayment from project revenue.
+
+```
+Request Body:
+{
+  "period": "2026-02",
+  "revenueUSD": 45000.00,
+  "repaymentAmount": "35000.00",
+  "source": "ProjectRevenue",
+  "iotVerified": true
+}
+
+Response 200:
+{
+  "data": {
+    "borrowId": "prod-borrow-001",
+    "cashflowEntry": {
+      "period": "2026-02",
+      "revenueUSD": 45000.00,
+      "repaymentAmount": 35000.00,
+      "remainingDebt": 465000.00
+    }
+  },
+  "transaction": {
+    "id": "tx_cashflow_001",
+    "status": "submitted",
+    "timestamp": "2026-02-22T12:25:00Z"
+  }
+}
+```
+
+### `GET /v1/productive/borrows` 🔒
+Authenticated. List borrows for authenticated user.
+
+```
+Response 200:
+{
+  "data": [
+    {
+      "borrowId": "prod-borrow-001",
+      "projectId": "proj-001",
+      "poolId": "prod-usdc-solar",
+      "loanAmount": 500000.00,
+      "remainingDebt": 465000.00,
+      "effectiveRate": 0.0675,
+      "status": "Active",
+      "cashflowEntries": 3,
+      "totalRepaid": 35000.00,
+      "createdAt": "2026-02-22T12:20:00Z"
+    }
+  ]
+}
+```
+
+### `GET /v1/productive/iot/:projectId`
+Public. Get IoT readings for a project.
+
+**Query Parameters:**
+| Param | Type | Default | Description |
+|-------|------|---------|-------------|
+| period | `1d\|7d\|30d\|90d\|all` | `7d` | Time range |
+
+```
+Response 200:
+{
+  "data": [
+    {
+      "timestamp": "2026-02-22T12:00:00Z",
+      "productionKWh": 4250.5,
+      "capacityFactor": 0.85,
+      "revenueUSD": 425.05,
+      "deviceId": "iot-solar-001"
+    }
+  ]
+}
+```
+
+### `GET /v1/productive/analytics`
+Public. Get productive lending analytics.
+
+```
+Response 200:
+{
+  "data": {
+    "totalProjectsFunded": 24,
+    "totalCapitalDeployed": 45000000.00,
+    "totalRepaid": 18750000.00,
+    "avgEsgScore": 85,
+    "categoryBreakdown": {
+      "SolarEnergy": { "projects": 8, "capital": 15000000.00 },
+      "WindEnergy": { "projects": 4, "capital": 8000000.00 },
+      "Agriculture": { "projects": 6, "capital": 12000000.00 },
+      "DataCenter": { "projects": 3, "capital": 5000000.00 },
+      "SupplyChain": { "projects": 3, "capital": 5000000.00 }
+    },
+    "defaultRate": 0.02,
+    "avgEffectiveRate": 0.072,
+    "totalCO2OffsetTons": 12500
+  }
+}
+```
+
+---
+
+## Advanced Securities Lending
+
+### `POST /v1/sec-lending/fractional-offers` 🔒
+Authenticated. Create a fractional offer (split large position into smaller tranches).
+
+```
+Request Body:
+{
+  "security": { "symbol": "SPY-2026", "amount": "1200000.00" },
+  "totalAmount": "1200000.00",
+  "minAcceptAmount": "50000.00",
+  "feeRate": 45
+}
+
+Response 201:
+{
+  "data": {
+    "offerId": "frac-offer-001",
+    "security": { "symbol": "SPY-2026", "amount": 1200000.00 },
+    "totalAmount": 1200000.00,
+    "remainingAmount": 1200000.00,
+    "minAcceptAmount": 50000.00,
+    "feeRate": 45,
+    "acceptedFractions": [],
+    "status": "Open",
+    "createdAt": "2026-02-22T12:30:00Z"
+  },
+  "transaction": {
+    "id": "tx_frac_offer_001",
+    "status": "submitted",
+    "timestamp": "2026-02-22T12:30:00Z"
+  }
+}
+```
+
+### `POST /v1/sec-lending/fractional-offers/:offerId/accept` 🔒
+Authenticated. Accept a fraction of an offer.
+
+```
+Request Body:
+{
+  "amount": "100000.00"
+}
+
+Response 201:
+{
+  "data": {
+    "offer": {
+      "offerId": "frac-offer-001",
+      "remainingAmount": 1100000.00,
+      "status": "PartiallyFilled"
+    },
+    "dealId": "frac-deal-001"
+  },
+  "transaction": {
+    "id": "tx_frac_accept_001",
+    "status": "submitted",
+    "timestamp": "2026-02-22T12:35:00Z"
+  }
+}
+```
+
+### `POST /v1/sec-lending/netting/propose` 🔒
+Authenticated. Propose a netting agreement to offset mutual obligations.
+
+```
+Request Body:
+{
+  "counterparty": "party::xyz789...",
+  "dealIds": ["deal-001", "deal-002", "deal-003"]
+}
+
+Response 201:
+{
+  "data": {
+    "nettingId": "netting-001",
+    "proposer": "party::abc123...",
+    "counterparty": "party::xyz789...",
+    "dealIds": ["deal-001", "deal-002", "deal-003"],
+    "grossExposure": 5000000.00,
+    "netExposure": 1200000.00,
+    "savings": 3800000.00,
+    "status": "Proposed",
+    "createdAt": "2026-02-22T12:40:00Z"
+  },
+  "transaction": {
+    "id": "tx_netting_001",
+    "status": "submitted",
+    "timestamp": "2026-02-22T12:40:00Z"
+  }
+}
+```
+
+### `POST /v1/sec-lending/netting/:nettingId/execute` 🔒
+Authenticated. Execute netting agreement (requires both parties to have agreed).
+
+```
+Response 200:
+{
+  "data": {
+    "nettingId": "netting-001",
+    "status": "Executed",
+    "grossExposure": 5000000.00,
+    "netExposure": 1200000.00,
+    "savings": 3800000.00,
+    "settledDeals": ["deal-001", "deal-002", "deal-003"],
+    "executedAt": "2026-02-22T12:45:00Z"
+  },
+  "transaction": {
+    "id": "tx_netting_exec_001",
+    "status": "submitted",
+    "timestamp": "2026-02-22T12:45:00Z"
+  }
+}
+```
+
+### `POST /v1/sec-lending/corporate-actions/:handlerId/process` 🔒
+Authenticated. Process a corporate action (dividend, coupon, stock split).
+
+```
+Response 200:
+{
+  "data": {
+    "handlerId": "ca-handler-001",
+    "actionType": "Dividend",
+    "security": "SPY-2026",
+    "recordDate": "2026-02-15T00:00:00Z",
+    "paymentDate": "2026-02-22T00:00:00Z",
+    "amountPerUnit": 1.25,
+    "totalManufacturedAmount": 1500000.00,
+    "status": "Processed",
+    "affectedDeals": ["deal-001", "deal-004"]
+  },
+  "transaction": {
+    "id": "tx_corp_action_001",
+    "status": "submitted",
+    "timestamp": "2026-02-22T12:50:00Z"
+  }
+}
+```
+
+---
+
+## Institutional
+
+### `POST /v1/institutional/onboard` 🔒
+Authenticated. Start institutional onboarding.
+
+```
+Request Body:
+{
+  "legalName": "Meridian Capital Partners LLC",
+  "registrationNo": "LLC-2024-78901",
+  "jurisdiction": "US-DE",
+  "riskProfile": { "level": "Enhanced", "amlRisk": "Low", "sanctionsChecked": true }
+}
+
+Response 201:
+{
+  "data": {
+    "institutionId": "inst-001",
+    "legalName": "Meridian Capital Partners LLC",
+    "registrationNo": "LLC-2024-78901",
+    "jurisdiction": "US-DE",
+    "kybStatus": "Pending",
+    "kybLevel": "Enhanced",
+    "subAccounts": [],
+    "apiKeys": [],
+    "createdAt": "2026-02-22T13:00:00Z"
+  },
+  "transaction": {
+    "id": "tx_inst_onboard_001",
+    "status": "submitted",
+    "timestamp": "2026-02-22T13:00:00Z"
+  }
+}
+```
+
+### `GET /v1/institutional/status` 🔒
+Authenticated. Get institutional status.
+
+```
+Response 200:
+{
+  "data": {
+    "institutionId": "inst-001",
+    "legalName": "Meridian Capital Partners LLC",
+    "registrationNo": "LLC-2024-78901",
+    "jurisdiction": "US-DE",
+    "kybStatus": "Verified",
+    "kybLevel": "Enhanced",
+    "kybExpiresAt": "2027-02-22T00:00:00Z",
+    "subAccounts": [
+      { "partyId": "party::sub001...", "label": "Trading Desk A" }
+    ],
+    "apiKeys": [
+      { "keyId": "key-001", "name": "Production API", "permissions": ["read", "trade"], "createdAt": "2026-02-22T13:05:00Z", "lastUsed": "2026-02-22T12:58:00Z" }
+    ],
+    "feeSchedule": {
+      "tradingFee": 0.0005,
+      "lendingFee": 0.0008,
+      "tier": "Enhanced"
+    }
+  }
+}
+```
+
+### `PUT /v1/institutional/kyb/verify` 🔒🔑
+Operator only. Update KYB verification status.
+
+```
+Request Body:
+{
+  "expiresAt": "2027-02-22T00:00:00Z"
+}
+
+Response 200:
+{
+  "data": {
+    "institutionId": "inst-001",
+    "kybStatus": "Verified",
+    "kybExpiresAt": "2027-02-22T00:00:00Z",
+    "verifiedAt": "2026-02-22T13:10:00Z"
+  },
+  "transaction": {
+    "id": "tx_kyb_verify_001",
+    "status": "submitted",
+    "timestamp": "2026-02-22T13:10:00Z"
+  }
+}
+```
+
+### `POST /v1/institutional/sub-accounts` 🔒
+Authenticated (institution only). Add sub-account.
+
+```
+Request Body:
+{
+  "subAccountParty": "party::sub002..."
+}
+
+Response 201:
+{
+  "data": {
+    "institutionId": "inst-001",
+    "subAccount": {
+      "partyId": "party::sub002...",
+      "label": "Trading Desk B",
+      "addedAt": "2026-02-22T13:15:00Z"
+    }
+  },
+  "transaction": {
+    "id": "tx_sub_account_001",
+    "status": "submitted",
+    "timestamp": "2026-02-22T13:15:00Z"
+  }
+}
+```
+
+### `POST /v1/institutional/api-keys` 🔒
+Authenticated (institution only). Create API key.
+
+```
+Request Body:
+{
+  "name": "Staging API",
+  "permissions": ["read", "trade"]
+}
+
+Response 201:
+{
+  "data": {
+    "key": "dk_live_aBcDeFgHiJkLmNoPqRsTuVwXyZ123456",
+    "keyInfo": {
+      "keyId": "key-002",
+      "name": "Staging API",
+      "permissions": ["read", "trade"],
+      "createdAt": "2026-02-22T13:20:00Z"
+    }
+  },
+  "transaction": {
+    "id": "tx_api_key_001",
+    "status": "submitted",
+    "timestamp": "2026-02-22T13:20:00Z"
+  }
+}
+```
+
+### `DELETE /v1/institutional/api-keys/:keyId` 🔒
+Authenticated (institution only). Revoke API key.
+
+```
+Response 200:
+{
+  "data": { "keyId": "key-002", "revoked": true, "revokedAt": "2026-02-22T13:25:00Z" },
+  "transaction": {
+    "id": "tx_api_key_revoke_001",
+    "status": "submitted",
+    "timestamp": "2026-02-22T13:25:00Z"
+  }
+}
+```
+
+### `POST /v1/institutional/bulk` 🔒
+Authenticated (institution only). Submit bulk operations.
+
+```
+Request Body:
+{
+  "operations": [
+    { "type": "deposit", "poolId": "usdc-main", "amount": "1000000.00" },
+    { "type": "deposit", "poolId": "wbtc-main", "amount": "10.0" },
+    { "type": "borrow", "poolId": "usdc-main", "amount": "500000.00", "collateral": [{ "symbol": "wBTC", "amount": "7.0" }] }
+  ]
+}
+
+Response 200:
+{
+  "data": {
+    "bulkId": "bulk-001",
+    "totalOperations": 3,
+    "succeeded": 3,
+    "failed": 0,
+    "results": [
+      { "index": 0, "type": "deposit", "status": "success", "transactionId": "tx_bulk_001a" },
+      { "index": 1, "type": "deposit", "status": "success", "transactionId": "tx_bulk_001b" },
+      { "index": 2, "type": "borrow", "status": "success", "transactionId": "tx_bulk_001c" }
+    ],
+    "submittedAt": "2026-02-22T13:30:00Z"
+  }
+}
+```
+
+---
+
+## Privacy
+
+### `GET /v1/privacy/config` 🔒
+Authenticated. Get privacy configuration.
+
+```
+Response 200:
+{
+  "data": {
+    "owner": "party::abc123...",
+    "level": "Selective",
+    "disclosureRules": [
+      {
+        "ruleId": "disc-001",
+        "discloseTo": "party::lender456...",
+        "displayName": "Meridian Capital",
+        "dataScope": "CreditScore",
+        "purpose": "Loan application",
+        "createdAt": "2026-02-20T10:00:00Z",
+        "expiresAt": "2026-05-20T10:00:00Z"
+      }
+    ],
+    "lastUpdated": "2026-02-22T06:00:00Z"
+  }
+}
+```
+
+### `PUT /v1/privacy/level` 🔒
+Authenticated. Set privacy level.
+
+```
+Request Body:
+{
+  "level": "Selective"
+}
+
+Response 200:
+{
+  "data": {
+    "owner": "party::abc123...",
+    "level": "Selective",
+    "previousLevel": "Public",
+    "updatedAt": "2026-02-22T14:00:00Z"
+  },
+  "transaction": {
+    "id": "tx_privacy_001",
+    "status": "submitted",
+    "timestamp": "2026-02-22T14:00:00Z"
+  }
+}
+```
+
+### `POST /v1/privacy/disclosures` 🔒
+Authenticated. Add disclosure rule.
+
+```
+Request Body:
+{
+  "discloseTo": "party::lender789...",
+  "displayName": "Atlas Trading",
+  "dataScope": "PositionDetails",
+  "purpose": "Securities lending due diligence",
+  "expiresAt": "2026-08-22T00:00:00Z"
+}
+
+Response 201:
+{
+  "data": {
+    "owner": "party::abc123...",
+    "level": "Selective",
+    "disclosureRules": [
+      {
+        "ruleId": "disc-001",
+        "discloseTo": "party::lender456...",
+        "displayName": "Meridian Capital",
+        "dataScope": "CreditScore",
+        "purpose": "Loan application",
+        "createdAt": "2026-02-20T10:00:00Z",
+        "expiresAt": "2026-05-20T10:00:00Z"
+      },
+      {
+        "ruleId": "disc-002",
+        "discloseTo": "party::lender789...",
+        "displayName": "Atlas Trading",
+        "dataScope": "PositionDetails",
+        "purpose": "Securities lending due diligence",
+        "createdAt": "2026-02-22T14:05:00Z",
+        "expiresAt": "2026-08-22T00:00:00Z"
+      }
+    ]
+  },
+  "transaction": {
+    "id": "tx_disclosure_001",
+    "status": "submitted",
+    "timestamp": "2026-02-22T14:05:00Z"
+  }
+}
+```
+
+### `DELETE /v1/privacy/disclosures/:ruleId` 🔒
+Authenticated. Remove disclosure rule.
+
+```
+Response 200:
+{
+  "data": { "ruleId": "disc-002", "removed": true },
+  "transaction": {
+    "id": "tx_disclosure_remove_001",
+    "status": "submitted",
+    "timestamp": "2026-02-22T14:10:00Z"
+  }
+}
+```
+
+### `POST /v1/privacy/check-access` 🔒
+Authenticated. Check if a party has access to data.
+
+```
+Request Body:
+{
+  "requester": "party::lender456...",
+  "scope": "CreditScore"
+}
+
+Response 200:
+{
+  "data": {
+    "granted": true,
+    "reason": "Disclosure rule disc-001 grants CreditScore access to party::lender456..."
+  }
+}
+```
+
+### `GET /v1/privacy/audit-log` 🔒
+Authenticated. Get privacy audit log.
+
+**Query Parameters:**
+| Param | Type | Default | Description |
+|-------|------|---------|-------------|
+| limit | `number (1-100)` | `50` | Page size |
+| offset | `number` | `0` | Offset |
+
+```
+Response 200:
+{
+  "data": [
+    {
+      "timestamp": "2026-02-22T14:00:00Z",
+      "action": "AccessChecked",
+      "requester": "party::lender456...",
+      "scope": "CreditScore",
+      "result": "Granted",
+      "ruleId": "disc-001"
+    },
+    {
+      "timestamp": "2026-02-22T13:55:00Z",
+      "action": "AccessDenied",
+      "requester": "party::unknown...",
+      "scope": "PositionDetails",
+      "result": "Denied",
+      "reason": "No matching disclosure rule"
+    }
+  ],
+  "pagination": { "total": 156, "limit": 50, "offset": 0, "hasMore": true }
+}

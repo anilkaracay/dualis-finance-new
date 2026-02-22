@@ -161,6 +161,52 @@ const MOCK_PROJECTS: ProductiveProject[] = [
     fundedAmount: '0',
     createdAt: '2026-02-18T16:00:00.000Z',
   },
+  // Cross-referenced: SME Konya solar project (party::sme_konya_001)
+  {
+    projectId: 'proj-007',
+    ownerPartyId: 'party::sme_konya_001',
+    category: 'SolarEnergy',
+    status: 'Operational',
+    metadata: {
+      location: 'Konya, TR',
+      capacity: '500 kW',
+      offTaker: 'TEDAŞ Konya',
+      insurancePolicy: 'POL-konya-001',
+      independentValue: '2000000.00',
+      expectedIRR: 0.125,
+      constructionPeriod: 6,
+      operationalLife: 25,
+      esgRating: 'A',
+      iotFeedId: 'iot-feed-konya-1',
+    },
+    attestations: ['att-sme-001', 'att-sme-002'],
+    requestedAmount: '1500000.00',
+    fundedAmount: '1500000.00',
+    createdAt: '2025-08-10T09:00:00.000Z',
+  },
+  // Cross-referenced: Retail user productive position (party::retail_user_001)
+  {
+    projectId: 'proj-008',
+    ownerPartyId: 'party::retail_user_001',
+    category: 'AgriInfra',
+    status: 'Funded',
+    metadata: {
+      location: 'Bursa, TR',
+      capacity: null,
+      offTaker: 'Bursa Tarım A.Ş.',
+      insurancePolicy: 'POL-bursa-001',
+      independentValue: '850000.00',
+      expectedIRR: 0.098,
+      constructionPeriod: 4,
+      operationalLife: 15,
+      esgRating: 'B',
+      iotFeedId: null,
+    },
+    attestations: ['att-r1-001'],
+    requestedAmount: '600000.00',
+    fundedAmount: '600000.00',
+    createdAt: '2025-10-20T11:00:00.000Z',
+  },
 ];
 
 const MOCK_BORROWS: ProductiveBorrow[] = [
@@ -247,6 +293,50 @@ const MOCK_BORROWS: ProductiveBorrow[] = [
     maturityDate: '2027-06-15T08:00:00.000Z',
     status: 'Repaying',
     createdAt: '2025-06-15T08:00:00.000Z',
+  },
+  // Cross-referenced: SME Konya solar project borrow
+  {
+    borrowId: 'pborrow-005',
+    borrowerParty: 'party::sme_konya_001',
+    projectId: 'proj-007',
+    poolId: 'prod-solar',
+    loanAmount: '1500000.00',
+    outstandingDebt: '980000.00',
+    interestRate: 0.04, // 7% base - 2% solar discount - 1% ESG A bonus
+    collateral: {
+      cryptoCollateral: '450000.00',
+      projectAssetValue: '800000.00',
+      tifaCollateral: '250000.00',
+      totalValue: '1500000.00',
+      cryptoRatio: 0.3,
+    },
+    cashflowSchedule: generateCashflowSchedule(18),
+    gracePeriodEnd: '2026-02-10T09:00:00.000Z',
+    maturityDate: '2030-08-10T09:00:00.000Z',
+    status: 'Repaying',
+    createdAt: '2025-08-10T09:00:00.000Z',
+  },
+  // Cross-referenced: Retail user agri borrow
+  {
+    borrowId: 'pborrow-006',
+    borrowerParty: 'party::retail_user_001',
+    projectId: 'proj-008',
+    poolId: 'prod-supply',
+    loanAmount: '600000.00',
+    outstandingDebt: '600000.00',
+    interestRate: 0.054, // 7% base - 1.5% agri discount - 0.5% ESG B bonus
+    collateral: {
+      cryptoCollateral: '180000.00',
+      projectAssetValue: '340000.00',
+      tifaCollateral: '80000.00',
+      totalValue: '600000.00',
+      cryptoRatio: 0.3,
+    },
+    cashflowSchedule: [],
+    gracePeriodEnd: '2026-04-20T11:00:00.000Z',
+    maturityDate: '2028-10-20T11:00:00.000Z',
+    status: 'GracePeriod',
+    createdAt: '2025-10-20T11:00:00.000Z',
   },
 ];
 

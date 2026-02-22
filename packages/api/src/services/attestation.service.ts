@@ -24,7 +24,15 @@ function buildTransactionMeta(): TransactionMeta {
 
 const MOCK_ATTESTATIONS: Map<string, OffChainAttestation[]> = new Map();
 
-// Pre-populate with demo data
+// ---------------------------------------------------------------------------
+// Cross-referenced mock users:
+// 1. party::retail_user_001 — Retail, Gold tier, 2 attestations, 1 productive position
+// 2. party::inst_cayvox_001 — Institutional (Cayvox Labs), Diamond tier, full KYB, 3 sub-accounts
+// 3. party::inst_goldman_001 — Institutional (Goldman Sachs Digital), Diamond tier, max privacy
+// 4. party::retail_user_002 — Retail, Silver tier, no attestations (new user)
+// 5. party::sme_konya_001 — SME, Gold tier, solar project owner, TIFA cross-reference
+// ---------------------------------------------------------------------------
+
 const DEMO_PARTY = 'party::alice::1';
 MOCK_ATTESTATIONS.set(DEMO_PARTY, [
   {
@@ -79,6 +87,140 @@ MOCK_ATTESTATIONS.set(DEMO_PARTY, [
     verified: false,
   },
 ]);
+
+// Retail user — Gold tier with credit bureau + income attestations
+MOCK_ATTESTATIONS.set('party::retail_user_001', [
+  {
+    id: 'att-r1-001',
+    type: 'credit_bureau',
+    provider: 'findeks',
+    claimedRange: 'good',
+    proof: {
+      proofData: 'zkp-findeks-r1-001',
+      verifierKey: 'vk-findeks-v1',
+      publicInputs: ['range:good', 'timestamp:2026-01'],
+      circuit: 'credit-range-v1',
+      generatedAt: '2026-01-20T09:00:00.000Z',
+    },
+    issuedAt: '2026-01-20T09:00:00.000Z',
+    expiresAt: '2026-07-20T09:00:00.000Z',
+    revoked: false,
+    verified: true,
+  },
+  {
+    id: 'att-r1-002',
+    type: 'income_verification',
+    provider: 'findeks',
+    claimedRange: 'above_50k',
+    proof: {
+      proofData: 'zkp-findeks-r1-002',
+      verifierKey: 'vk-findeks-v1',
+      publicInputs: ['range:above_50k', 'timestamp:2026-01'],
+      circuit: 'income-range-v1',
+      generatedAt: '2026-01-20T09:15:00.000Z',
+    },
+    issuedAt: '2026-01-20T09:15:00.000Z',
+    expiresAt: '2026-07-20T09:15:00.000Z',
+    revoked: false,
+    verified: true,
+  },
+]);
+
+// Institutional — Cayvox Labs, Diamond tier (credit + income + business + KYC + TIFA)
+MOCK_ATTESTATIONS.set('party::inst_cayvox_001', [
+  {
+    id: 'att-cv-001',
+    type: 'credit_bureau',
+    provider: 'findeks',
+    claimedRange: 'excellent',
+    proof: {
+      proofData: 'zkp-findeks-cv-001',
+      verifierKey: 'vk-findeks-v1',
+      publicInputs: ['range:excellent', 'timestamp:2025-12'],
+      circuit: 'credit-range-v1',
+      generatedAt: '2025-12-01T08:00:00.000Z',
+    },
+    issuedAt: '2025-12-01T08:00:00.000Z',
+    expiresAt: '2026-06-01T08:00:00.000Z',
+    revoked: false,
+    verified: true,
+  },
+  {
+    id: 'att-cv-002',
+    type: 'business_verification',
+    provider: 'tifa',
+    claimedRange: 'verified',
+    proof: {
+      proofData: 'zkp-tifa-cv-002',
+      verifierKey: 'vk-tifa-v1',
+      publicInputs: ['status:verified', 'tier:premium'],
+      circuit: 'biz-verify-v1',
+      generatedAt: '2025-12-05T10:00:00.000Z',
+    },
+    issuedAt: '2025-12-05T10:00:00.000Z',
+    expiresAt: '2026-12-05T10:00:00.000Z',
+    revoked: false,
+    verified: true,
+  },
+  {
+    id: 'att-cv-003',
+    type: 'kyc_completion',
+    provider: 'tifa',
+    claimedRange: 'verified',
+    proof: {
+      proofData: 'zkp-tifa-cv-003',
+      verifierKey: 'vk-tifa-v1',
+      publicInputs: ['status:verified'],
+      circuit: 'kyc-complete-v1',
+      generatedAt: '2025-11-20T12:00:00.000Z',
+    },
+    issuedAt: '2025-11-20T12:00:00.000Z',
+    expiresAt: '2026-11-20T12:00:00.000Z',
+    revoked: false,
+    verified: true,
+  },
+]);
+
+// SME Konya — Gold tier with TIFA performance attestation
+MOCK_ATTESTATIONS.set('party::sme_konya_001', [
+  {
+    id: 'att-sme-001',
+    type: 'credit_bureau',
+    provider: 'findeks',
+    claimedRange: 'good',
+    proof: {
+      proofData: 'zkp-findeks-sme-001',
+      verifierKey: 'vk-findeks-v1',
+      publicInputs: ['range:good', 'timestamp:2026-01'],
+      circuit: 'credit-range-v1',
+      generatedAt: '2026-01-10T08:00:00.000Z',
+    },
+    issuedAt: '2026-01-10T08:00:00.000Z',
+    expiresAt: '2026-07-10T08:00:00.000Z',
+    revoked: false,
+    verified: true,
+  },
+  {
+    id: 'att-sme-002',
+    type: 'tifa_performance',
+    provider: 'tifa',
+    claimedRange: 'top_quartile',
+    proof: {
+      proofData: 'zkp-tifa-sme-002',
+      verifierKey: 'vk-tifa-v1',
+      publicInputs: ['performance:top_quartile', 'receivables:12'],
+      circuit: 'tifa-perf-v1',
+      generatedAt: '2026-02-01T10:00:00.000Z',
+    },
+    issuedAt: '2026-02-01T10:00:00.000Z',
+    expiresAt: '2026-08-01T10:00:00.000Z',
+    revoked: false,
+    verified: true,
+  },
+]);
+
+// party::retail_user_002 — No attestations (new user, Silver via on-chain only)
+// party::inst_goldman_001 — attestations handled by separate KYB flow
 
 // ---------------------------------------------------------------------------
 // Service functions

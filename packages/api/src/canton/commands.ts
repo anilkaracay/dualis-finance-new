@@ -19,6 +19,18 @@ const TEMPLATES = {
   governance: 'Dualis.Governance:Proposal',
   flashLoan: 'Dualis.FlashLoan:FlashLoan',
   protocolConfig: 'Dualis.Protocol:ProtocolConfig',
+  creditAttestationBundle: 'Dualis.Credit.Attestation:CreditAttestationBundle',
+  compositeCredit: 'Dualis.Credit.CompositeScore:CompositeCredit',
+  productiveProject: 'Dualis.Productive.Core:ProductiveProject',
+  productiveBorrow: 'Dualis.Productive.Core:ProductiveBorrow',
+  productivePool: 'Dualis.Productive.Core:ProductiveLendingPool',
+  fractionalOffer: 'Dualis.SecLending.Advanced:FractionalOffer',
+  corporateActionHandler: 'Dualis.SecLending.Advanced:CorporateActionHandler',
+  nettingAgreement: 'Dualis.SecLending.Advanced:NettingAgreement',
+  verifiedInstitution: 'Dualis.Institutional.Core:VerifiedInstitution',
+  institutionalPool: 'Dualis.Institutional.Core:InstitutionalPool',
+  bulkOperation: 'Dualis.Institutional.Core:BulkOperation',
+  privacyConfig: 'Dualis.Privacy.Config:PrivacyConfig',
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -242,5 +254,247 @@ export function buildResumeCommand(
     choice: 'Resume',
     contractId: configContractId,
     argument: { operator },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Credit Attestation commands
+// ---------------------------------------------------------------------------
+
+/** Build a command to add an attestation to an attestation bundle. */
+export function buildAddAttestationCommand(
+  bundleContractId: string,
+  attestation: Record<string, unknown>,
+): CantonCommand {
+  return {
+    templateId: TEMPLATES.creditAttestationBundle,
+    choice: 'AddAttestation',
+    contractId: bundleContractId,
+    argument: { attestation },
+  };
+}
+
+/** Build a command to prune expired attestations from a bundle. */
+export function buildPruneExpiredCommand(
+  bundleContractId: string,
+  currentTime: string,
+): CantonCommand {
+  return {
+    templateId: TEMPLATES.creditAttestationBundle,
+    choice: 'PruneExpired',
+    contractId: bundleContractId,
+    argument: { currentTime },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Composite Score commands
+// ---------------------------------------------------------------------------
+
+/** Build a command to recalculate a composite credit score. */
+export function buildRecalculateCompositeCommand(
+  creditContractId: string,
+  onChain: Record<string, unknown>,
+  offChain: Record<string, unknown>,
+  ecosystem: Record<string, unknown>,
+  calculationTime: string,
+): CantonCommand {
+  return {
+    templateId: TEMPLATES.compositeCredit,
+    choice: 'RecalculateComposite',
+    contractId: creditContractId,
+    argument: { onChain, offChain, ecosystem, calculationTime },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Productive commands
+// ---------------------------------------------------------------------------
+
+/** Build a command to update a productive project's status. */
+export function buildUpdateProjectStatusCommand(
+  projectContractId: string,
+  newStatus: string,
+): CantonCommand {
+  return {
+    templateId: TEMPLATES.productiveProject,
+    choice: 'UpdateProjectStatus',
+    contractId: projectContractId,
+    argument: { newStatus },
+  };
+}
+
+/** Build a command to add a production attestation to a project. */
+export function buildAddProductionAttestationCommand(
+  projectContractId: string,
+  attestationId: string,
+): CantonCommand {
+  return {
+    templateId: TEMPLATES.productiveProject,
+    choice: 'AddProductionAttestation',
+    contractId: projectContractId,
+    argument: { attestationId },
+  };
+}
+
+/** Build a command to record a cashflow repayment on a productive borrow. */
+export function buildCashflowRepaymentCommand(
+  borrowContractId: string,
+  entry: Record<string, unknown>,
+): CantonCommand {
+  return {
+    templateId: TEMPLATES.productiveBorrow,
+    choice: 'CashflowRepayment',
+    contractId: borrowContractId,
+    argument: { entry },
+  };
+}
+
+/** Build a command to check project health on a productive borrow. */
+export function buildCheckProjectHealthCommand(
+  borrowContractId: string,
+  actual: number,
+  expected: number,
+): CantonCommand {
+  return {
+    templateId: TEMPLATES.productiveBorrow,
+    choice: 'CheckProjectHealth',
+    contractId: borrowContractId,
+    argument: { actual, expected },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Advanced SecLending commands
+// ---------------------------------------------------------------------------
+
+/** Build a command to accept a fraction of a fractional offer. */
+export function buildAcceptFractionCommand(
+  offerContractId: string,
+  borrower: string,
+  amount: number,
+): CantonCommand {
+  return {
+    templateId: TEMPLATES.fractionalOffer,
+    choice: 'AcceptFraction',
+    contractId: offerContractId,
+    argument: { borrower, amount },
+  };
+}
+
+/** Build a command to process a corporate action. */
+export function buildProcessCorporateActionCommand(
+  handlerContractId: string,
+  processingTime: string,
+): CantonCommand {
+  return {
+    templateId: TEMPLATES.corporateActionHandler,
+    choice: 'ProcessCorporateAction',
+    contractId: handlerContractId,
+    argument: { processingTime },
+  };
+}
+
+/** Build a command to execute netting on a netting agreement. */
+export function buildExecuteNettingCommand(
+  nettingContractId: string,
+  executionTime: string,
+): CantonCommand {
+  return {
+    templateId: TEMPLATES.nettingAgreement,
+    choice: 'ExecuteNetting',
+    contractId: nettingContractId,
+    argument: { executionTime },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Institutional commands
+// ---------------------------------------------------------------------------
+
+/** Build a command to add a sub-account to a verified institution. */
+export function buildAddSubAccountCommand(
+  institutionContractId: string,
+  subAccountParty: string,
+): CantonCommand {
+  return {
+    templateId: TEMPLATES.verifiedInstitution,
+    choice: 'AddSubAccount',
+    contractId: institutionContractId,
+    argument: { subAccountParty },
+  };
+}
+
+/** Build a command to renew KYB for a verified institution. */
+export function buildRenewKYBCommand(
+  institutionContractId: string,
+  newExpiry: string,
+  renewalTime: string,
+): CantonCommand {
+  return {
+    templateId: TEMPLATES.verifiedInstitution,
+    choice: 'RenewKYB',
+    contractId: institutionContractId,
+    argument: { newExpiry, renewalTime },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Privacy commands
+// ---------------------------------------------------------------------------
+
+/** Build a command to set the privacy level on a privacy config. */
+export function buildSetPrivacyLevelCommand(
+  configContractId: string,
+  newLevel: string,
+  updateTime: string,
+): CantonCommand {
+  return {
+    templateId: TEMPLATES.privacyConfig,
+    choice: 'SetPrivacyLevel',
+    contractId: configContractId,
+    argument: { newLevel, updateTime },
+  };
+}
+
+/** Build a command to add a disclosure rule to a privacy config. */
+export function buildAddDisclosureCommand(
+  configContractId: string,
+  rule: Record<string, unknown>,
+  updateTime: string,
+): CantonCommand {
+  return {
+    templateId: TEMPLATES.privacyConfig,
+    choice: 'AddDisclosure',
+    contractId: configContractId,
+    argument: { rule, updateTime },
+  };
+}
+
+/** Build a command to remove a disclosure rule from a privacy config. */
+export function buildRemoveDisclosureCommand(
+  configContractId: string,
+  ruleId: string,
+  updateTime: string,
+): CantonCommand {
+  return {
+    templateId: TEMPLATES.privacyConfig,
+    choice: 'RemoveDisclosure',
+    contractId: configContractId,
+    argument: { ruleId, updateTime },
+  };
+}
+
+/** Build a command to check access on a privacy config. */
+export function buildCheckAccessCommand(
+  configContractId: string,
+  requester: string,
+  scope: string,
+): CantonCommand {
+  return {
+    templateId: TEMPLATES.privacyConfig,
+    choice: 'CheckAccess',
+    contractId: configContractId,
+    argument: { requester, scope },
   };
 }

@@ -12,6 +12,13 @@ import type {
   SecLendingDeal,
   PriceFeed,
   ProtocolConfig,
+  AttestationBundle,
+  CompositeScore,
+  ProductiveProject,
+  ProductiveBorrow,
+  ProductivePool,
+  VerifiedInstitution,
+  PrivacyConfig,
 } from '@dualis/shared';
 import { CantonClient } from './client.js';
 import type { CantonContract } from './types.js';
@@ -28,6 +35,13 @@ const TEMPLATES = {
   secLendingDeal: 'Dualis.SecLending:SecLendingDeal',
   priceFeed: 'Dualis.Oracle:PriceFeed',
   protocolConfig: 'Dualis.Protocol:ProtocolConfig',
+  creditAttestationBundle: 'Dualis.Credit.Attestation:CreditAttestationBundle',
+  compositeCredit: 'Dualis.Credit.CompositeScore:CompositeCredit',
+  productiveProject: 'Dualis.Productive.Core:ProductiveProject',
+  productiveBorrow: 'Dualis.Productive.Core:ProductiveBorrow',
+  productivePool: 'Dualis.Productive.Core:ProductiveLendingPool',
+  verifiedInstitution: 'Dualis.Institutional.Core:VerifiedInstitution',
+  privacyConfig: 'Dualis.Privacy.Config:PrivacyConfig',
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -116,4 +130,69 @@ export async function getProtocolConfig(): Promise<CantonContract<ProtocolConfig
   const client = CantonClient.getInstance();
   const configs = await client.queryContracts<ProtocolConfig>(TEMPLATES.protocolConfig);
   return configs[0] ?? null;
+}
+
+// ---------------------------------------------------------------------------
+// Credit attestation queries
+// ---------------------------------------------------------------------------
+
+/** Fetch the attestation bundle for a given party. */
+export async function getAttestationBundle(partyId: string): Promise<CantonContract<AttestationBundle> | null> {
+  const client = CantonClient.getInstance();
+  return client.queryContractByKey<AttestationBundle>(TEMPLATES.creditAttestationBundle, { owner: partyId });
+}
+
+/** Fetch the composite credit score for a given party. */
+export async function getCompositeScore(partyId: string): Promise<CantonContract<CompositeScore> | null> {
+  const client = CantonClient.getInstance();
+  return client.queryContractByKey<CompositeScore>(TEMPLATES.compositeCredit, { owner: partyId });
+}
+
+// ---------------------------------------------------------------------------
+// Productive queries
+// ---------------------------------------------------------------------------
+
+/** Fetch all productive projects, optionally filtered. */
+export async function getProductiveProjects(filters?: Record<string, unknown>): Promise<CantonContract<ProductiveProject>[]> {
+  const client = CantonClient.getInstance();
+  return client.queryContracts<ProductiveProject>(TEMPLATES.productiveProject, filters);
+}
+
+/** Fetch a single productive project by its key. */
+export async function getProductiveProjectByKey(projectId: string): Promise<CantonContract<ProductiveProject> | null> {
+  const client = CantonClient.getInstance();
+  return client.queryContractByKey<ProductiveProject>(TEMPLATES.productiveProject, { projectId });
+}
+
+/** Fetch all productive borrows, optionally filtered by party. */
+export async function getProductiveBorrows(partyId?: string): Promise<CantonContract<ProductiveBorrow>[]> {
+  const client = CantonClient.getInstance();
+  const query = partyId ? { borrower: partyId } : undefined;
+  return client.queryContracts<ProductiveBorrow>(TEMPLATES.productiveBorrow, query);
+}
+
+/** Fetch all productive lending pools. */
+export async function getProductivePools(): Promise<CantonContract<ProductivePool>[]> {
+  const client = CantonClient.getInstance();
+  return client.queryContracts<ProductivePool>(TEMPLATES.productivePool);
+}
+
+// ---------------------------------------------------------------------------
+// Institutional queries
+// ---------------------------------------------------------------------------
+
+/** Fetch the verified institution record for a given party. */
+export async function getVerifiedInstitution(partyId: string): Promise<CantonContract<VerifiedInstitution> | null> {
+  const client = CantonClient.getInstance();
+  return client.queryContractByKey<VerifiedInstitution>(TEMPLATES.verifiedInstitution, { institution: partyId });
+}
+
+// ---------------------------------------------------------------------------
+// Privacy queries
+// ---------------------------------------------------------------------------
+
+/** Fetch the privacy config for a given party. */
+export async function getPrivacyConfig(partyId: string): Promise<CantonContract<PrivacyConfig> | null> {
+  const client = CantonClient.getInstance();
+  return client.queryContractByKey<PrivacyConfig>(TEMPLATES.privacyConfig, { user: partyId });
 }

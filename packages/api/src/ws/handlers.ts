@@ -6,6 +6,7 @@ import type {
   WsUnsubscribedMessage,
   WsErrorMessage,
   WsPongMessage,
+  WsInnovationEvent,
 } from '@dualis/shared';
 import jsonwebtoken from 'jsonwebtoken';
 import { env } from '../config/env.js';
@@ -28,7 +29,7 @@ interface JwtPayload {
 /** Serialise and send a typed server message over the socket. */
 function send(
   socket: WebSocket,
-  msg: WsAuthSuccess | WsAuthError | WsSubscribedMessage | WsUnsubscribedMessage | WsErrorMessage | WsPongMessage,
+  msg: WsAuthSuccess | WsAuthError | WsSubscribedMessage | WsUnsubscribedMessage | WsErrorMessage | WsPongMessage | WsInnovationEvent,
 ): void {
   socket.send(JSON.stringify(msg));
 }

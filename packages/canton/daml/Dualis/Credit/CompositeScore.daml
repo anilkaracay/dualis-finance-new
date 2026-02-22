@@ -1,0 +1,118 @@
+module Dualis.Credit.CompositeScore where
+
+-- On-chain breakdown (max 400 points)
+data OnChainBreakdown = OnChainBreakdown
+  with
+    loanCompletion : Int      -- max 150
+    repaymentSpeed : Int      -- max 100
+    collateralHealth : Int    -- max 80
+    protocolHistory : Int     -- max 40
+    secLendingRecord : Int    -- max 30
+    total : Int               -- max 400
+  deriving (Eq, Show)
+
+-- Off-chain breakdown (max 350 points)
+data OffChainBreakdown = OffChainBreakdown
+  with
+    creditBureauScore : Int   -- max 150
+    incomeVerification : Int  -- max 100
+    businessVerification : Int -- max 50
+    kycCompletion : Int       -- max 50
+    total : Int               -- max 350
+  deriving (Eq, Show)
+
+-- Ecosystem breakdown (max 250 points)
+data EcosystemBreakdown = EcosystemBreakdown
+  with
+    tifaPerformance : Int     -- max 100
+    crossProtocolRefs : Int   -- max 80
+    governanceStaking : Int   -- max 70
+    total : Int               -- max 250
+  deriving (Eq, Show)
+
+data ScoreLayer = ScoreLayer
+  with
+    onChainScore : Int
+    onChainMax : Int
+    offChainScore : Int
+    offChainMax : Int
+    ecosystemScore : Int
+    ecosystemMax : Int
+  deriving (Eq, Show)
+
+data CreditTier = Diamond | Gold | Silver | Bronze | Unrated
+  deriving (Eq, Show, Ord)
+
+data TierLendingParams = TierLendingParams
+  with
+    maxLTV : Decimal
+    rateDiscount : Decimal
+    minCollateralRatio : Decimal
+    liquidationBuffer : Decimal
+  deriving (Eq, Show)
+
+-- Derive tier from composite score
+deriveTier : Int -> CreditTier
+deriveTier score
+  | score >= 850 = Diamond
+  | score >= 650 = Gold
+  | score >= 450 = Silver
+  | score >= 250 = Bronze
+  | otherwise = Unrated
+
+-- Get lending parameters for a given tier
+getTierParams : CreditTier -> TierLendingParams
+getTierParams Diamond = TierLendingParams with maxLTV = 0.85; rateDiscount = 0.25; minCollateralRatio = 1.15; liquidationBuffer = 0.05
+getTierParams Gold = TierLendingParams with maxLTV = 0.78; rateDiscount = 0.15; minCollateralRatio = 1.25; liquidationBuffer = 0.08
+getTierParams Silver = TierLendingParams with maxLTV = 0.70; rateDiscount = 0.08; minCollateralRatio = 1.35; liquidationBuffer = 0.10
+getTierParams Bronze = TierLendingParams with maxLTV = 0.60; rateDiscount = 0.00; minCollateralRatio = 1.50; liquidationBuffer = 0.12
+getTierParams Unrated = TierLendingParams with maxLTV = 0.50; rateDiscount = 0.00; minCollateralRatio = 1.75; liquidationBuffer = 0.15
+
+-- Template: CompositeCredit
+-- Stores the composite credit score for a party
+template CompositeCredit
+  with
+    operator : Party
+    owner : Party
+    compositeScore : Int
+    tier : CreditTier
+    layers : ScoreLayer
+    onChainDetail : OnChainBreakdown
+    offChainDetail : OffChainBreakdown
+    ecosystemDetail : EcosystemBreakdown
+    benefits : TierLendingParams
+    lastCalculated : Text
+  where
+    signatory operator, owner
+    key (operator, owner) : (Party, Party)
+    maintainer key._1
+
+    -- Recalculate composite score from all 3 breakdowns
+    choice RecalculateComposite : ContractId CompositeCredit
+      with
+        newOnChain : OnChainBreakdown
+        newOffChain : OffChainBreakdown
+        newEcosystem : EcosystemBreakdown
+        calculationTime : Text
+      controller operator
+      do
+        let rawScore = newOnChain.total + newOffChain.total + newEcosystem.total
+        let cappedScore = min 1000 rawScore
+        let newTier = deriveTier cappedScore
+        let newBenefits = getTierParams newTier
+        let newLayers = ScoreLayer with
+              onChainScore = newOnChain.total
+              onChainMax = 400
+              offChainScore = newOffChain.total
+              offChainMax = 350
+              ecosystemScore = newEcosystem.total
+              ecosystemMax = 250
+        create this with
+          compositeScore = cappedScore
+          tier = newTier
+          layers = newLayers
+          onChainDetail = newOnChain
+          offChainDetail = newOffChain
+          ecosystemDetail = newEcosystem
+          benefits = newBenefits
+          lastCalculated = calculationTime
