@@ -129,6 +129,38 @@ export type {
   PrivacyAuditEntry,
 } from './types/privacy';
 
+// Auth & Onboarding types
+export type {
+  UserRole,
+  AccountStatus,
+  AuthProvider,
+  KYCVerificationStatus,
+  InstitutionalKYBStatus,
+  OnboardingStep,
+  AuthUser,
+  AuthSession,
+  RetailProfileData,
+  InstitutionData,
+  BeneficialOwnerData,
+  ComplianceDocumentData,
+  InstitutionalOnboardingStatus,
+  RegisterRetailRequest,
+  RegisterInstitutionalRequest,
+  LoginEmailRequest,
+  LoginWalletRequest,
+  WalletNonceRequest,
+  WalletNonceResponse,
+  RefreshTokenRequest,
+  VerifyEmailRequest,
+  ForgotPasswordRequest,
+  ResetPasswordRequest,
+  LinkWalletRequest,
+  KYBSubmitRequest,
+  KYBUpdateStepRequest,
+  UBODeclarationRequest,
+  DocumentUploadConfirmRequest,
+} from './types/auth';
+
 // API request types
 export type {
   ListPoolsParams,

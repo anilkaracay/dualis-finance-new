@@ -21,6 +21,11 @@ const envSchema = z.object({
   // Auth
   JWT_SECRET: z.string().default('dev-jwt-secret-change-in-production'),
   JWT_EXPIRES_IN: z.string().default('24h'),
+  JWT_ACCESS_EXPIRES_IN: z.string().default('15m'),
+  JWT_REFRESH_SECRET: z.string().default('dev-refresh-secret-change-in-production'),
+  JWT_REFRESH_EXPIRES_IN: z.string().default('7d'),
+  BCRYPT_ROUNDS: z.coerce.number().default(12),
+  FRONTEND_URL: z.string().default('http://localhost:3000'),
 
   // Rate limiting
   RATE_LIMIT_MAX: z.coerce.number().default(120),

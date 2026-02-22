@@ -39,6 +39,10 @@ import { advancedSecLendingRoutes } from './routes/advancedSecLending.js';
 import { institutionalRoutes } from './routes/institutional.js';
 import { privacyRoutes } from './routes/privacy.js';
 
+// Auth & Onboarding routes
+import { authRoutes } from './routes/auth.js';
+import { onboardingRoutes } from './routes/onboarding.js';
+
 // WebSocket
 import { wsRoutes } from './ws/server.js';
 
@@ -142,6 +146,10 @@ async function main(): Promise<void> {
     await app.register(stakingRoutes);
     await app.register(analyticsRoutes);
     await app.register(adminRoutes);
+
+    // Auth & Onboarding routes
+    await app.register(authRoutes);
+    await app.register(onboardingRoutes);
 
     // Innovation routes
     await app.register(attestationRoutes);

@@ -126,7 +126,7 @@ function Sidebar({ collapsed = false, onToggleCollapse, className }: SidebarProp
     <Tooltip.Provider>
       <aside
         className={cn(
-          'flex flex-col h-full bg-bg-secondary border-r border-border-default transition-all duration-200',
+          'relative flex flex-col h-full bg-bg-secondary border-r border-border-default transition-all duration-200',
           collapsed ? 'w-16' : 'w-60',
           className
         )}
@@ -163,6 +163,16 @@ function Sidebar({ collapsed = false, onToggleCollapse, className }: SidebarProp
             </button>
           )}
         </div>
+
+        {/* Floating expand button — visible only when collapsed */}
+        {collapsed && onToggleCollapse && (
+          <button
+            onClick={onToggleCollapse}
+            className="absolute top-7 -right-3 z-10 flex items-center justify-center h-6 w-6 rounded-full bg-bg-secondary border border-border-default text-text-tertiary hover:text-text-primary hover:bg-bg-hover shadow-sm transition-colors duration-150"
+          >
+            <ChevronLeft className="h-3 w-3 rotate-180" />
+          </button>
+        )}
 
         {/* Navigation sections */}
         <nav className="flex-1 flex flex-col gap-0.5 overflow-y-auto px-2 pb-2">

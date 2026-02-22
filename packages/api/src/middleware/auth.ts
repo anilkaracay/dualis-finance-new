@@ -19,8 +19,11 @@ const log = createChildLogger('auth');
 declare module 'fastify' {
   interface FastifyRequest {
     user?: {
+      userId?: string;
       partyId: string;
       walletAddress?: string;
+      email?: string;
+      role?: string;
       tier?: string;
       isOperator?: boolean;
       isInstitutional?: boolean;
@@ -42,7 +45,10 @@ const OPERATOR_PARTY_ID = 'party::operator::0';
 
 interface JwtPayload {
   sub: string;
+  partyId?: string;
   walletAddress?: string;
+  email?: string;
+  role?: string;
   tier?: string;
   iat?: number;
   exp?: number;
@@ -72,10 +78,13 @@ export async function authMiddleware(
     try {
       const decoded = jwt.verify(token, env.JWT_SECRET) as JwtPayload;
       request.user = {
-        partyId: decoded.sub,
+        userId: decoded.sub,
+        partyId: decoded.partyId ?? decoded.sub,
         ...(decoded.walletAddress !== undefined ? { walletAddress: decoded.walletAddress } : {}),
+        ...(decoded.email !== undefined ? { email: decoded.email } : {}),
+        ...(decoded.role !== undefined ? { role: decoded.role } : {}),
         ...(decoded.tier !== undefined ? { tier: decoded.tier } : {}),
-        isOperator: decoded.sub === OPERATOR_PARTY_ID,
+        isOperator: (decoded.partyId ?? decoded.sub) === OPERATOR_PARTY_ID,
       };
       return;
     } catch (err) {
@@ -234,4 +243,44 @@ export async function privacyMiddleware(
   }
 
   log.debug({ partyId, privacyLevel: config.privacyLevel }, 'Privacy level attached');
+}
+
+// ---------------------------------------------------------------------------
+// Optional auth middleware (does not throw if no token)
+// ---------------------------------------------------------------------------
+
+export async function optionalAuthMiddleware(
+  request: FastifyRequest,
+  _reply: FastifyReply,
+): Promise<void> {
+  const authHeader = request.headers.authorization;
+  if (!authHeader?.startsWith('Bearer ')) return;
+
+  try {
+    const token = authHeader.slice(7);
+    const decoded = jwt.verify(token, env.JWT_SECRET) as JwtPayload;
+    request.user = {
+      userId: decoded.sub,
+      partyId: decoded.partyId ?? decoded.sub,
+      ...(decoded.walletAddress !== undefined ? { walletAddress: decoded.walletAddress } : {}),
+      ...(decoded.email !== undefined ? { email: decoded.email } : {}),
+      ...(decoded.role !== undefined ? { role: decoded.role } : {}),
+      ...(decoded.tier !== undefined ? { tier: decoded.tier } : {}),
+      isOperator: (decoded.partyId ?? decoded.sub) === OPERATOR_PARTY_ID,
+    };
+  } catch {
+    // Silently ignore invalid tokens for optional auth
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Role-based access middleware
+// ---------------------------------------------------------------------------
+
+export function requireRole(...roles: string[]) {
+  return async (request: FastifyRequest, _reply: FastifyReply): Promise<void> => {
+    if (!request.user?.role || !roles.includes(request.user.role)) {
+      throw new AppError('FORBIDDEN', `Access restricted to: ${roles.join(', ')}`, 403);
+    }
+  };
 }

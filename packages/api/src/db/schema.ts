@@ -381,3 +381,169 @@ export const privacyAuditLog = pgTable('privacy_audit_log', {
   reason: text('reason'),
   timestamp: timestamp('timestamp', { withTimezone: true }).defaultNow().notNull(),
 });
+
+// ===========================================================================
+// AUTH & ONBOARDING TABLES
+// ===========================================================================
+
+// ---------------------------------------------------------------------------
+// 24. Users — user accounts (retail + institutional)
+// ---------------------------------------------------------------------------
+export const users = pgTable('users', {
+  id: serial('id').primaryKey(),
+  userId: varchar('user_id', { length: 256 }).notNull().unique(),
+  email: varchar('email', { length: 320 }).notNull().unique(),
+  passwordHash: varchar('password_hash', { length: 256 }),
+  role: varchar('role', { length: 32 }).notNull().default('retail'),
+  accountStatus: varchar('account_status', { length: 32 }).notNull().default('pending_verification'),
+  authProvider: varchar('auth_provider', { length: 32 }).notNull().default('email'),
+  emailVerified: boolean('email_verified').default(false).notNull(),
+  walletAddress: varchar('wallet_address', { length: 256 }).unique(),
+  partyId: varchar('party_id', { length: 256 }).notNull().unique(),
+  displayName: varchar('display_name', { length: 256 }),
+  kycStatus: varchar('kyc_status', { length: 32 }).notNull().default('not_started'),
+  twoFactorEnabled: boolean('two_factor_enabled').default(false).notNull(),
+  lastLoginAt: timestamp('last_login_at', { withTimezone: true }),
+  emailVerifiedAt: timestamp('email_verified_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+// ---------------------------------------------------------------------------
+// 25. Sessions — active user sessions with refresh tokens
+// ---------------------------------------------------------------------------
+export const sessions = pgTable('sessions', {
+  id: serial('id').primaryKey(),
+  sessionId: varchar('session_id', { length: 256 }).notNull().unique(),
+  userId: varchar('user_id', { length: 256 }).notNull(),
+  refreshTokenHash: varchar('refresh_token_hash', { length: 256 }).notNull(),
+  ipAddress: varchar('ip_address', { length: 64 }),
+  userAgent: text('user_agent'),
+  device: varchar('device', { length: 256 }),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  lastActiveAt: timestamp('last_active_at', { withTimezone: true }).defaultNow().notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+// ---------------------------------------------------------------------------
+// 26. Login Events — audit trail of login attempts
+// ---------------------------------------------------------------------------
+export const loginEvents = pgTable('login_events', {
+  id: serial('id').primaryKey(),
+  userId: varchar('user_id', { length: 256 }),
+  email: varchar('email', { length: 320 }),
+  provider: varchar('provider', { length: 32 }).notNull(),
+  success: boolean('success').notNull(),
+  ipAddress: varchar('ip_address', { length: 64 }),
+  userAgent: text('user_agent'),
+  failureReason: varchar('failure_reason', { length: 128 }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+// ---------------------------------------------------------------------------
+// 27. Email Verification Tokens
+// ---------------------------------------------------------------------------
+export const emailVerificationTokens = pgTable('email_verification_tokens', {
+  id: serial('id').primaryKey(),
+  userId: varchar('user_id', { length: 256 }).notNull(),
+  tokenHash: varchar('token_hash', { length: 256 }).notNull().unique(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  usedAt: timestamp('used_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+// ---------------------------------------------------------------------------
+// 28. Password Reset Tokens
+// ---------------------------------------------------------------------------
+export const passwordResetTokens = pgTable('password_reset_tokens', {
+  id: serial('id').primaryKey(),
+  userId: varchar('user_id', { length: 256 }).notNull(),
+  tokenHash: varchar('token_hash', { length: 256 }).notNull().unique(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  usedAt: timestamp('used_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+// ---------------------------------------------------------------------------
+// 29. Wallet Nonces — challenge-response for wallet login
+// ---------------------------------------------------------------------------
+export const walletNonces = pgTable('wallet_nonces', {
+  id: serial('id').primaryKey(),
+  walletAddress: varchar('wallet_address', { length: 256 }).notNull(),
+  nonce: varchar('nonce', { length: 256 }).notNull(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  usedAt: timestamp('used_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+// ---------------------------------------------------------------------------
+// 30. Retail Profiles — retail user profile data
+// ---------------------------------------------------------------------------
+export const retailProfiles = pgTable('retail_profiles', {
+  id: serial('id').primaryKey(),
+  userId: varchar('user_id', { length: 256 }).notNull().unique(),
+  firstName: varchar('first_name', { length: 256 }),
+  lastName: varchar('last_name', { length: 256 }),
+  country: varchar('country', { length: 8 }),
+  onboardingCompleted: boolean('onboarding_completed').default(false).notNull(),
+  metadata: jsonb('metadata').$type<Record<string, unknown>>(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+// ---------------------------------------------------------------------------
+// 31. Institutions — full institution records for KYB
+// ---------------------------------------------------------------------------
+export const institutions = pgTable('institutions', {
+  id: serial('id').primaryKey(),
+  institutionId: varchar('institution_id', { length: 256 }).notNull().unique(),
+  userId: varchar('user_id', { length: 256 }).notNull(),
+  companyName: varchar('company_name', { length: 256 }).notNull(),
+  companyLegalName: varchar('company_legal_name', { length: 256 }),
+  registrationNumber: varchar('registration_number', { length: 128 }),
+  taxId: varchar('tax_id', { length: 128 }),
+  jurisdiction: varchar('jurisdiction', { length: 8 }).notNull(),
+  companyType: varchar('company_type', { length: 64 }),
+  website: varchar('website', { length: 512 }),
+  addressLine1: varchar('address_line_1', { length: 256 }),
+  addressLine2: varchar('address_line_2', { length: 256 }),
+  city: varchar('city', { length: 128 }),
+  state: varchar('state', { length: 128 }),
+  postalCode: varchar('postal_code', { length: 32 }),
+  country: varchar('country', { length: 8 }),
+  repFirstName: varchar('rep_first_name', { length: 256 }).notNull(),
+  repLastName: varchar('rep_last_name', { length: 256 }).notNull(),
+  repTitle: varchar('rep_title', { length: 256 }).notNull(),
+  repEmail: varchar('rep_email', { length: 320 }).notNull(),
+  repPhone: varchar('rep_phone', { length: 32 }),
+  kybStatus: varchar('kyb_status', { length: 32 }).notNull().default('not_started'),
+  onboardingStep: integer('onboarding_step').default(1).notNull(),
+  kybSubmittedAt: timestamp('kyb_submitted_at', { withTimezone: true }),
+  kybApprovedAt: timestamp('kyb_approved_at', { withTimezone: true }),
+  kybReviewNotes: text('kyb_review_notes'),
+  beneficialOwners: jsonb('beneficial_owners').$type<Array<Record<string, unknown>>>().default([]).notNull(),
+  riskProfile: jsonb('risk_profile').$type<Record<string, unknown>>(),
+  apiKeyHash: varchar('api_key_hash', { length: 256 }),
+  apiKeyPrefix: varchar('api_key_prefix', { length: 16 }),
+  customFeeRate: real('custom_fee_rate'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+// ---------------------------------------------------------------------------
+// 32. Compliance Documents — uploaded documents for KYB
+// ---------------------------------------------------------------------------
+export const complianceDocuments = pgTable('compliance_documents', {
+  id: serial('id').primaryKey(),
+  documentId: varchar('document_id', { length: 256 }).notNull().unique(),
+  institutionId: varchar('institution_id', { length: 256 }).notNull(),
+  documentType: varchar('document_type', { length: 64 }).notNull(),
+  fileName: varchar('file_name', { length: 256 }).notNull(),
+  mimeType: varchar('mime_type', { length: 128 }).notNull(),
+  sizeBytes: integer('size_bytes').notNull(),
+  storageKey: varchar('storage_key', { length: 512 }).notNull(),
+  status: varchar('status', { length: 32 }).notNull().default('pending'),
+  reviewNote: text('review_note'),
+  uploadedAt: timestamp('uploaded_at', { withTimezone: true }).defaultNow().notNull(),
+  reviewedAt: timestamp('reviewed_at', { withTimezone: true }),
+});

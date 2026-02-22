@@ -14,6 +14,7 @@ import { useUIStore, resolveTheme, applyTheme } from '@/stores/useUIStore';
 import { useNotificationStore } from '@/stores/useNotificationStore';
 import { useProtocolStore } from '@/stores/useProtocolStore';
 import { useWebSocket } from '@/hooks/useWebSocket';
+import { AuthGuard } from '@/components/auth/AuthGuard';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -45,12 +46,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }, []);
 
   return (
+    <AuthGuard>
     <ToastProvider>
       <div className="flex h-screen overflow-hidden">
         {/* Sidebar — hidden on mobile */}
         <div
           className={cn(
-            'hidden md:flex shrink-0 transition-all duration-200',
+            'hidden md:flex shrink-0 overflow-visible transition-all duration-200',
             ui.sidebarCollapsed ? 'w-16' : 'w-60'
           )}
         >
@@ -104,5 +106,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       <ToastViewport />
     </ToastProvider>
+    </AuthGuard>
   );
 }

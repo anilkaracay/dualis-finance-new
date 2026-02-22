@@ -70,7 +70,7 @@ export function Navbar() {
             Docs
           </a>
           <Link
-            href="/overview"
+            href="/auth"
             className="lp-btn-primary px-5 py-2.5 text-sm font-jakarta inline-flex items-center gap-1"
           >
             Launch App <span className="ml-1">&rarr;</span>
@@ -121,7 +121,7 @@ export function Navbar() {
             ))}
             <ThemeToggle />
             <Link
-              href="/overview"
+              href="/auth"
               className="lp-btn-primary px-8 py-3 text-base font-jakarta mt-4"
               onClick={() => setMobileOpen(false)}
             >

@@ -26,7 +26,7 @@ export function CTASection() {
 
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-12">
           <Link
-            href="/overview"
+            href="/auth"
             className="lp-btn-primary h-14 px-8 text-base font-jakarta inline-flex items-center gap-2"
           >
             Launch Protocol <span>&rarr;</span>

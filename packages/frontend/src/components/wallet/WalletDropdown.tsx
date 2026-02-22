@@ -13,6 +13,7 @@ import { PartyIdDisplay } from './PartyIdDisplay';
 import { CreditTierBadge } from '@/components/data-display/CreditTierBadge';
 import { ConnectButton } from './ConnectButton';
 import { useWalletStore } from '@/stores/useWalletStore';
+import { useAuthStore } from '@/stores/useAuthStore';
 import { Copy, ExternalLink, LogOut } from 'lucide-react';
 
 interface WalletDropdownProps {
@@ -67,9 +68,12 @@ function WalletDropdown({ className }: WalletDropdownProps) {
           View on Explorer
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem destructive onClick={disconnect}>
+        <DropdownMenuItem destructive onClick={() => {
+          disconnect();
+          useAuthStore.getState().logout();
+        }}>
           <LogOut className="h-4 w-4 mr-2" />
-          Disconnect
+          Disconnect & Sign Out
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

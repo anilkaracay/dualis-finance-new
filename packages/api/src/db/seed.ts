@@ -5,6 +5,7 @@
  *
  * Inserts realistic mock data for local development and testing.
  */
+import { createHash } from 'node:crypto';
 import postgres from 'postgres';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import * as schema from './schema.js';
@@ -536,6 +537,161 @@ async function seed(): Promise<void> {
     }
     await db.insert(schema.privacyConfigs).values(privacyRows);
     log(`  Inserted ${privacyRows.length} privacy configs`);
+
+    // -----------------------------------------------------------------------
+    // 20. Demo Auth Users — retail + institutional
+    // -----------------------------------------------------------------------
+    log('Inserting demo auth users...');
+
+    // bcrypt hash of "Demo1234!" — pre-computed to avoid requiring bcrypt in seed
+    // Generated with: await bcrypt.hash('Demo1234!', 12)
+    const demoPasswordHash = '$2b$12$LJ3MFnvB8yVH2O.GRYwT2eVaYGx5l0gFu3cQ3xJh6N8nXn.I9zVDW';
+
+    // Retail demo user
+    await db.insert(schema.users).values({
+      userId: 'user_demo_retail_001',
+      email: 'demo@dualis.finance',
+      passwordHash: demoPasswordHash,
+      role: 'retail',
+      accountStatus: 'active',
+      authProvider: 'email',
+      emailVerified: true,
+      emailVerifiedAt: daysAgo(30),
+      partyId: 'party::alice::1',
+      displayName: 'Alice Demo',
+      kycStatus: 'verified',
+      lastLoginAt: daysAgo(1),
+    }).onConflictDoNothing();
+
+    await db.insert(schema.retailProfiles).values({
+      userId: 'user_demo_retail_001',
+      firstName: 'Alice',
+      lastName: 'Demo',
+      country: 'US',
+      onboardingCompleted: true,
+    }).onConflictDoNothing();
+
+    // Second retail user
+    await db.insert(schema.users).values({
+      userId: 'user_demo_retail_002',
+      email: 'bob@dualis.finance',
+      passwordHash: demoPasswordHash,
+      role: 'retail',
+      accountStatus: 'active',
+      authProvider: 'email',
+      emailVerified: true,
+      emailVerifiedAt: daysAgo(25),
+      partyId: 'party::bob::2',
+      displayName: 'Bob Trader',
+      kycStatus: 'verified',
+      lastLoginAt: daysAgo(2),
+    }).onConflictDoNothing();
+
+    await db.insert(schema.retailProfiles).values({
+      userId: 'user_demo_retail_002',
+      firstName: 'Bob',
+      lastName: 'Trader',
+      country: 'DE',
+      onboardingCompleted: true,
+    }).onConflictDoNothing();
+
+    // Institutional demo user (verified)
+    await db.insert(schema.users).values({
+      userId: 'user_demo_inst_001',
+      email: 'institutional@dualis.finance',
+      passwordHash: demoPasswordHash,
+      role: 'institutional',
+      accountStatus: 'active',
+      authProvider: 'email',
+      emailVerified: true,
+      emailVerifiedAt: daysAgo(60),
+      partyId: 'party::institution-tr-001',
+      displayName: 'Cayvox Capital',
+      kycStatus: 'verified',
+      lastLoginAt: daysAgo(1),
+    }).onConflictDoNothing();
+
+    await db.insert(schema.institutions).values({
+      institutionId: 'inst_demo_001',
+      userId: 'user_demo_inst_001',
+      companyName: 'Cayvox Capital',
+      companyLegalName: 'Cayvox Capital A.S.',
+      registrationNumber: 'TR-MKK-2024-001',
+      taxId: 'TR-1234567890',
+      jurisdiction: 'TR',
+      companyType: 'asset_management',
+      website: 'https://cayvox.capital',
+      addressLine1: 'Levent Mah. Buyukdere Cad. No:1',
+      city: 'Istanbul',
+      country: 'TR',
+      postalCode: '34330',
+      repFirstName: 'Mehmet',
+      repLastName: 'Ozkaya',
+      repTitle: 'Chief Compliance Officer',
+      repEmail: 'compliance@cayvox.capital',
+      repPhone: '+90-212-555-0100',
+      kybStatus: 'verified',
+      onboardingStep: 7,
+      kybSubmittedAt: daysAgo(65),
+      kybApprovedAt: daysAgo(58),
+      beneficialOwners: [
+        { id: 'ubo-001', firstName: 'Mehmet', lastName: 'Ozkaya', ownershipPercent: 60, isPEP: false, idVerified: true },
+        { id: 'ubo-002', firstName: 'Elif', lastName: 'Demir', ownershipPercent: 40, isPEP: false, idVerified: true },
+      ],
+      riskProfile: {
+        riskCategory: 'low',
+        maxSingleExposure: '50000000',
+        maxTotalExposure: '200000000',
+        allowedProducts: ['lending', 'secLending', 'staking'],
+        jurisdictionRules: ['TR', 'EU'],
+      },
+    }).onConflictDoNothing();
+
+    // Institutional user (pending KYB)
+    await db.insert(schema.users).values({
+      userId: 'user_demo_inst_002',
+      email: 'onboarding@cantontrustllc.com',
+      passwordHash: demoPasswordHash,
+      role: 'institutional',
+      accountStatus: 'pending_verification',
+      authProvider: 'email',
+      emailVerified: true,
+      emailVerifiedAt: daysAgo(10),
+      partyId: 'party::institution-us-001',
+      displayName: 'Canton Trust LLC',
+      kycStatus: 'not_started',
+      lastLoginAt: daysAgo(3),
+    }).onConflictDoNothing();
+
+    await db.insert(schema.institutions).values({
+      institutionId: 'inst_demo_002',
+      userId: 'user_demo_inst_002',
+      companyName: 'Canton Trust LLC',
+      companyLegalName: 'Canton Trust LLC',
+      registrationNumber: 'US-SEC-2024-001',
+      jurisdiction: 'US',
+      companyType: 'trust_company',
+      repFirstName: 'Sarah',
+      repLastName: 'Johnson',
+      repTitle: 'Managing Director',
+      repEmail: 'sarah@cantontrustllc.com',
+      kybStatus: 'under_review',
+      onboardingStep: 7,
+      kybSubmittedAt: daysAgo(5),
+    }).onConflictDoNothing();
+
+    // Demo API key for institutional user (sha256 of "dualis_test_key_cayvox_001")
+    const demoApiKeyHash = createHash('sha256').update('dualis_test_key_cayvox_001').digest('hex');
+    await db.insert(schema.apiKeys).values({
+      keyHash: demoApiKeyHash,
+      name: 'Demo API Key',
+      partyId: 'party::institution-tr-001',
+      isActive: true,
+      permissions: ['read', 'trade'],
+    }).onConflictDoNothing();
+
+    log('  Inserted 4 demo users (2 retail + 2 institutional) and 1 demo API key');
+    log('  Demo credentials: demo@dualis.finance / Demo1234!');
 
     // -----------------------------------------------------------------------
     // Done

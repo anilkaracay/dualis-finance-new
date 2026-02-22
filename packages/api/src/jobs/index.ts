@@ -12,6 +12,9 @@ import './creditRecalc.job.js';
 import './analytics.job.js';
 import './cleanup.job.js';
 
+// Auth cleanup
+import './authCleanup.job.js';
+
 // Innovation jobs
 import './compositeScoreRecalc.job.js';
 import './productiveMonitor.job.js';
