@@ -43,6 +43,9 @@ import { privacyRoutes } from './routes/privacy.js';
 import { authRoutes } from './routes/auth.js';
 import { onboardingRoutes } from './routes/onboarding.js';
 
+// Wallet routes
+import { walletRoutes } from './routes/wallet.js';
+
 // WebSocket
 import { wsRoutes } from './ws/server.js';
 
@@ -156,6 +159,9 @@ async function main(): Promise<void> {
     // Auth & Onboarding routes
     await app.register(authRoutes);
     await app.register(onboardingRoutes);
+
+    // Wallet routes
+    await app.register(walletRoutes);
 
     // Innovation routes
     await app.register(attestationRoutes);

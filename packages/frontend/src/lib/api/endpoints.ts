@@ -75,4 +75,15 @@ export const ENDPOINTS = {
   NETTING_EXECUTE: (id: string) => `/sec-lending/netting/${id}/execute`,
   SEC_LENDING_NETTING_EXECUTE: (id: string) => `/sec-lending/netting/${id}/execute`,
   CORPORATE_ACTION_PROCESS: (id: string) => `/sec-lending/corporate-actions/${id}/process`,
+  // Wallet
+  WALLET_CONNECT: '/wallet/connect',
+  WALLET_DISCONNECT: '/wallet/disconnect',
+  WALLET_CONNECTIONS: '/wallet/connections',
+  WALLET_CONNECTION_PRIMARY: (id: string) => `/wallet/connections/${id}/primary`,
+  WALLET_PREFERENCES: '/wallet/preferences',
+  WALLET_TRANSACTION_SUBMIT: '/wallet/transaction/submit',
+  WALLET_TRANSACTION_SIGN: (id: string) => `/wallet/transaction/${id}/sign`,
+  WALLET_TRANSACTION_STATUS: (id: string) => `/wallet/transaction/${id}`,
+  WALLET_TRANSACTIONS: '/wallet/transactions',
+  WALLET_PARTY_MAPPINGS: '/wallet/party-mappings',
 } as const;

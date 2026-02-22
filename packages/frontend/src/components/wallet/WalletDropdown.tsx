@@ -14,14 +14,15 @@ import { CreditTierBadge } from '@/components/data-display/CreditTierBadge';
 import { ConnectButton } from './ConnectButton';
 import { useWalletStore } from '@/stores/useWalletStore';
 import { useAuthStore } from '@/stores/useAuthStore';
-import { Copy, ExternalLink, LogOut } from 'lucide-react';
+import { Copy, ExternalLink, LogOut, Settings, ArrowLeftRight } from 'lucide-react';
 
 interface WalletDropdownProps {
   className?: string;
+  onSettingsClick?: () => void;
 }
 
-function WalletDropdown({ className }: WalletDropdownProps) {
-  const { isConnected, walletAddress, party, creditTier, disconnect } = useWalletStore();
+function WalletDropdown({ className, onSettingsClick }: WalletDropdownProps) {
+  const { isConnected, walletAddress, party, creditTier, connections, disconnect } = useWalletStore();
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async () => {
@@ -66,6 +67,16 @@ function WalletDropdown({ className }: WalletDropdownProps) {
         <DropdownMenuItem>
           <ExternalLink className="h-4 w-4 mr-2 text-text-tertiary" />
           View on Explorer
+        </DropdownMenuItem>
+        {connections.length > 1 && (
+          <DropdownMenuItem>
+            <ArrowLeftRight className="h-4 w-4 mr-2 text-text-tertiary" />
+            Switch Wallet
+          </DropdownMenuItem>
+        )}
+        <DropdownMenuItem onClick={onSettingsClick}>
+          <Settings className="h-4 w-4 mr-2 text-text-tertiary" />
+          Wallet Settings
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem destructive onClick={() => {

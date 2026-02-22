@@ -1,11 +1,12 @@
 'use client';
 
+import { useState } from 'react';
 import { cn } from '@/lib/utils/cn';
 import { Button } from '@/components/ui/Button';
 import { Spinner } from '@/components/ui/Spinner';
 import { WalletAvatar } from './WalletAvatar';
+import { WalletConnectModal } from './WalletConnectModal';
 import { useWalletStore } from '@/stores/useWalletStore';
-import { usePartyLayer } from '@/hooks/usePartyLayer';
 import { Wallet } from 'lucide-react';
 
 interface ConnectButtonProps {
@@ -20,18 +21,10 @@ function formatAddr(addr: string): string {
 
 function ConnectButton({ className, onConnectedClick }: ConnectButtonProps) {
   const { isConnected, isConnecting, walletAddress } = useWalletStore();
-  const { connect } = usePartyLayer();
-  const store = useWalletStore();
+  const [showModal, setShowModal] = useState(false);
 
-  const handleConnect = async () => {
-    store.setConnecting(true);
-    try {
-      const { partyId, address } = await connect('default');
-      store.setConnected(partyId, address, 'default');
-      store.setCreditTier('Gold');
-    } catch {
-      store.setConnecting(false);
-    }
+  const handleConnect = () => {
+    setShowModal(true);
   };
 
   if (isConnecting) {
@@ -59,9 +52,16 @@ function ConnectButton({ className, onConnectedClick }: ConnectButtonProps) {
   }
 
   return (
-    <Button variant="primary" size="sm" icon={<Wallet className="h-4 w-4" />} onClick={handleConnect} className={className}>
-      Connect Wallet
-    </Button>
+    <>
+      <Button variant="primary" size="sm" icon={<Wallet className="h-4 w-4" />} onClick={handleConnect} className={className}>
+        Connect Wallet
+      </Button>
+      <WalletConnectModal
+        open={showModal}
+        onOpenChange={setShowModal}
+        onConnected={() => setShowModal(false)}
+      />
+    </>
   );
 }
 

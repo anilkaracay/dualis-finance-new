@@ -156,3 +156,22 @@ export type {
   UBODeclarationRequest,
   DocumentUploadConfirmRequest,
 } from './auth';
+
+// Wallet & PartyLayer types
+export type {
+  WalletType,
+  CustodyMode,
+  TransactionRoutingMode,
+  TransactionStatus,
+  WalletConnection,
+  PartyMapping,
+  WalletPreferences,
+  CustodialPartyInfo,
+  TransactionLog,
+  ConnectWalletRequest,
+  DisconnectWalletRequest,
+  UpdateWalletPreferencesRequest,
+  SubmitTransactionRequest,
+  SignTransactionRequest,
+  TransactionResult,
+} from './wallet';

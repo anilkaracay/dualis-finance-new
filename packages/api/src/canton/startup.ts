@@ -15,6 +15,7 @@ import { cantonConfig, type CantonConfig } from '../config/canton-env.js';
 import { CantonEnvClient } from './env-client.js';
 import { PartyManager, type PartyVerificationResult } from './party-manager.js';
 import { createTokenBridge, type ITokenBridge } from './token-bridge.js';
+import { getPartyLayerProvider } from './partylayer.js';
 
 const log = createChildLogger('canton-startup');
 
@@ -118,7 +119,12 @@ export async function initializeCanton(): Promise<CantonBootstrapResult> {
     'Token bridge initialized',
   );
 
-  // ── 5. Summary ──────────────────────────────────────────────────────────
+  // ── 5. Initialize PartyLayer provider ───────────────────────────────────
+  const partyLayerProvider = getPartyLayerProvider();
+  const partyLayerHealthy = await partyLayerProvider.isHealthy();
+  log.info({ healthy: partyLayerHealthy }, 'PartyLayer provider initialized');
+
+  // ── 6. Summary ──────────────────────────────────────────────────────────
   const result: CantonBootstrapResult = {
     config,
     client,

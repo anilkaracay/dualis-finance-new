@@ -161,6 +161,25 @@ export type {
   DocumentUploadConfirmRequest,
 } from './types/auth';
 
+// Wallet & PartyLayer types
+export type {
+  WalletType,
+  CustodyMode,
+  TransactionRoutingMode,
+  TransactionStatus,
+  WalletConnection,
+  PartyMapping,
+  WalletPreferences,
+  CustodialPartyInfo,
+  TransactionLog,
+  ConnectWalletRequest,
+  DisconnectWalletRequest,
+  UpdateWalletPreferencesRequest,
+  SubmitTransactionRequest,
+  SignTransactionRequest,
+  TransactionResult,
+} from './types/wallet';
+
 // API request types
 export type {
   ListPoolsParams,

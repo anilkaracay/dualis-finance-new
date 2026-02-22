@@ -1,26 +1,14 @@
 'use client';
 
-import { useState, useCallback } from 'react';
-
-function generateMockPartyId(): string {
-  const chars = 'abcdef0123456789';
-  let id = 'party::';
-  for (let i = 0; i < 16; i++) {
-    id += chars[Math.floor(Math.random() * chars.length)];
-  }
-  return id;
-}
-
-function generateMockAddress(): string {
-  const chars = '0123456789abcdef';
-  let addr = '0x';
-  for (let i = 0; i < 40; i++) {
-    addr += chars[Math.floor(Math.random() * chars.length)];
-  }
-  return addr;
-}
+import { useState, useCallback, useEffect } from 'react';
+import { authApi } from '@/lib/api/auth';
+import { walletApi } from '@/lib/api/wallet';
+import { useWalletStore } from '@/stores/useWalletStore';
+import { useAuthStore } from '@/stores/useAuthStore';
+import type { WalletConnection, TransactionResult, SubmitTransactionRequest } from '@dualis/shared';
 
 interface UsePartyLayerReturn {
+  // Backward-compatible interface
   connect: (walletType: string) => Promise<{ partyId: string; address: string }>;
   disconnect: () => void;
   signTransaction: (command: string) => Promise<{ txHash: string }>;
@@ -28,45 +16,133 @@ interface UsePartyLayerReturn {
   isConnecting: boolean;
   party: string | null;
   walletAddress: string | null;
+
+  // Extended interface
+  connections: WalletConnection[];
+  activeConnection: WalletConnection | null;
+  submitTransaction: (params: SubmitTransactionRequest) => Promise<TransactionResult>;
+  signAndSubmit: (txLogId: string, signature: string) => Promise<TransactionResult>;
+  refreshConnections: () => Promise<void>;
 }
 
-/** Mock PartyLayer hook — will be replaced with real PartyLayer SDK */
+/**
+ * PartyLayer hook — real implementation calling wallet API.
+ * Backward compatible with the old mock interface.
+ */
 export function usePartyLayer(): UsePartyLayerReturn {
-  const [party, setParty] = useState<string | null>(null);
-  const [walletAddress, setWalletAddress] = useState<string | null>(null);
-  const [isConnecting, setIsConnecting] = useState(false);
+  const store = useWalletStore();
+  const authStore = useAuthStore();
+  const [connections, setConnections] = useState<WalletConnection[]>([]);
+  const [activeConnection, setActiveConnection] = useState<WalletConnection | null>(null);
 
-  const connect = useCallback(async (_walletType: string): Promise<{ partyId: string; address: string }> => {
-    setIsConnecting(true);
-    // Simulate connection delay
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-    const partyId = generateMockPartyId();
-    const address = generateMockAddress();
-    setParty(partyId);
-    setWalletAddress(address);
-    setIsConnecting(false);
-    return { partyId, address };
+  const refreshConnections = useCallback(async () => {
+    if (!authStore.isAuthenticated) return;
+    try {
+      const { data } = await walletApi.getConnections();
+      setConnections(data);
+      store.setConnections(data);
+
+      const primary = data.find((c) => c.isPrimary) ?? data[0] ?? null;
+      setActiveConnection(primary);
+      if (primary) {
+        store.setActiveConnectionId(primary.connectionId);
+      }
+    } catch {
+      // Silently fail — user may not have wallet connections yet
+    }
+  }, [authStore.isAuthenticated, store]);
+
+  // Load connections on mount when authenticated
+  useEffect(() => {
+    if (authStore.isAuthenticated) {
+      refreshConnections();
+    }
+  }, [authStore.isAuthenticated, refreshConnections]);
+
+  const connect = useCallback(async (walletType: string): Promise<{ partyId: string; address: string }> => {
+    store.setConnecting(true);
+
+    try {
+      // Step 1: Generate a mock address for the connection flow
+      // In production, this would come from the browser wallet (MetaMask, etc.)
+      const mockAddress = `0x${Array.from({ length: 40 }, () => Math.floor(Math.random() * 16).toString(16)).join('')}`;
+
+      // Step 2: Get a nonce from the auth API
+      const { data: nonceData } = await authApi.getWalletNonce(mockAddress);
+
+      // Step 3: Create a mock signature (in production, wallet would sign)
+      const mockSignature = `0x${Array.from({ length: 130 }, () => Math.floor(Math.random() * 16).toString(16)).join('')}`;
+
+      // Step 4: Connect wallet via API
+      const { data: connection } = await walletApi.connect({
+        walletAddress: mockAddress,
+        walletType: walletType as 'metamask' | 'walletconnect' | 'ledger' | 'custodial' | 'canton-native',
+        signature: mockSignature,
+        nonce: nonceData.nonce,
+      });
+
+      // Step 5: Update stores
+      const partyId = authStore.user?.partyId ?? `party::${mockAddress.slice(0, 12)}`;
+      store.setConnected(partyId, connection.walletAddress, walletType);
+      store.addConnection(connection);
+      store.setActiveConnectionId(connection.connectionId);
+
+      setConnections((prev) => [...prev, connection]);
+      setActiveConnection(connection);
+
+      return { partyId, address: connection.walletAddress };
+    } catch (err) {
+      store.setConnecting(false);
+      throw err;
+    }
+  }, [store, authStore.user]);
+
+  const disconnect = useCallback(async () => {
+    if (activeConnection) {
+      try {
+        await walletApi.disconnect(activeConnection.connectionId);
+        store.removeConnection(activeConnection.connectionId);
+        setConnections((prev) => prev.filter((c) => c.connectionId !== activeConnection.connectionId));
+      } catch {
+        // Continue with local disconnect even if API fails
+      }
+    }
+
+    store.disconnect();
+    setActiveConnection(null);
+  }, [activeConnection, store]);
+
+  const signTransaction = useCallback(async (command: string): Promise<{ txHash: string }> => {
+    const result = await walletApi.submitTransaction({
+      templateId: 'Dualis.Generic:Command',
+      choiceName: 'Execute',
+      argument: { command },
+    });
+    return { txHash: result.data.txHash ?? result.data.transactionLogId };
   }, []);
 
-  const disconnect = useCallback(() => {
-    setParty(null);
-    setWalletAddress(null);
+  const submitTransaction = useCallback(async (params: SubmitTransactionRequest): Promise<TransactionResult> => {
+    const { data } = await walletApi.submitTransaction(params);
+    return data;
   }, []);
 
-  const signTransaction = useCallback(async (_command: string): Promise<{ txHash: string }> => {
-    // Simulate transaction signing delay
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-    const txHash = `tx_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
-    return { txHash };
+  const signAndSubmit = useCallback(async (txLogId: string, signature: string): Promise<TransactionResult> => {
+    const { data } = await walletApi.signTransaction(txLogId, signature);
+    return data;
   }, []);
 
   return {
     connect,
     disconnect,
     signTransaction,
-    isConnected: party !== null,
-    isConnecting,
-    party,
-    walletAddress,
+    isConnected: store.isConnected,
+    isConnecting: store.isConnecting,
+    party: store.party,
+    walletAddress: store.walletAddress,
+    connections,
+    activeConnection,
+    submitTransaction,
+    signAndSubmit,
+    refreshConnections,
   };
 }

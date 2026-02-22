@@ -8,6 +8,8 @@ import { createChildLogger } from '../config/logger.js';
 import { getDb, schema } from '../db/client.js';
 import { AppError } from '../middleware/errorHandler.js';
 import type { AuthUser, AuthSession } from '@dualis/shared';
+import * as walletPreferencesService from './walletPreferences.service.js';
+import * as walletService from './wallet.service.js';
 
 const log = createChildLogger('auth-service');
 
@@ -215,6 +217,13 @@ export async function registerRetail(
     expiresAt: new Date(Date.now() + 24 * 3_600_000), // 24 hours
   });
 
+  // Create default wallet preferences
+  try {
+    await walletPreferencesService.ensureDefaultPreferences(userId);
+  } catch (err) {
+    log.warn({ err, userId }, 'Failed to create default wallet preferences');
+  }
+
   log.info({ userId, email: email.toLowerCase() }, 'Retail user registered');
   log.info({ verificationToken }, 'Email verification token (dev only)');
 
@@ -283,6 +292,13 @@ export async function registerInstitutional(
     tokenHash: hashToken(verificationToken),
     expiresAt: new Date(Date.now() + 24 * 3_600_000),
   });
+
+  // Create default wallet preferences
+  try {
+    await walletPreferencesService.ensureDefaultPreferences(userId);
+  } catch (err) {
+    log.warn({ err, userId }, 'Failed to create default wallet preferences');
+  }
 
   log.info({ userId, email: email.toLowerCase(), institutionId }, 'Institutional user registered');
   log.info({ verificationToken }, 'Email verification token (dev only)');
@@ -420,6 +436,13 @@ export async function loginWithWallet(
     const session = await createSession(userRow.userId, req);
     const user = toAuthUser({ ...userRow, lastLoginAt: new Date() });
 
+    // Ensure wallet connection record exists
+    try {
+      await walletService.ensureWalletConnection(userRow.userId, normalizedAddress, 'canton-native', 'self-custody');
+    } catch (err) {
+      log.warn({ err, userId: userRow.userId }, 'Failed to ensure wallet connection');
+    }
+
     await logLoginEvent(userRow.userId, userRow.email, 'wallet', true, req);
 
     return { ...session, user, isNewUser: false };
@@ -445,6 +468,14 @@ export async function loginWithWallet(
 
   const session = await createSession(userId, req);
   const user = (await getUserById(userId))!;
+
+  // Create wallet infrastructure for new user
+  try {
+    await walletPreferencesService.ensureDefaultPreferences(userId);
+    await walletService.ensureWalletConnection(userId, normalizedAddress, 'canton-native', 'self-custody');
+  } catch (err) {
+    log.warn({ err, userId }, 'Failed to create wallet infrastructure');
+  }
 
   await logLoginEvent(userId, tempEmail, 'wallet', true, req);
   log.info({ userId, walletAddress: normalizedAddress }, 'New wallet user registered');
@@ -683,6 +714,13 @@ export async function linkWallet(
 
   // Link wallet
   await db.update(schema.users).set({ walletAddress: normalizedAddress, updatedAt: new Date() }).where(eq(schema.users.userId, userId));
+
+  // Create wallet connection record for the linked wallet
+  try {
+    await walletService.ensureWalletConnection(userId, normalizedAddress, 'canton-native', 'self-custody');
+  } catch (err) {
+    log.warn({ err, userId }, 'Failed to create wallet connection for linked wallet');
+  }
 
   log.info({ userId, walletAddress: normalizedAddress }, 'Wallet linked');
 

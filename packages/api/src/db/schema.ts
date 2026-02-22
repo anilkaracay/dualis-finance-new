@@ -582,3 +582,86 @@ export const oracleAlerts = pgTable('oracle_alerts', {
   resolvedAt: timestamp('resolved_at', { withTimezone: true }),
   timestamp: timestamp('timestamp', { withTimezone: true }).defaultNow().notNull(),
 });
+
+// ---------------------------------------------------------------------------
+// 35. Wallet Connections — multi-wallet management per user
+// ---------------------------------------------------------------------------
+export const walletConnections = pgTable('wallet_connections', {
+  id: serial('id').primaryKey(),
+  connectionId: varchar('connection_id', { length: 256 }).notNull().unique(),
+  userId: varchar('user_id', { length: 256 }).notNull(),
+  walletAddress: varchar('wallet_address', { length: 256 }).notNull(),
+  walletType: varchar('wallet_type', { length: 32 }).notNull(),
+  custodyMode: varchar('custody_mode', { length: 32 }).notNull().default('self-custody'),
+  isPrimary: boolean('is_primary').default(false).notNull(),
+  label: varchar('label', { length: 128 }),
+  lastActiveAt: timestamp('last_active_at', { withTimezone: true }).defaultNow().notNull(),
+  connectedAt: timestamp('connected_at', { withTimezone: true }).defaultNow().notNull(),
+  disconnectedAt: timestamp('disconnected_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+// ---------------------------------------------------------------------------
+// 36. Party Mappings — user ↔ Canton party associations
+// ---------------------------------------------------------------------------
+export const partyMappings = pgTable('party_mappings', {
+  id: serial('id').primaryKey(),
+  mappingId: varchar('mapping_id', { length: 256 }).notNull().unique(),
+  userId: varchar('user_id', { length: 256 }).notNull(),
+  partyId: varchar('party_id', { length: 256 }).notNull(),
+  walletConnectionId: varchar('wallet_connection_id', { length: 256 }),
+  custodyMode: varchar('custody_mode', { length: 32 }).notNull(),
+  isActive: boolean('is_active').default(true).notNull(),
+  metadata: jsonb('metadata').$type<Record<string, unknown>>(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+// ---------------------------------------------------------------------------
+// 37. Wallet Preferences — per-user signing & routing configuration
+// ---------------------------------------------------------------------------
+export const walletPreferences = pgTable('wallet_preferences', {
+  id: serial('id').primaryKey(),
+  userId: varchar('user_id', { length: 256 }).notNull().unique(),
+  defaultWalletConnectionId: varchar('default_wallet_connection_id', { length: 256 }),
+  signingThreshold: decimal('signing_threshold', { precision: 38, scale: 18 }).default('1000').notNull(),
+  routingMode: varchar('routing_mode', { length: 32 }).notNull().default('auto'),
+  autoDisconnectMinutes: integer('auto_disconnect_minutes').default(30).notNull(),
+  showTransactionConfirm: boolean('show_transaction_confirm').default(true).notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+// ---------------------------------------------------------------------------
+// 38. Custodial Parties — managed Canton parties for institutional users
+// ---------------------------------------------------------------------------
+export const custodialParties = pgTable('custodial_parties', {
+  id: serial('id').primaryKey(),
+  custodialPartyId: varchar('custodial_party_id', { length: 256 }).notNull().unique(),
+  userId: varchar('user_id', { length: 256 }).notNull(),
+  partyId: varchar('party_id', { length: 256 }).notNull(),
+  encryptedKeyRef: varchar('encrypted_key_ref', { length: 512 }),
+  status: varchar('status', { length: 32 }).notNull().default('active'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  revokedAt: timestamp('revoked_at', { withTimezone: true }),
+});
+
+// ---------------------------------------------------------------------------
+// 39. Transaction Logs — all Canton transactions with routing metadata
+// ---------------------------------------------------------------------------
+export const transactionLogs = pgTable('transaction_logs', {
+  id: serial('id').primaryKey(),
+  transactionLogId: varchar('transaction_log_id', { length: 256 }).notNull().unique(),
+  userId: varchar('user_id', { length: 256 }).notNull(),
+  partyId: varchar('party_id', { length: 256 }).notNull(),
+  walletConnectionId: varchar('wallet_connection_id', { length: 256 }),
+  txHash: varchar('tx_hash', { length: 512 }),
+  templateId: varchar('template_id', { length: 256 }),
+  choiceName: varchar('choice_name', { length: 128 }),
+  routingMode: varchar('routing_mode', { length: 32 }).notNull(),
+  status: varchar('status', { length: 32 }).notNull().default('pending'),
+  amountUsd: decimal('amount_usd', { precision: 28, scale: 8 }),
+  errorMessage: text('error_message'),
+  metadata: jsonb('metadata').$type<Record<string, unknown>>(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  confirmedAt: timestamp('confirmed_at', { withTimezone: true }),
+});

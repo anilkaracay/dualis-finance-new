@@ -1,0 +1,321 @@
+// ============================================================================
+// Transaction Router Service — Proxy vs Wallet-Sign Decision Engine
+// ============================================================================
+
+import { eq, desc } from 'drizzle-orm';
+import { nanoid } from 'nanoid';
+import { createChildLogger } from '../config/logger.js';
+import { getDb, schema } from '../db/client.js';
+import { AppError } from '../middleware/errorHandler.js';
+import { getPartyLayerProvider } from '../canton/partylayer.js';
+import * as partyMappingService from './partyMapping.service.js';
+import * as walletPreferencesService from './walletPreferences.service.js';
+import type {
+  TransactionResult,
+  TransactionLog,
+  TransactionRoutingMode,
+} from '@dualis/shared';
+
+const log = createChildLogger('transaction-router-service');
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+function requireDb() {
+  const db = getDb();
+  if (!db) throw new AppError('INTERNAL_ERROR', 'Database not available', 500);
+  return db;
+}
+
+function toTransactionLog(
+  row: typeof schema.transactionLogs.$inferSelect,
+): TransactionLog {
+  return {
+    transactionLogId: row.transactionLogId,
+    userId: row.userId,
+    partyId: row.partyId,
+    walletConnectionId: row.walletConnectionId,
+    txHash: row.txHash,
+    templateId: row.templateId,
+    choiceName: row.choiceName,
+    routingMode: row.routingMode as TransactionRoutingMode,
+    status: row.status as TransactionLog['status'],
+    amountUsd: row.amountUsd,
+    errorMessage: row.errorMessage,
+    createdAt: row.createdAt.toISOString(),
+    confirmedAt: row.confirmedAt?.toISOString() ?? null,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Routing Logic
+// ---------------------------------------------------------------------------
+
+/**
+ * Determine the routing mode based on user preferences and transaction amount.
+ */
+function determineRoutingMode(
+  forceMode: TransactionRoutingMode | undefined,
+  userMode: TransactionRoutingMode,
+  amountUsd: string | undefined,
+  signingThreshold: string,
+): TransactionRoutingMode {
+  // Explicit override
+  if (forceMode && forceMode !== 'auto') return forceMode;
+
+  // If user set an explicit preference (not auto)
+  if (userMode !== 'auto') return userMode;
+
+  // Auto mode: compare amount against threshold
+  if (!amountUsd) return 'proxy'; // No amount specified → proxy
+  const amount = parseFloat(amountUsd);
+  const threshold = parseFloat(signingThreshold);
+  if (isNaN(amount) || isNaN(threshold)) return 'proxy';
+
+  return amount >= threshold ? 'wallet-sign' : 'proxy';
+}
+
+// ---------------------------------------------------------------------------
+// Service Functions
+// ---------------------------------------------------------------------------
+
+/**
+ * Route a transaction: either submit via proxy or prepare for wallet signing.
+ */
+export async function routeTransaction(
+  userId: string,
+  params: {
+    templateId: string;
+    choiceName: string;
+    argument: Record<string, unknown>;
+    contractId?: string;
+    walletConnectionId?: string;
+    forceRoutingMode?: TransactionRoutingMode;
+    amountUsd?: string;
+  },
+): Promise<TransactionResult> {
+  const db = requireDb();
+  const provider = getPartyLayerProvider();
+
+  // Load user preferences
+  const prefs = await walletPreferencesService.getPreferences(userId);
+
+  // Resolve party
+  const partyId = await partyMappingService.resolvePartyId(userId);
+
+  // Determine routing
+  const routingMode = determineRoutingMode(
+    params.forceRoutingMode,
+    prefs.routingMode as TransactionRoutingMode,
+    params.amountUsd,
+    prefs.signingThreshold,
+  );
+
+  const txLogId = `txl_${nanoid(16)}`;
+
+  if (routingMode === 'proxy') {
+    // Server-side submission
+    try {
+      const cmdParams: import('../canton/partylayer-provider.js').CommandParams = {
+        actAs: partyId,
+        templateId: params.templateId,
+        choice: params.choiceName,
+        argument: params.argument,
+      };
+      if (params.contractId != null) cmdParams.contractId = params.contractId;
+
+      const result = await provider.submitCommand(cmdParams);
+
+      // Create transaction log with submitted status
+      await db.insert(schema.transactionLogs).values({
+        transactionLogId: txLogId,
+        userId,
+        partyId,
+        walletConnectionId: params.walletConnectionId ?? null,
+        txHash: result.transactionId,
+        templateId: params.templateId,
+        choiceName: params.choiceName,
+        routingMode: 'proxy',
+        status: 'submitted',
+        amountUsd: params.amountUsd ?? null,
+      });
+
+      log.info({ txLogId, routingMode: 'proxy', partyId }, 'Transaction submitted via proxy');
+
+      return {
+        transactionLogId: txLogId,
+        txHash: result.transactionId,
+        status: 'submitted',
+        routingMode: 'proxy',
+        requiresWalletSign: false,
+      };
+    } catch (err) {
+      // Log failure
+      await db.insert(schema.transactionLogs).values({
+        transactionLogId: txLogId,
+        userId,
+        partyId,
+        walletConnectionId: params.walletConnectionId ?? null,
+        templateId: params.templateId,
+        choiceName: params.choiceName,
+        routingMode: 'proxy',
+        status: 'failed',
+        amountUsd: params.amountUsd ?? null,
+        errorMessage: err instanceof Error ? err.message : 'Unknown error',
+      });
+
+      throw new AppError(
+        'CANTON_ERROR',
+        'Transaction submission failed',
+        500,
+        { originalError: err instanceof Error ? err.message : 'Unknown' },
+      );
+    }
+  }
+
+  // Wallet-sign mode: prepare payload for client signing
+  const signCmdParams: import('../canton/partylayer-provider.js').CommandParams = {
+    actAs: partyId,
+    templateId: params.templateId,
+    choice: params.choiceName,
+    argument: params.argument,
+  };
+  if (params.contractId != null) signCmdParams.contractId = params.contractId;
+
+  const { payload, expiresAt } = await provider.prepareSigningPayload(signCmdParams);
+
+  // Create transaction log with pending status
+  await db.insert(schema.transactionLogs).values({
+    transactionLogId: txLogId,
+    userId,
+    partyId,
+    walletConnectionId: params.walletConnectionId ?? null,
+    templateId: params.templateId,
+    choiceName: params.choiceName,
+    routingMode: 'wallet-sign',
+    status: 'pending',
+    amountUsd: params.amountUsd ?? null,
+    metadata: { signingPayload: payload, expiresAt },
+  });
+
+  log.info({ txLogId, routingMode: 'wallet-sign', partyId }, 'Transaction pending wallet signature');
+
+  return {
+    transactionLogId: txLogId,
+    txHash: null,
+    status: 'pending',
+    routingMode: 'wallet-sign',
+    requiresWalletSign: true,
+    signingPayload: payload,
+  };
+}
+
+/**
+ * Submit a wallet-signed transaction.
+ */
+export async function submitSignedTransaction(
+  transactionLogId: string,
+  signature: string,
+): Promise<TransactionResult> {
+  const db = requireDb();
+  const provider = getPartyLayerProvider();
+
+  // Load the pending transaction
+  const txRows = await db
+    .select()
+    .from(schema.transactionLogs)
+    .where(eq(schema.transactionLogs.transactionLogId, transactionLogId))
+    .limit(1);
+
+  const tx = txRows[0];
+  if (!tx) {
+    throw new AppError('NOT_FOUND', 'Transaction not found', 404);
+  }
+
+  if (tx.status !== 'pending') {
+    throw new AppError('VALIDATION_ERROR', `Transaction is not pending (status: ${tx.status})`, 400);
+  }
+
+  const metadata = tx.metadata as Record<string, unknown> | null;
+  const payload = metadata?.signingPayload as string | undefined;
+  if (!payload) {
+    throw new AppError('INTERNAL_ERROR', 'Signing payload not found', 500);
+  }
+
+  try {
+    const result = await provider.submitSignedPayload(payload, signature);
+
+    await db
+      .update(schema.transactionLogs)
+      .set({
+        txHash: result.transactionId,
+        status: 'submitted',
+        confirmedAt: new Date(),
+      })
+      .where(eq(schema.transactionLogs.transactionLogId, transactionLogId));
+
+    log.info({ transactionLogId }, 'Signed transaction submitted');
+
+    return {
+      transactionLogId,
+      txHash: result.transactionId,
+      status: 'submitted',
+      routingMode: tx.routingMode as TransactionRoutingMode,
+      requiresWalletSign: false,
+    };
+  } catch (err) {
+    await db
+      .update(schema.transactionLogs)
+      .set({
+        status: 'failed',
+        errorMessage: err instanceof Error ? err.message : 'Signing submission failed',
+      })
+      .where(eq(schema.transactionLogs.transactionLogId, transactionLogId));
+
+    throw new AppError('CANTON_ERROR', 'Signed transaction submission failed', 500);
+  }
+}
+
+/**
+ * Get the status of a specific transaction.
+ */
+export async function getTransactionStatus(
+  transactionLogId: string,
+): Promise<TransactionLog> {
+  const db = requireDb();
+
+  const rows = await db
+    .select()
+    .from(schema.transactionLogs)
+    .where(eq(schema.transactionLogs.transactionLogId, transactionLogId))
+    .limit(1);
+
+  const row = rows[0];
+  if (!row) {
+    throw new AppError('NOT_FOUND', 'Transaction not found', 404);
+  }
+
+  return toTransactionLog(row);
+}
+
+/**
+ * Get transaction history for a user.
+ */
+export async function getUserTransactions(
+  userId: string,
+  limit = 50,
+  offset = 0,
+): Promise<TransactionLog[]> {
+  const db = requireDb();
+
+  const rows = await db
+    .select()
+    .from(schema.transactionLogs)
+    .where(eq(schema.transactionLogs.userId, userId))
+    .orderBy(desc(schema.transactionLogs.createdAt))
+    .limit(limit)
+    .offset(offset);
+
+  return rows.map(toTransactionLog);
+}
