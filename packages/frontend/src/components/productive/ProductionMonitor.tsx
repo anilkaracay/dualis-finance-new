@@ -138,7 +138,7 @@ function ProductionMonitor({ readings, expectedDaily }: ProductionMonitorProps) 
               )}
 
               {/* Tooltip */}
-              <div className="absolute bottom-full mb-2 hidden group-hover:block z-20 bg-surface-card border border-border-default rounded-lg shadow-lg p-2 min-w-[120px] pointer-events-none">
+              <div className="absolute bottom-full mb-2 hidden group-hover:block z-20 bg-bg-tertiary border border-border-default rounded-lg shadow-lg p-2 min-w-[120px] pointer-events-none">
                 <div className="text-[10px] text-text-tertiary">{formatDate(day.date)}</div>
                 <div className="text-xs font-semibold text-text-primary">
                   {day.totalValue.toLocaleString()} {unit}

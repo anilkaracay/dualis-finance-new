@@ -129,7 +129,7 @@ function CashflowTimeline({ cashflows, gracePeriodEnd }: CashflowTimelineProps) 
 
                 {/* Tooltip on hover */}
                 {isHovered && (
-                  <div className="absolute top-full mt-2 z-20 bg-surface-card border border-border-default rounded-lg shadow-lg p-3 min-w-[160px] pointer-events-none">
+                  <div className="absolute top-full mt-2 z-20 bg-bg-tertiary border border-border-default rounded-lg shadow-lg p-3 min-w-[160px] pointer-events-none">
                     <div className="text-xs font-semibold text-text-primary mb-1.5">
                       {new Date(entry.expectedDate).toLocaleDateString('en-US', {
                         month: 'long',

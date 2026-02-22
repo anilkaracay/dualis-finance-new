@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils/cn';
-import { LayoutDashboard, TrendingUp, Wallet, Handshake, MoreHorizontal } from 'lucide-react';
+import { LayoutDashboard, BarChart3, ArrowDownToLine, PieChart, MoreHorizontal } from 'lucide-react';
 
 interface MobileNavProps {
   className?: string | undefined;
@@ -11,9 +11,9 @@ interface MobileNavProps {
 
 const tabs = [
   { href: '/overview', icon: LayoutDashboard, label: 'Dashboard' },
-  { href: '/markets', icon: TrendingUp, label: 'Markets' },
-  { href: '/borrow', icon: Wallet, label: 'Borrow' },
-  { href: '/sec-lending', icon: Handshake, label: 'Lending' },
+  { href: '/markets', icon: BarChart3, label: 'Markets' },
+  { href: '/borrow', icon: ArrowDownToLine, label: 'Borrow' },
+  { href: '/portfolio', icon: PieChart, label: 'Portfolio' },
   { href: '/more', icon: MoreHorizontal, label: 'More' },
 ] as const;
 
@@ -28,7 +28,7 @@ function MobileNav({ className }: MobileNavProps) {
   return (
     <nav
       className={cn(
-        'fixed bottom-0 left-0 right-0 z-50 flex items-center justify-around h-14 bg-bg-secondary border-t border-border-default md:hidden',
+        'fixed bottom-0 left-0 right-0 z-50 flex items-center justify-around h-14 bg-bg-secondary/95 backdrop-blur-md border-t border-border-default md:hidden',
         'pb-[env(safe-area-inset-bottom)]',
         className
       )}
@@ -40,11 +40,11 @@ function MobileNav({ className }: MobileNavProps) {
             key={tab.href}
             href={tab.href}
             className={cn(
-              'flex flex-col items-center gap-0.5 px-3 py-1.5 text-[9px] font-medium transition-colors',
+              'flex flex-col items-center gap-0.5 px-3 py-2 text-[10px] font-medium transition-colors duration-150',
               active ? 'text-accent-teal' : 'text-text-tertiary'
             )}
           >
-            <tab.icon className={cn('h-[18px] w-[18px]', active && 'text-accent-teal')} />
+            <tab.icon className="h-[18px] w-[18px]" strokeWidth={1.5} />
             <span>{tab.label}</span>
           </Link>
         );

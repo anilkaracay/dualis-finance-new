@@ -221,7 +221,7 @@ function DisclosureManager({ rules, onAdd, onRemove, loading = false }: Disclosu
                   value={dataScope}
                   onChange={(e) => setDataScope(e.target.value as DataScope)}
                   className={cn(
-                    'h-9 w-full rounded-md bg-surface-input border border-border-default text-sm text-text-primary',
+                    'h-9 w-full rounded-md bg-bg-tertiary border border-border-default text-sm text-text-primary',
                     'px-3 transition-colors duration-100 focus-ring focus:border-border-focus',
                   )}
                 >

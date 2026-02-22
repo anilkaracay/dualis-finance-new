@@ -371,7 +371,7 @@ function ResultsCard({ votes }: { votes: VoteTally }) {
 
 function RecentVotesTable({ votes }: { votes: RecentVote[] }) {
   return (
-    <div className="overflow-x-auto rounded-md border border-border-default bg-surface-card">
+    <div className="overflow-x-auto rounded-md border border-border-default bg-bg-tertiary">
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-border-default">
@@ -454,7 +454,7 @@ export default function ProposalDetailPage() {
 
       {/* Title + Badges */}
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
-        <h1 className="text-lg font-medium text-text-primary">{proposal.title}</h1>
+        <h1 className="text-xl font-semibold text-text-primary tracking-tight">{proposal.title}</h1>
         <div className="flex items-center gap-2">
           <Badge variant={proposal.categoryVariant} size="sm">{proposal.category}</Badge>
           <Badge variant={statusVariant} size="sm">{statusLabel}</Badge>

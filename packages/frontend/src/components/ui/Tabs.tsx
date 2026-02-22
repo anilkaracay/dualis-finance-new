@@ -39,18 +39,11 @@ const TabsTrigger = React.forwardRef<
     <TabsPrimitive.Trigger
       ref={ref}
       className={cn(
-        'inline-flex items-center justify-center whitespace-nowrap px-3 py-2 text-sm font-medium transition-all',
+        'inline-flex items-center justify-center whitespace-nowrap px-3 py-2 text-sm font-medium transition-colors duration-150',
         'text-text-tertiary hover:text-text-primary focus-ring',
         'disabled:pointer-events-none disabled:opacity-50',
-        // Underline variant (default)
-        'data-[state=active]:text-accent-teal',
-        'group-data-[variant=underline]:border-b-2 group-data-[variant=underline]:border-transparent',
-        'group-data-[variant=underline]:data-[state=active]:border-accent-teal',
-        // Pill variant
-        'group-data-[variant=pill]:rounded-sm',
-        'group-data-[variant=pill]:data-[state=active]:bg-bg-tertiary group-data-[variant=pill]:data-[state=active]:text-text-primary',
-        // Simplified: just use direct styles for both variants
-        'data-[state=active]:text-accent-teal border-b-2 border-transparent data-[state=active]:border-accent-teal -mb-px',
+        'border-b-2 border-transparent -mb-px',
+        'data-[state=active]:text-text-primary data-[state=active]:border-accent-teal',
         className
       )}
       {...props}

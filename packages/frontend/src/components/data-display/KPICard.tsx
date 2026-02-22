@@ -26,9 +26,9 @@ interface KPICardProps {
 }
 
 const sizeConfig: Record<KPISize, { valueClass: string }> = {
-  sm: { valueClass: 'text-2xl' },
-  md: { valueClass: 'text-4xl' },
-  lg: { valueClass: 'text-5xl' },
+  sm: { valueClass: 'text-xl' },
+  md: { valueClass: 'text-3xl' },
+  lg: { valueClass: 'text-4xl' },
 };
 
 function KPICard({
@@ -51,7 +51,7 @@ function KPICard({
 
   if (loading) {
     return (
-      <div className={cn('rounded-lg bg-surface-card border border-border-default p-5', className)}>
+      <div className={cn('rounded-md bg-bg-tertiary border border-border-default p-5', className)}>
         <Skeleton variant="rect" height={10} width="35%" />
         <Skeleton variant="rect" height={size === 'lg' ? 44 : 32} width="65%" className="mt-3" />
         <Skeleton variant="rect" height={14} width="45%" className="mt-3" />
@@ -64,12 +64,12 @@ function KPICard({
 
   return (
     <div className={cn(
-      'rounded-lg bg-surface-card border border-border-default p-5 transition-all duration-200 hover:border-border-hover',
+      'rounded-md bg-bg-tertiary border border-border-default p-5 transition-all duration-150 hover:border-border-medium',
       className
     )}>
-      <span className="text-label">{label}</span>
+      <span className="text-[11px] font-semibold uppercase tracking-widest text-text-tertiary">{label}</span>
 
-      <div className={cn('text-kpi mt-2', config.valueClass)}>
+      <div className={cn('font-mono font-medium text-text-primary mt-2', config.valueClass)}>
         {prefix}{formattedValue}{suffix}
       </div>
 

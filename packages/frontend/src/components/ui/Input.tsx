@@ -37,12 +37,12 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
             id={inputId}
             disabled={disabled}
             className={cn(
-              'h-9 w-full rounded-md bg-surface-input border text-sm text-text-primary placeholder:text-text-disabled',
-              'transition-colors duration-100 focus-ring',
+              'h-11 w-full rounded-md bg-bg-tertiary border text-sm text-text-primary placeholder:text-text-disabled',
+              'transition-colors duration-150 focus-ring',
               'disabled:opacity-50 disabled:cursor-not-allowed',
               error
                 ? 'border-border-error focus:border-border-error'
-                : 'border-border-default focus:border-border-focus',
+                : 'border-border-medium focus:border-border-strong focus:shadow-glow-teal-sm',
               iconLeft ? 'pl-10' : 'pl-3',
               iconRight ? 'pr-10' : 'pr-3',
               className

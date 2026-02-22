@@ -20,7 +20,7 @@ export default function InstitutionalOnboardPage() {
       </Link>
 
       {/* Header */}
-      <h1 className="text-lg font-medium text-text-primary">
+      <h1 className="text-xl font-semibold text-text-primary tracking-tight">
         Institutional Onboarding
       </h1>
 

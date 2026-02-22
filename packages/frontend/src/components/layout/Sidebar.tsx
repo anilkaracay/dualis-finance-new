@@ -5,42 +5,116 @@ import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils/cn';
 import {
   LayoutDashboard,
-  TrendingUp,
-  Wallet,
-  Handshake,
-  Star,
-  Landmark,
+  BarChart3,
+  ArrowDownToLine,
+  Shield,
+  CreditCard,
+  Vote,
   Coins,
   PieChart,
-  Factory,
-  Building2,
+  Settings,
+  BookOpen,
+  ChevronLeft,
 } from 'lucide-react';
+import * as Tooltip from '@radix-ui/react-tooltip';
 
 interface SidebarProps {
   collapsed?: boolean | undefined;
+  onToggleCollapse?: (() => void) | undefined;
   className?: string | undefined;
 }
 
-const navItems = [
-  { href: '/overview', icon: LayoutDashboard, label: 'Dashboard' },
-  { href: '/markets', icon: TrendingUp, label: 'Markets' },
-  { href: '/borrow', icon: Wallet, label: 'Borrow' },
-  { href: '/productive', icon: Factory, label: 'Productive' },
-  { href: '/sec-lending', icon: Handshake, label: 'Sec Lending' },
-  { href: '/credit', icon: Star, label: 'Credit Score' },
-  { href: '/governance', icon: Landmark, label: 'Governance' },
-  { href: '/staking', icon: Coins, label: 'Staking' },
-  { href: '/portfolio', icon: PieChart, label: 'Portfolio' },
-  { href: '/institutional', icon: Building2, label: 'Institutional' },
-] as const;
+interface NavSection {
+  label: string;
+  items: readonly NavItem[];
+}
 
-const bottomLinks = [
-  { href: '/settings', label: 'Settings' },
-  { href: '/docs', label: 'Docs' },
-  { href: '/support', label: 'Support' },
-] as const;
+interface NavItem {
+  href: string;
+  icon: React.ElementType;
+  label: string;
+}
 
-function Sidebar({ collapsed = false, className }: SidebarProps) {
+const navSections: readonly NavSection[] = [
+  {
+    label: 'PROTOCOL',
+    items: [
+      { href: '/overview', icon: LayoutDashboard, label: 'Dashboard' },
+      { href: '/markets', icon: BarChart3, label: 'Markets' },
+      { href: '/borrow', icon: ArrowDownToLine, label: 'Borrow' },
+      { href: '/sec-lending', icon: Shield, label: 'Securities Lending' },
+      { href: '/credit', icon: CreditCard, label: 'Credit' },
+    ],
+  },
+  {
+    label: 'GOVERNANCE',
+    items: [
+      { href: '/governance', icon: Vote, label: 'Governance' },
+      { href: '/staking', icon: Coins, label: 'Staking' },
+    ],
+  },
+  {
+    label: 'ACCOUNT',
+    items: [
+      { href: '/portfolio', icon: PieChart, label: 'Portfolio' },
+      { href: '/settings', icon: Settings, label: 'Settings' },
+    ],
+  },
+];
+
+function NavItemLink({
+  item,
+  active,
+  collapsed,
+}: {
+  item: NavItem;
+  active: boolean;
+  collapsed: boolean;
+}) {
+  const content = (
+    <Link
+      href={item.href}
+      className={cn(
+        'flex items-center gap-2 h-9 rounded-sm text-[13px] font-medium transition-colors duration-150',
+        collapsed ? 'justify-center w-10 mx-auto' : 'px-3',
+        active
+          ? 'bg-accent-teal-subtle text-accent-teal font-semibold'
+          : 'text-text-secondary hover:text-text-primary hover:bg-bg-hover'
+      )}
+    >
+      <item.icon
+        className={cn(
+          'h-[18px] w-[18px] shrink-0',
+          active ? 'text-accent-teal' : 'text-text-tertiary'
+        )}
+        strokeWidth={1.5}
+      />
+      {!collapsed && <span>{item.label}</span>}
+    </Link>
+  );
+
+  if (collapsed) {
+    return (
+      <Tooltip.Root delayDuration={200}>
+        <Tooltip.Trigger asChild>{content}</Tooltip.Trigger>
+        <Tooltip.Portal>
+          <Tooltip.Content
+            side="right"
+            sideOffset={8}
+            className="z-50 rounded-sm bg-bg-elevated border border-border-default px-3 py-1.5 text-xs text-text-secondary shadow-md"
+          >
+            {item.label}
+            <Tooltip.Arrow className="fill-bg-elevated" />
+          </Tooltip.Content>
+        </Tooltip.Portal>
+      </Tooltip.Root>
+    );
+  }
+
+  return content;
+}
+
+function Sidebar({ collapsed = false, onToggleCollapse, className }: SidebarProps) {
   const pathname = usePathname();
 
   const isActive = (href: string) => {
@@ -49,78 +123,114 @@ function Sidebar({ collapsed = false, className }: SidebarProps) {
   };
 
   return (
-    <aside
-      className={cn(
-        'flex flex-col h-full bg-bg-primary border-r border-border-subtle transition-all duration-300',
-        collapsed ? 'w-[56px]' : 'w-[240px]',
-        className
-      )}
-    >
-      {/* Logo */}
-      <div className={cn('flex items-center h-14 px-3', collapsed && 'justify-center')}>
-        <Link href="/" className="flex items-center gap-2">
-          <span className="flex items-center justify-center h-6 w-6 rounded-full bg-accent-teal text-white text-xs font-bold shrink-0">
-            D
-          </span>
-          {!collapsed && (
-            <span className="text-text-primary font-semibold text-sm tracking-wide">
-              DUALIS
-            </span>
+    <Tooltip.Provider>
+      <aside
+        className={cn(
+          'flex flex-col h-full bg-bg-secondary border-r border-border-default transition-all duration-200',
+          collapsed ? 'w-16' : 'w-60',
+          className
+        )}
+      >
+        {/* Logo area — aligned with topbar height (56px) */}
+        <div
+          className={cn(
+            'flex items-center h-14 shrink-0',
+            collapsed ? 'justify-center px-2' : 'justify-between px-3'
           )}
-        </Link>
-      </div>
+        >
+          <Link href="/" className="flex items-center gap-2">
+            {collapsed ? (
+              <span className="flex items-center justify-center h-8 w-8 rounded-md bg-accent-teal text-white text-xs font-bold">
+                D
+              </span>
+            ) : (
+              <div className="flex flex-col">
+                <span className="text-text-primary font-bold text-[16px] tracking-wide leading-none">
+                  DUALIS
+                </span>
+                <span className="text-text-tertiary font-light text-[9px] tracking-[0.2em] leading-none mt-0.5">
+                  FINANCE
+                </span>
+              </div>
+            )}
+          </Link>
+          {!collapsed && onToggleCollapse && (
+            <button
+              onClick={onToggleCollapse}
+              className="flex items-center justify-center h-7 w-7 rounded-sm text-text-tertiary hover:text-text-primary hover:bg-bg-hover transition-colors duration-150"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+          )}
+        </div>
 
-      {/* Main Navigation */}
-      <nav className="flex-1 flex flex-col gap-0.5 p-2 overflow-y-auto">
-        {navItems.map((item) => {
-          const active = isActive(item.href);
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={cn(
-                'flex items-center gap-3 h-9 rounded-sm text-sm font-medium transition-colors relative',
-                collapsed ? 'justify-center px-2' : 'px-3',
-                active
-                  ? 'text-text-primary bg-accent-teal-muted/40 border-l-2 border-accent-teal'
-                  : 'text-text-secondary hover:text-text-primary hover:bg-bg-hover border-l-2 border-transparent'
+        {/* Navigation sections */}
+        <nav className="flex-1 flex flex-col gap-0.5 overflow-y-auto px-2 pb-2">
+          {navSections.map((section) => (
+            <div key={section.label} className="mt-4 first:mt-2">
+              {!collapsed && (
+                <div className="px-3 pb-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-text-disabled select-none">
+                  {section.label}
+                </div>
               )}
-            >
-              <item.icon className={cn('h-[18px] w-[18px] shrink-0', active && 'text-accent-teal')} />
-              {!collapsed && <span>{item.label}</span>}
-            </Link>
-          );
-        })}
-      </nav>
+              {collapsed && <div className="mx-3 border-t border-border-subtle my-2" />}
 
-      {/* Divider */}
-      <div className="mx-3 border-t border-border-subtle" />
-
-      {/* Bottom — text-xs links only, no icons */}
-      {!collapsed && (
-        <div className="flex flex-col gap-1 p-3">
-          {bottomLinks.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className="text-xs text-text-tertiary hover:text-text-secondary transition-colors py-0.5"
-            >
-              {item.label}
-            </Link>
+              <div className="flex flex-col gap-0.5">
+                {section.items.map((item) => (
+                  <NavItemLink
+                    key={item.href}
+                    item={item}
+                    active={isActive(item.href)}
+                    collapsed={collapsed}
+                  />
+                ))}
+              </div>
+            </div>
           ))}
-        </div>
-      )}
+        </nav>
 
-      {/* Footer — Network badge */}
-      {!collapsed && (
-        <div className="px-3 py-2 border-t border-border-subtle">
-          <div className="flex items-center gap-1.5 text-xs text-text-tertiary">
-            <span className="h-1.5 w-1.5 rounded-full bg-positive shrink-0" />
-            <span>Canton MainNet</span>
-          </div>
+        {/* Bottom section */}
+        <div className="border-t border-border-default">
+          {!collapsed ? (
+            <div className="flex flex-col gap-1 px-3 py-3">
+              <Link
+                href="/docs"
+                className="flex items-center gap-2 text-xs text-text-tertiary hover:text-text-secondary transition-colors duration-150 py-0.5"
+              >
+                <BookOpen className="h-3.5 w-3.5" />
+                <span>Help & Docs</span>
+              </Link>
+              <span className="font-mono text-[10px] text-text-disabled mt-1">
+                v1.0.0
+              </span>
+            </div>
+          ) : (
+            <div className="flex justify-center py-3">
+              <Tooltip.Root delayDuration={200}>
+                <Tooltip.Trigger asChild>
+                  <Link
+                    href="/docs"
+                    className="flex items-center justify-center h-8 w-8 text-text-tertiary hover:text-text-secondary transition-colors duration-150"
+                  >
+                    <BookOpen className="h-4 w-4" />
+                  </Link>
+                </Tooltip.Trigger>
+                <Tooltip.Portal>
+                  <Tooltip.Content
+                    side="right"
+                    sideOffset={8}
+                    className="z-50 rounded-sm bg-bg-elevated border border-border-default px-3 py-1.5 text-xs text-text-secondary shadow-md"
+                  >
+                    Help & Docs
+                    <Tooltip.Arrow className="fill-bg-elevated" />
+                  </Tooltip.Content>
+                </Tooltip.Portal>
+              </Tooltip.Root>
+            </div>
+          )}
         </div>
-      )}
-    </aside>
+      </aside>
+    </Tooltip.Provider>
   );
 }
 

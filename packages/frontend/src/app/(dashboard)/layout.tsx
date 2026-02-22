@@ -50,11 +50,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         {/* Sidebar — hidden on mobile */}
         <div
           className={cn(
-            'hidden md:flex shrink-0 transition-all duration-300',
-            ui.sidebarCollapsed ? 'w-[56px]' : 'w-[240px]'
+            'hidden md:flex shrink-0 transition-all duration-200',
+            ui.sidebarCollapsed ? 'w-16' : 'w-60'
           )}
         >
-          <Sidebar collapsed={ui.sidebarCollapsed} />
+          <Sidebar
+            collapsed={ui.sidebarCollapsed}
+            onToggleCollapse={ui.toggleSidebar}
+          />
         </div>
 
         {/* Main area */}
@@ -69,7 +72,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           />
 
           <main className="flex-1 overflow-y-auto bg-bg-primary pb-20 md:pb-0">
-            <div className="mx-auto max-w-[1440px] px-4 py-6 md:px-6 md:py-8">
+            <div className="mx-auto max-w-[1400px] px-4 py-6 md:px-8 md:py-8">
               {children}
             </div>
           </main>

@@ -250,7 +250,7 @@ function PastProposalRow({ proposal }: { proposal: Proposal }) {
   const statusLabel = proposal.status === 'executed' ? 'Executed' : proposal.status === 'passed' ? 'Passed' : 'Rejected';
 
   return (
-    <div className="flex items-center justify-between rounded-lg border border-border-default bg-surface-card px-5 py-4 hover:bg-bg-hover/50 transition-colors">
+    <div className="flex items-center justify-between rounded-md border border-border-default bg-bg-tertiary px-5 py-4 hover:bg-bg-hover/50 transition-colors">
       <div className="flex flex-col gap-1">
         <div className="flex items-center gap-2">
           <h4 className="text-sm font-medium text-text-primary">{proposal.title}</h4>
@@ -281,7 +281,7 @@ export default function GovernancePage() {
     <div className="space-y-8">
       {/* Header */}
       <div>
-        <h1 className="text-lg font-medium text-text-primary">Governance</h1>
+        <h1 className="text-xl font-semibold text-text-primary tracking-tight">Governance</h1>
         <p className="mt-1 text-sm text-text-tertiary">DIP Proposals</p>
       </div>
 

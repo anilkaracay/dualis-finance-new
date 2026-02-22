@@ -1,6 +1,7 @@
 'use client';
 
 import { useRef, useEffect } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { HERO, TRUST_PARTNERS } from '@/lib/landing-data';
 import { GradientText } from './shared/GradientText';
@@ -50,7 +51,25 @@ export function HeroSection() {
       {/* ── Background Layer 1: Base color ── */}
       <div className="absolute inset-0 bg-[var(--lp-bg-primary)]" />
 
-      {/* ── Background Layer 2: Animated CSS gradient mesh ── */}
+      {/* ── Background Layer 2: Hero photo (dark mode only, hidden in light) ── */}
+      <Image
+        src="/images/hero-bg.jpg"
+        alt=""
+        fill
+        priority
+        quality={90}
+        className="object-cover object-center lp-hero-photo"
+      />
+
+      {/* ── Background Layer 3: Dark overlay for text readability over photo ── */}
+      <div
+        className="absolute inset-0 lp-hero-overlay"
+        style={{
+          background: 'linear-gradient(180deg, rgba(9,9,11,0.45) 0%, rgba(9,9,11,0.70) 50%, rgba(15,15,18,0.92) 100%)',
+        }}
+      />
+
+      {/* ── Background Layer 4: CSS gradient mesh (visible in both modes, stronger in light) ── */}
       <div
         className="absolute inset-0"
         style={{

@@ -57,7 +57,7 @@ function CommandPalette({ open, onOpenChange, onNavigate }: CommandPaletteProps)
             className="fixed left-1/2 top-[20%] z-50 w-full max-w-[640px] -translate-x-1/2"
           >
             <Command
-              className="rounded-lg border border-border-default bg-surface-card shadow-xl overflow-hidden"
+              className="rounded-lg border border-border-default bg-bg-tertiary shadow-xl overflow-hidden"
             >
               <div className="flex items-center gap-3 border-b border-border-default px-4">
                 <Search className="h-5 w-5 text-text-tertiary shrink-0" />

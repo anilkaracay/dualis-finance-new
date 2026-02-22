@@ -14,7 +14,7 @@ const ToastViewport = React.forwardRef<
   <ToastPrimitive.Viewport
     ref={ref}
     className={cn(
-      'fixed top-0 right-0 z-[100] flex max-h-screen w-full flex-col-reverse gap-2 p-4 sm:max-w-[360px]',
+      'fixed bottom-0 right-0 z-[100] flex max-h-screen w-full flex-col gap-2 p-4 sm:max-w-[360px]',
       className
     )}
     {...props}
@@ -25,10 +25,10 @@ ToastViewport.displayName = ToastPrimitive.Viewport.displayName;
 type ToastVariant = 'success' | 'error' | 'warning' | 'info';
 
 const variantStyles: Record<ToastVariant, string> = {
-  success: 'border-positive/30 bg-positive-muted',
-  error: 'border-negative/30 bg-negative-muted',
-  warning: 'border-warning/30 bg-warning-muted',
-  info: 'border-info/30 bg-info-muted',
+  success: 'border-l-[3px] border-l-positive border-border-default bg-bg-elevated',
+  error: 'border-l-[3px] border-l-negative border-border-default bg-bg-elevated',
+  warning: 'border-l-[3px] border-l-warning border-border-default bg-bg-elevated',
+  info: 'border-l-[3px] border-l-info border-border-default bg-bg-elevated',
 };
 
 const variantIcons: Record<ToastVariant, React.ReactNode> = {
@@ -51,7 +51,7 @@ const Toast = React.forwardRef<
     ref={ref}
     className={cn(
       'group pointer-events-auto relative flex w-full items-start gap-3 overflow-hidden rounded-md border p-4',
-      'bg-surface-card border-border-default shadow-lg',
+      'border border-border-default shadow-lg',
       'data-[state=open]:animate-slide-up data-[state=closed]:animate-fade-in',
       'data-[swipe=cancel]:translate-x-0 data-[swipe=end]:translate-x-[var(--radix-toast-swipe-end-x)]',
       'data-[swipe=move]:translate-x-[var(--radix-toast-swipe-move-x)] data-[swipe=move]:transition-none',

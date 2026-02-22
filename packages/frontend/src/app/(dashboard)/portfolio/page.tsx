@@ -166,7 +166,7 @@ function AssetAllocation({
 }) {
   if (segments.length === 0) {
     return (
-      <div className="flex items-center justify-center rounded-lg border border-border-default bg-surface-card py-12">
+      <div className="flex items-center justify-center rounded-md border border-border-default bg-bg-tertiary py-12">
         <p className="text-text-tertiary text-sm">No positions to display</p>
       </div>
     );
@@ -186,7 +186,7 @@ function AssetAllocation({
 
       {/* Breakdown table */}
       <div className="w-full md:w-80">
-        <div className="overflow-hidden rounded-lg border border-border-default bg-surface-card">
+        <div className="overflow-hidden rounded-md border border-border-default bg-bg-tertiary">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border-default backdrop-blur">
@@ -232,14 +232,14 @@ function AssetAllocation({
 function AllPositionsTable({ positions }: { positions: UnifiedPosition[] }) {
   if (positions.length === 0) {
     return (
-      <div className="flex flex-col items-center gap-3 rounded-lg border border-border-default bg-surface-card py-12">
+      <div className="flex flex-col items-center gap-3 rounded-md border border-border-default bg-bg-tertiary py-12">
         <p className="text-text-tertiary text-sm">No positions found</p>
       </div>
     );
   }
 
   return (
-    <div className="overflow-x-auto rounded-lg border border-border-default bg-surface-card">
+    <div className="overflow-x-auto rounded-md border border-border-default bg-bg-tertiary">
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-border-default backdrop-blur">
@@ -307,7 +307,7 @@ function AllPositionsTable({ positions }: { positions: UnifiedPosition[] }) {
 
 function TransactionHistoryTable({ transactions }: { transactions: Transaction[] }) {
   return (
-    <div className="overflow-x-auto rounded-lg border border-border-default bg-surface-card">
+    <div className="overflow-x-auto rounded-md border border-border-default bg-bg-tertiary">
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-border-default backdrop-blur">
@@ -471,7 +471,7 @@ export default function PortfolioPage() {
   return (
     <div className="space-y-8">
       {/* Header */}
-      <h1 className="text-lg font-medium text-text-primary">Portfolio</h1>
+      <h1 className="text-xl font-semibold text-text-primary tracking-tight">Portfolio</h1>
 
       {/* KPI Row */}
       <section>

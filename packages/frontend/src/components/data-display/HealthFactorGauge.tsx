@@ -21,9 +21,8 @@ const sizeMap: Record<GaugeSize, { dim: number; strokeWidth: number; fontSize: s
 };
 
 function getStatus(value: number): { text: string; colorClass: string } {
-  if (value >= 2.0) return { text: 'Safe', colorClass: 'text-positive' };
-  if (value >= 1.5) return { text: 'Caution', colorClass: 'text-warning' };
-  if (value >= 1.0) return { text: 'At Risk', colorClass: 'text-orange-400' };
+  if (value >= 1.5) return { text: 'Safe', colorClass: 'text-positive' };
+  if (value >= 1.0) return { text: 'Caution', colorClass: 'text-warning' };
   return { text: 'Liquidatable', colorClass: 'text-negative' };
 }
 

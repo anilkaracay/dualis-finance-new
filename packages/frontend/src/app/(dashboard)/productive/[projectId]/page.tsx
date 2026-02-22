@@ -108,7 +108,7 @@ export default function ProjectDetailPage() {
 
       {/* Header */}
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
-        <h1 className="text-lg font-medium text-text-primary">{projectName}</h1>
+        <h1 className="text-xl font-semibold text-text-primary tracking-tight">{projectName}</h1>
         <div className="flex items-center gap-2">
           <ESGBadge rating={esgRating} />
           <Badge variant={getStatusVariant(projectStatus)} size="sm">

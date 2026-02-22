@@ -48,7 +48,7 @@ export default function InstitutionalPage() {
     <div className="space-y-8">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h1 className="text-lg font-medium text-text-primary">
+        <h1 className="text-xl font-semibold text-text-primary tracking-tight">
           Institutional
         </h1>
         {institution?.kybStatus !== 'Verified' && (
@@ -62,7 +62,7 @@ export default function InstitutionalPage() {
 
       {/* Not verified / no institution: onboarding prompt */}
       {(!isVerified || !institution) ? (
-        <Card className="border-border-default bg-surface-card">
+        <Card className="border-border-default bg-bg-tertiary">
           <CardContent className="flex flex-col items-center justify-center py-12">
             <p className="text-text-primary font-medium">
               Complete institutional onboarding to access premium features
@@ -81,7 +81,7 @@ export default function InstitutionalPage() {
         <>
           {/* KPI Row */}
           <div className="grid gap-6 lg:grid-cols-3">
-            <Card className="border-border-default bg-surface-card">
+            <Card className="border-border-default bg-bg-tertiary">
               <CardContent className="flex flex-col gap-2 py-4">
                 <span className="text-sm text-text-secondary">KYB Status</span>
                 <Badge variant="success" size="sm">

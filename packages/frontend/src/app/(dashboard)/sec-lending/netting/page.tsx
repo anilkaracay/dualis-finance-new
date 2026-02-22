@@ -18,7 +18,7 @@ export default function NettingPage() {
 
       {/* Header */}
       <div className="space-y-2">
-        <h1 className="text-lg font-medium text-text-primary">
+        <h1 className="text-xl font-semibold text-text-primary tracking-tight">
           Bilateral Netting
         </h1>
         <p className="text-sm text-text-secondary">

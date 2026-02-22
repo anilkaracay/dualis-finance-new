@@ -31,12 +31,12 @@ export default function PrivacySettingsPage() {
   return (
     <div className="space-y-8">
       {/* Header */}
-      <h1 className="text-lg font-medium text-text-primary">
+      <h1 className="text-xl font-semibold text-text-primary tracking-tight">
         Privacy Settings
       </h1>
 
       {/* Privacy Level Toggle */}
-      <Card className="border-border-default bg-surface-card">
+      <Card className="border-border-default bg-bg-tertiary">
         <CardHeader>
           <CardTitle>Privacy Level</CardTitle>
         </CardHeader>
@@ -53,7 +53,7 @@ export default function PrivacySettingsPage() {
       </Card>
 
       {/* Disclosure Rules */}
-      <Card className="border-border-default bg-surface-card">
+      <Card className="border-border-default bg-bg-tertiary">
         <CardHeader>
           <CardTitle>Selective Disclosure Rules</CardTitle>
         </CardHeader>
@@ -71,7 +71,7 @@ export default function PrivacySettingsPage() {
       </Card>
 
       {/* Audit Log */}
-      <Card className="border-border-default bg-surface-card">
+      <Card className="border-border-default bg-bg-tertiary">
         <CardHeader>
           <CardTitle>Audit Log</CardTitle>
         </CardHeader>

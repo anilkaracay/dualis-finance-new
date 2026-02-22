@@ -2,8 +2,8 @@ import { forwardRef } from 'react';
 import { cn } from '@/lib/utils/cn';
 
 const cardVariants = {
-  default: 'bg-surface-card border border-border-default shadow-card',
-  elevated: 'bg-surface-card border border-border-default shadow-card-hover',
+  default: 'bg-bg-tertiary border border-border-default',
+  elevated: 'bg-bg-elevated border border-border-default shadow-sm',
   outlined: 'bg-transparent border border-border-default',
   glass: 'glass',
 } as const;
@@ -35,11 +35,11 @@ const Card = forwardRef<HTMLDivElement, CardProps>(
       <div
         ref={ref}
         className={cn(
-          'rounded-lg transition-all duration-200',
+          'rounded-md transition-all duration-150',
           cardVariants[variant],
           cardPaddings[padding],
-          hoverable && 'hover:border-border-hover hover:-translate-y-[1px] hover:shadow-card-hover hover:transition-all hover:duration-200',
-          clickable && 'cursor-pointer hover:border-border-hover hover:-translate-y-[1px] hover:shadow-card-hover hover:transition-all hover:duration-200 active:scale-[0.99]',
+          hoverable && 'hover:border-border-medium hover:shadow-sm',
+          clickable && 'cursor-pointer hover:border-border-medium hover:shadow-sm active:scale-[0.99]',
           className
         )}
         {...props}

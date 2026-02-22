@@ -248,7 +248,7 @@ function SafetyModuleCard() {
 
 function StakingParametersTable({ params }: { params: StakingParameter[] }) {
   return (
-    <div className="overflow-hidden rounded-lg border border-border-default bg-surface-card">
+    <div className="overflow-hidden rounded-md border border-border-default bg-bg-tertiary">
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-border-default backdrop-blur">
@@ -282,7 +282,7 @@ export default function StakingPage() {
   return (
     <div className="space-y-8">
       {/* Header */}
-      <h1 className="text-lg font-medium text-text-primary">Staking</h1>
+      <h1 className="text-xl font-semibold text-text-primary tracking-tight">Staking</h1>
 
       {/* KPI Row */}
       <section>

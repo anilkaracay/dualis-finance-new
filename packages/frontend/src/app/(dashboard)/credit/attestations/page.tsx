@@ -37,7 +37,7 @@ export default function AttestationsPage() {
     <div className="space-y-8">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h1 className="text-lg font-medium text-text-primary">
+        <h1 className="text-xl font-semibold text-text-primary tracking-tight">
           ZK Attestations
         </h1>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
@@ -89,7 +89,7 @@ export default function AttestationsPage() {
             ))}
           </div>
         ) : (
-          <Card className="border-border-default bg-surface-card">
+          <Card className="border-border-default bg-bg-tertiary">
             <CardContent className="flex flex-col items-center justify-center py-12">
               <ShieldCheck className="mb-4 h-12 w-12 text-accent-teal" />
               <p className="text-text-primary font-medium">

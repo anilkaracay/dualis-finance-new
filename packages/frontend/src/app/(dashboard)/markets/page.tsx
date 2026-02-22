@@ -175,14 +175,14 @@ export default function MarketsPage() {
     <div className="flex flex-col gap-6">
       {/* Header Row with filters inline */}
       <div className="flex flex-wrap items-center gap-4">
-        <h1 className="text-lg font-medium text-text-primary">Markets</h1>
+        <h1 className="text-xl font-semibold text-text-primary tracking-tight">Markets</h1>
         <span className="text-sm text-text-tertiary font-mono">TVL {formatTVL(totalTVL)}</span>
 
         <div className="ml-auto flex flex-wrap items-center gap-3">
           <select
             value={instrumentFilter}
             onChange={(e) => setInstrumentFilter(e.target.value as InstrumentFilter)}
-            className="h-9 rounded-md border border-border-default bg-surface-input px-3 text-sm text-text-primary focus:border-border-focus focus:outline-none"
+            className="h-9 rounded-md border border-border-default bg-bg-tertiary px-3 text-sm text-text-primary focus:border-border-focus focus:outline-none"
           >
             {INSTRUMENT_OPTIONS.map((opt) => (
               <option key={opt} value={opt}>
@@ -197,7 +197,7 @@ export default function MarketsPage() {
               setSortKey(e.target.value as SortKey);
               setSortDir('desc');
             }}
-            className="h-9 rounded-md border border-border-default bg-surface-input px-3 text-sm text-text-primary focus:border-border-focus focus:outline-none"
+            className="h-9 rounded-md border border-border-default bg-bg-tertiary px-3 text-sm text-text-primary focus:border-border-focus focus:outline-none"
           >
             {SORT_OPTIONS.map((opt) => (
               <option key={opt.value} value={opt.value}>
@@ -226,7 +226,7 @@ export default function MarketsPage() {
       </div>
 
       {/* Markets Table */}
-      <div className="overflow-x-auto rounded-lg border border-border-default bg-surface-card">
+      <div className="overflow-x-auto rounded-md border border-border-default bg-bg-tertiary">
         <table className="w-full">
           <thead>
             <tr className="border-b border-border-default backdrop-blur">

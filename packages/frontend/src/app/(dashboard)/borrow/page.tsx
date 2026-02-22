@@ -294,7 +294,7 @@ function AddCollateralDialog({
                 <select
                   value={selectedAsset}
                   onChange={(e) => setSelectedAsset(e.target.value)}
-                  className="h-9 w-full rounded-md bg-surface-input border border-border-default px-3 text-sm text-text-primary focus-ring transition-colors"
+                  className="h-9 w-full rounded-md bg-bg-tertiary border border-border-default px-3 text-sm text-text-primary focus-ring transition-colors"
                 >
                   {COLLATERAL_ASSETS.map((asset) => (
                     <option key={asset} value={asset}>
@@ -615,7 +615,7 @@ function NewBorrowSection({ pools }: { pools: PoolData[] }) {
               <select
                 value={selectedPoolId}
                 onChange={(e) => setSelectedPoolId(e.target.value)}
-                className="h-9 w-full max-w-md rounded-md bg-surface-input border border-border-default px-3 text-sm text-text-primary focus-ring transition-colors"
+                className="h-9 w-full max-w-md rounded-md bg-bg-tertiary border border-border-default px-3 text-sm text-text-primary focus-ring transition-colors"
               >
                 <option value="">Choose an asset...</option>
                 {activePools.map((pool) => {
@@ -672,7 +672,7 @@ function NewBorrowSection({ pools }: { pools: PoolData[] }) {
                       <select
                         value={entry.asset}
                         onChange={(e) => handleCollateralAssetChange(index, e.target.value)}
-                        className="h-9 w-full rounded-md bg-surface-input border border-border-default px-3 text-sm text-text-primary focus-ring transition-colors"
+                        className="h-9 w-full rounded-md bg-bg-tertiary border border-border-default px-3 text-sm text-text-primary focus-ring transition-colors"
                       >
                         {COLLATERAL_ASSETS.map((asset) => (
                           <option key={asset} value={asset}>
@@ -892,7 +892,7 @@ export default function BorrowPage() {
   if (!isConnected) {
     return (
       <div className="space-y-8">
-        <h1 className="text-lg font-medium text-text-primary">Borrow</h1>
+        <h1 className="text-xl font-semibold text-text-primary tracking-tight">Borrow</h1>
         <Card>
           <CardContent>
             <div className="flex flex-col items-center gap-4 py-16">
@@ -911,7 +911,7 @@ export default function BorrowPage() {
   return (
     <div className="space-y-8">
       {/* Header */}
-      <h1 className="text-lg font-medium text-text-primary">Borrow</h1>
+      <h1 className="text-xl font-semibold text-text-primary tracking-tight">Borrow</h1>
 
       {/* Active Borrow Positions */}
       <section>

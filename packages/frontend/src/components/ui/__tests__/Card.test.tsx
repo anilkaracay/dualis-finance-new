@@ -9,11 +9,11 @@ describe('Card', () => {
   });
   it('applies default variant classes', () => {
     const { container } = render(<Card>Default</Card>);
-    expect(container.firstChild).toHaveClass('bg-surface-card');
+    expect(container.firstChild).toHaveClass('bg-bg-tertiary');
   });
   it('applies elevated variant', () => {
     const { container } = render(<Card variant="elevated">Elevated</Card>);
-    expect(container.firstChild).toHaveClass('shadow-card-hover');
+    expect(container.firstChild).toHaveClass('shadow-sm');
   });
   it('applies outlined variant', () => {
     const { container } = render(<Card variant="outlined">Outlined</Card>);

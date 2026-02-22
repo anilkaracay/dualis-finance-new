@@ -67,7 +67,7 @@ function AuditLogViewer({ entries, loading = false }: AuditLogViewerProps) {
   }, [entries, scopeFilter, grantedFilter]);
 
   const selectClassName = cn(
-    'h-8 rounded-md bg-surface-input border border-border-default text-xs text-text-primary',
+    'h-8 rounded-md bg-bg-tertiary border border-border-default text-xs text-text-primary',
     'px-2 transition-colors duration-100 focus-ring focus:border-border-focus',
   );
 

@@ -419,7 +419,7 @@ export default function CreditPage() {
   if (!isConnected) {
     return (
       <div className="space-y-8">
-        <h1 className="text-lg font-medium text-text-primary">Credit Score</h1>
+        <h1 className="text-xl font-semibold text-text-primary tracking-tight">Credit Score</h1>
         <Card>
           <CardContent>
             <div className="flex flex-col items-center gap-4 py-16">
@@ -439,7 +439,7 @@ export default function CreditPage() {
     <div className="space-y-8">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h1 className="text-lg font-medium text-text-primary">Credit Score</h1>
+        <h1 className="text-xl font-semibold text-text-primary tracking-tight">Credit Score</h1>
         <Link href="/credit/attestations">
           <Button variant="secondary" size="sm" icon={<ShieldCheck className="h-4 w-4" />} iconRight={<ArrowRight className="h-3 w-3" />}>
             ZK Attestations

@@ -183,7 +183,7 @@ function CompanyInfoStep({
           value={data.jurisdiction}
           onChange={(e) => onChange({ jurisdiction: e.target.value })}
           className={cn(
-            'h-9 w-full rounded-md bg-surface-input border text-sm text-text-primary',
+            'h-9 w-full rounded-md bg-bg-tertiary border text-sm text-text-primary',
             'transition-colors duration-100 focus-ring px-3',
             errors.jurisdiction
               ? 'border-border-error focus:border-border-error'

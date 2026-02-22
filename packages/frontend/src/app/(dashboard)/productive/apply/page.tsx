@@ -121,7 +121,7 @@ export default function SubmitProjectPage() {
       </Link>
 
       {/* Header */}
-      <h1 className="text-lg font-medium text-text-primary">Submit New Project</h1>
+      <h1 className="text-xl font-semibold text-text-primary tracking-tight">Submit New Project</h1>
 
       {/* Form Card */}
       <Card>
@@ -147,7 +147,7 @@ export default function SubmitProjectPage() {
               <select
                 value={projectType}
                 onChange={(e) => setProjectType(e.target.value as ProjectType)}
-                className="h-9 w-full rounded-md border border-border-default bg-surface-input px-3 text-sm text-text-primary transition-colors duration-100 focus:border-border-focus focus:outline-none"
+                className="h-9 w-full rounded-md border border-border-default bg-bg-tertiary px-3 text-sm text-text-primary transition-colors duration-100 focus:border-border-focus focus:outline-none"
               >
                 {PROJECT_TYPES.map((opt) => (
                   <option key={opt.value} value={opt.value}>
@@ -188,7 +188,7 @@ export default function SubmitProjectPage() {
                   onChange={(e) => setCapacity(e.target.value)}
                   required
                   className={cn(
-                    'h-9 w-full rounded-md bg-surface-input border border-border-default text-sm text-text-primary placeholder:text-text-disabled',
+                    'h-9 w-full rounded-md bg-bg-tertiary border border-border-default text-sm text-text-primary placeholder:text-text-disabled',
                     'transition-colors duration-100 focus:border-border-focus focus:outline-none',
                     'pl-3 pr-12'
                   )}
@@ -210,7 +210,7 @@ export default function SubmitProjectPage() {
                 onChange={(e) => setDescription(e.target.value)}
                 rows={4}
                 className={cn(
-                  'w-full rounded-md bg-surface-input border border-border-default text-sm text-text-primary placeholder:text-text-disabled',
+                  'w-full rounded-md bg-bg-tertiary border border-border-default text-sm text-text-primary placeholder:text-text-disabled',
                   'transition-colors duration-100 focus:border-border-focus focus:outline-none',
                   'px-3 py-2 resize-none'
                 )}
@@ -225,7 +225,7 @@ export default function SubmitProjectPage() {
               <select
                 value={esgRating}
                 onChange={(e) => setEsgRating(e.target.value as ESGRating)}
-                className="h-9 w-full rounded-md border border-border-default bg-surface-input px-3 text-sm text-text-primary transition-colors duration-100 focus:border-border-focus focus:outline-none"
+                className="h-9 w-full rounded-md border border-border-default bg-bg-tertiary px-3 text-sm text-text-primary transition-colors duration-100 focus:border-border-focus focus:outline-none"
               >
                 {ESG_RATINGS.map((rating) => (
                   <option key={rating} value={rating}>
@@ -249,7 +249,7 @@ export default function SubmitProjectPage() {
                   onChange={(e) => setExpectedApy(e.target.value)}
                   required
                   className={cn(
-                    'h-9 w-full rounded-md bg-surface-input border border-border-default text-sm text-text-primary placeholder:text-text-disabled',
+                    'h-9 w-full rounded-md bg-bg-tertiary border border-border-default text-sm text-text-primary placeholder:text-text-disabled',
                     'transition-colors duration-100 focus:border-border-focus focus:outline-none',
                     'pl-3 pr-8'
                   )}

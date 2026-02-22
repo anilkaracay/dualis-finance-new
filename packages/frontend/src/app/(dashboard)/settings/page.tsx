@@ -142,7 +142,7 @@ export default function SettingsPage() {
   return (
     <div className="space-y-6">
       {/* Page header */}
-      <h1 className="text-lg font-medium text-text-primary">Settings</h1>
+      <h1 className="text-xl font-semibold text-text-primary tracking-tight">Settings</h1>
 
       {/* ------------------------------------------------------------------- */}
       {/* Appearance Card                                                      */}
@@ -379,7 +379,7 @@ export default function SettingsPage() {
               </div>
               <select
                 className={cn(
-                  'h-9 rounded-md border border-border-default bg-surface-input px-3 text-sm text-text-primary',
+                  'h-9 rounded-md border border-border-default bg-bg-tertiary px-3 text-sm text-text-primary',
                   'transition-colors focus-ring',
                 )}
                 defaultValue="en"

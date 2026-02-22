@@ -89,7 +89,7 @@ function KPIGrid({
   const sparklineEarned = useMemo(() => generateSparkline(7, 20, 2), []);
 
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
       {/* Net Worth */}
       <KPICard
         label="Net Worth"
@@ -175,7 +175,7 @@ function SupplyPositionsTable({
 
   if (positions.length === 0) {
     return (
-      <div className="flex flex-col items-center gap-3 rounded-lg border border-border-default bg-surface-card py-12">
+      <div className="flex flex-col items-center gap-3 rounded-md border border-border-default bg-bg-tertiary py-12">
         <p className="text-text-tertiary text-sm">No supply positions yet</p>
         <Link
           href="/markets"
@@ -188,7 +188,7 @@ function SupplyPositionsTable({
   }
 
   return (
-    <div className="overflow-x-auto rounded-lg border border-border-default bg-surface-card">
+    <div className="overflow-x-auto rounded-md border border-border-default bg-bg-tertiary">
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-border-default backdrop-blur">
@@ -257,14 +257,14 @@ function BorrowPositionsTable({
 
   if (positions.length === 0) {
     return (
-      <div className="flex flex-col items-center gap-3 rounded-lg border border-border-default bg-surface-card py-12">
+      <div className="flex flex-col items-center gap-3 rounded-md border border-border-default bg-bg-tertiary py-12">
         <p className="text-text-tertiary text-sm">No active borrows</p>
       </div>
     );
   }
 
   return (
-    <div className="overflow-x-auto rounded-lg border border-border-default bg-surface-card">
+    <div className="overflow-x-auto rounded-md border border-border-default bg-bg-tertiary">
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-border-default backdrop-blur">
@@ -345,14 +345,14 @@ function SecLendingDealsTable({
 
   if (deals.length === 0) {
     return (
-      <div className="flex flex-col items-center gap-3 rounded-lg border border-border-default bg-surface-card py-12">
+      <div className="flex flex-col items-center gap-3 rounded-md border border-border-default bg-bg-tertiary py-12">
         <p className="text-text-tertiary text-sm">No active deals</p>
       </div>
     );
   }
 
   return (
-    <div className="overflow-x-auto rounded-lg border border-border-default bg-surface-card">
+    <div className="overflow-x-auto rounded-md border border-border-default bg-bg-tertiary">
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-border-default backdrop-blur">
@@ -437,7 +437,7 @@ function PortfolioComposition({ segments, totalValue, isLoading }: PortfolioComp
 
   if (segments.length === 0) {
     return (
-      <div className="flex items-center justify-center rounded-lg border border-border-default bg-surface-card py-12">
+      <div className="flex items-center justify-center rounded-md border border-border-default bg-bg-tertiary py-12">
         <p className="text-text-tertiary text-sm">No positions to display</p>
       </div>
     );
@@ -457,7 +457,7 @@ function PortfolioComposition({ segments, totalValue, isLoading }: PortfolioComp
 
       {/* Summary table */}
       <div className="w-full md:w-80">
-        <div className="overflow-hidden rounded-lg border border-border-default bg-surface-card">
+        <div className="overflow-hidden rounded-md border border-border-default bg-bg-tertiary">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border-default backdrop-blur">
@@ -568,7 +568,7 @@ export default function OverviewPage() {
   return (
     <div className="space-y-8">
       {/* 1. Page title */}
-      <h1 className="text-lg font-medium text-text-primary">Overview</h1>
+      <h1 className="text-xl font-semibold text-text-primary tracking-tight">Overview</h1>
 
       {/* 2. KPI Grid */}
       <section>
@@ -628,7 +628,7 @@ export default function OverviewPage() {
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <Link
             href="/productive"
-            className="group flex items-center gap-3 rounded-lg border border-border-default bg-surface-card p-4 transition-colors hover:border-accent-teal"
+            className="group flex items-center gap-3 rounded-md border border-border-default bg-bg-tertiary p-4 transition-all duration-150 hover:border-border-medium hover:shadow-sm"
           >
             <Factory className="h-5 w-5 text-accent-teal" />
             <div className="flex-1">
@@ -640,7 +640,7 @@ export default function OverviewPage() {
 
           <Link
             href="/institutional"
-            className="group flex items-center gap-3 rounded-lg border border-border-default bg-surface-card p-4 transition-colors hover:border-accent-teal"
+            className="group flex items-center gap-3 rounded-md border border-border-default bg-bg-tertiary p-4 transition-all duration-150 hover:border-border-medium hover:shadow-sm"
           >
             <Building2 className="h-5 w-5 text-accent-teal" />
             <div className="flex-1">
@@ -652,7 +652,7 @@ export default function OverviewPage() {
 
           <Link
             href="/credit/attestations"
-            className="group flex items-center gap-3 rounded-lg border border-border-default bg-surface-card p-4 transition-colors hover:border-accent-teal"
+            className="group flex items-center gap-3 rounded-md border border-border-default bg-bg-tertiary p-4 transition-all duration-150 hover:border-border-medium hover:shadow-sm"
           >
             <Fingerprint className="h-5 w-5 text-accent-teal" />
             <div className="flex-1">
@@ -664,7 +664,7 @@ export default function OverviewPage() {
 
           <Link
             href="/settings/privacy"
-            className="group flex items-center gap-3 rounded-lg border border-border-default bg-surface-card p-4 transition-colors hover:border-accent-teal"
+            className="group flex items-center gap-3 rounded-md border border-border-default bg-bg-tertiary p-4 transition-all duration-150 hover:border-border-medium hover:shadow-sm"
           >
             <ShieldCheck className="h-5 w-5 text-accent-teal" />
             <div className="flex-1">

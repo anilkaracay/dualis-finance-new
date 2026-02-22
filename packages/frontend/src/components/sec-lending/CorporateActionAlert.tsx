@@ -70,7 +70,7 @@ function CorporateActionAlert({ action, onProcess, className }: CorporateActionA
     ? 'bg-warning/5'
     : isProcessed
       ? 'bg-positive/5'
-      : 'bg-surface-card';
+      : 'bg-bg-tertiary';
 
   const StatusIcon = isPending ? AlertTriangle : CheckCircle2;
   const statusIconColor = isPending ? 'text-warning' : 'text-positive';

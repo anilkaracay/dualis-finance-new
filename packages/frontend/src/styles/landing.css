@@ -171,6 +171,16 @@
   color-scheme: light;
 }
 
+/* ─── Light Mode: hide hero photo & overlay, show clean gradient ─── */
+.landing-page[data-lp-theme="light"] .lp-hero-photo {
+  opacity: 0 !important;
+  transition: opacity 0.3s ease;
+}
+.landing-page[data-lp-theme="light"] .lp-hero-overlay {
+  opacity: 0 !important;
+  transition: opacity 0.3s ease;
+}
+
 /* ─── Landing Typography ─── */
 .font-display {
   font-family: 'Instrument Serif', Georgia, 'Times New Roman', serif;
