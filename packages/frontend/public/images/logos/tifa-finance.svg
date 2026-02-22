@@ -1,0 +1,22 @@
+<svg width="950" height="350" viewBox="487 365 950 350" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="icon-grad" x1="497" y1="375" x2="818" y2="704" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#65CAD1"/>
+      <stop offset="1" stop-color="#2E5E61"/>
+    </linearGradient>
+    <linearGradient id="text-grad" x1="869" y1="375" x2="1423" y2="704" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#6EC1C6"/>
+      <stop offset="0.5" stop-color="#6EC1C6"/>
+      <stop offset="1" stop-color="#2E5E61"/>
+    </linearGradient>
+  </defs>
+  <!-- Icon -->
+  <path d="M497 375.774H734.792L703.19 413.39L658.135 466.906H539.239L497 421.922V375.774Z" fill="url(#icon-grad)"/>
+  <path d="M605.03 484.666H650.353V569.619V704L605.03 647.622V586.639V484.666Z" fill="url(#icon-grad)"/>
+  <path d="M752.487 375H818.299V420.366L775.459 467.676H710.889L709.026 647.236L664.324 703.228V545.679V480.033L752.487 375Z" fill="url(#icon-grad)"/>
+  <!-- TIFA text -->
+  <path d="M1013.88 375V438.906H974.693V701.633H909.377V438.906H869V375H1013.88Z" fill="url(#text-grad)"/>
+  <path d="M1092.26 375V704H1029.32V375H1092.26Z" fill="url(#text-grad)"/>
+  <path d="M1249.02 375V440.09H1186.08V492.162H1245.46V554.885H1186.08V704H1118.39V375H1249.02Z" fill="url(#text-grad)"/>
+  <path d="M1355.31 651.928H1317.31L1313.15 704H1249.02L1284.05 375H1390.94L1423 704H1360.16L1355.31 651.928ZM1347 599.856L1336.31 429.439L1328.59 599.856H1347Z" fill="url(#text-grad)"/>
+</svg>

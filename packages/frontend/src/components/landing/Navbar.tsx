@@ -42,7 +42,7 @@ export function Navbar() {
             <span className="text-[var(--lp-accent)]">D</span>
             <span className="text-[var(--lp-text-primary)]">UALIS</span>
           </span>
-          <span className="font-jakarta font-light text-xs tracking-[0.2em] text-[var(--lp-text-tertiary)]">
+          <span className="font-jakarta font-light text-xs tracking-[0.2em] text-[var(--lp-text-secondary)]">
             FINANCE
           </span>
         </Link>
@@ -53,7 +53,7 @@ export function Navbar() {
             <a
               key={link.label}
               href={link.href}
-              className="font-jakarta text-sm text-[var(--lp-text-secondary)] hover:text-[var(--lp-text-primary)] transition-colors duration-200"
+              className="font-jakarta text-sm text-[var(--lp-text-primary)] hover:text-[var(--lp-accent)] transition-colors duration-200"
             >
               {link.label}
             </a>
@@ -65,7 +65,7 @@ export function Navbar() {
           <ThemeToggle />
           <a
             href="#developers"
-            className="lp-btn-ghost px-4 py-2 text-sm font-jakarta"
+            className="lp-btn-ghost px-4 py-2 text-sm font-jakarta !text-[var(--lp-text-primary)]"
           >
             Docs
           </a>

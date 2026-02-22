@@ -309,6 +309,13 @@
 .lp-code .function { color: #818CF8; }
 .lp-code .number { color: #FB923C; }
 .lp-code .property { color: #A1A1AA; }
+.lp-code .line-num {
+  color: var(--lp-text-muted);
+  user-select: none;
+  display: inline-block;
+  min-width: 1.5ch;
+  text-align: right;
+}
 
 /* ─── Comparison Table ─── */
 .lp-comparison-row {
@@ -345,10 +352,82 @@
   50% { transform: translateY(-25px) translateX(-15px); }
 }
 
+/* ─── Ecosystem Logo Theme Adaptation ─── */
+/* Dark mode (default): invert dark logos to white */
+.landing-page .eco-logo {
+  filter: brightness(0) invert(1);
+}
+/* Light mode: show logos in original dark colors */
+.landing-page[data-lp-theme="light"] .eco-logo {
+  filter: none;
+}
+
+/* ─── Ecosystem Map Animations ─── */
+@keyframes eco-particle-flow {
+  0% { stroke-dashoffset: 19; }
+  100% { stroke-dashoffset: 0; }
+}
+
+.eco-particle-line {
+  animation: eco-particle-flow 2.5s linear infinite;
+}
+
+@keyframes eco-breathe {
+  0%, 100% { transform: scale(1); opacity: 0.04; }
+  50% { transform: scale(1.15); opacity: 0.08; }
+}
+
+.eco-breathe {
+  animation: eco-breathe 4s ease-in-out infinite;
+}
+
+@keyframes eco-float {
+  0%, 100% { transform: translate(-50%, -50%) translateY(0); }
+  50% { transform: translate(-50%, -50%) translateY(-6px); }
+}
+
+.eco-float {
+  animation: eco-float 6s ease-in-out infinite;
+}
+
+@keyframes eco-spin-slow {
+  from { transform-origin: 50px 50px; transform: rotate(0deg); }
+  to { transform-origin: 50px 50px; transform: rotate(360deg); }
+}
+
+.eco-spin-slow {
+  animation: eco-spin-slow 60s linear infinite;
+}
+
+@keyframes eco-spin-reverse {
+  from { transform-origin: 50px 50px; transform: rotate(360deg); }
+  to { transform-origin: 50px 50px; transform: rotate(0deg); }
+}
+
+.eco-spin-reverse {
+  animation: eco-spin-reverse 90s linear infinite;
+}
+
+/* ─── How It Works — sliding particle on connector ─── */
+@keyframes eco-slide {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(400%); }
+}
+
+.eco-slide {
+  animation: eco-slide 4s ease-in-out infinite;
+}
+
 /* ─── Reduced Motion ─── */
 @media (prefers-reduced-motion: reduce) {
   .lp-pulse-dot,
-  .lp-particle-line {
+  .lp-particle-line,
+  .eco-particle-line,
+  .eco-breathe,
+  .eco-float,
+  .eco-spin-slow,
+  .eco-spin-reverse,
+  .eco-slide {
     animation: none;
   }
 
