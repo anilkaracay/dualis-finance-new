@@ -10,7 +10,6 @@ import { NoiseOverlay } from './shared/NoiseOverlay';
 
 export function HeroSection() {
   const sectionRef = useRef<HTMLElement>(null);
-  const eyebrowRef = useRef<HTMLDivElement>(null);
   const titleLine1Ref = useRef<HTMLDivElement>(null);
   const titleLine2Ref = useRef<HTMLDivElement>(null);
   const subtitleRef = useRef<HTMLParagraphElement>(null);
@@ -23,7 +22,6 @@ export function HeroSection() {
 
       // Set initial states
       const elements = [
-        eyebrowRef.current,
         titleLine1Ref.current,
         titleLine2Ref.current,
         subtitleRef.current,
@@ -34,8 +32,7 @@ export function HeroSection() {
       gsap.set(elements, { opacity: 0, y: 40 });
 
       // Staggered reveal sequence
-      tl.to(eyebrowRef.current, { opacity: 1, y: 0, duration: 0.8, delay: 0.3 })
-        .to(titleLine1Ref.current, { opacity: 1, y: 0, duration: 0.8 }, '-=0.5')
+      tl.to(titleLine1Ref.current, { opacity: 1, y: 0, duration: 0.8, delay: 0.3 })
         .to(titleLine2Ref.current, { opacity: 1, y: 0, duration: 1 }, '-=0.5')
         .to(subtitleRef.current, { opacity: 1, y: 0, duration: 0.8 }, '-=0.6')
         .to(ctaRef.current, { opacity: 1, y: 0, duration: 0.8 }, '-=0.5')
@@ -139,16 +136,6 @@ export function HeroSection() {
 
       {/* ── Content ── */}
       <div className="relative z-10 flex flex-col items-center text-center px-6 max-w-[1100px] mx-auto pt-24 pb-20">
-        {/* Eyebrow pill badge */}
-        <div ref={eyebrowRef} className="mb-8">
-          <div className="inline-flex items-center gap-2.5 px-5 py-2.5 rounded-full border border-[var(--lp-border-medium)] bg-[var(--lp-glass)] backdrop-blur-sm">
-            <span className="lp-pulse-dot w-2 h-2 rounded-full bg-[var(--lp-accent)] inline-block" />
-            <span className="font-jakarta text-sm text-[var(--lp-text-secondary)] tracking-wide">
-              {HERO.eyebrow}
-            </span>
-          </div>
-        </div>
-
         {/* Hero headline */}
         <div className="mb-8">
           {/* Line 1 */}
