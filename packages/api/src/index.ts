@@ -49,6 +49,9 @@ import { wsRoutes } from './ws/server.js';
 // Background jobs
 import { initScheduler, stopScheduler } from './jobs/index.js';
 
+// Canton bootstrap
+import { initializeCanton } from './canton/startup.js';
+
 // ---------------------------------------------------------------------------
 // Main bootstrap function
 // ---------------------------------------------------------------------------
@@ -189,6 +192,7 @@ async function main(): Promise<void> {
     await server.listen({ port: env.PORT, host: '0.0.0.0' });
     logger.info(`Server started on port ${env.PORT} [${env.NODE_ENV}]`);
     logger.info({
+      cantonEnv: env.CANTON_ENV,
       cantonMock: env.CANTON_MOCK,
       features: {
         flashLoans: env.FEATURE_FLASH_LOANS,
@@ -196,6 +200,22 @@ async function main(): Promise<void> {
         governance: env.FEATURE_GOVERNANCE,
       },
     }, 'Feature flags');
+
+    // Initialize Canton integration layer
+    try {
+      const cantonResult = await initializeCanton();
+      logger.info(
+        {
+          env: cantonResult.config.environment,
+          healthy: cantonResult.healthy,
+          parties: cantonResult.partyResult.allFound ? 'ok' : 'incomplete',
+          bridge: cantonResult.config.tokenBridgeMode,
+        },
+        'Canton integration initialized',
+      );
+    } catch (cantonErr) {
+      logger.warn({ err: cantonErr }, 'Canton bootstrap failed — running in degraded mode');
+    }
 
     // Initialize background jobs if in non-test mode
     if (env.NODE_ENV !== 'test') {

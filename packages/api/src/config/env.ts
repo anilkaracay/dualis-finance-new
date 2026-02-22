@@ -7,8 +7,14 @@ const envSchema = z.object({
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
 
   // Canton
+  CANTON_ENV: z.enum(['sandbox', 'devnet', 'mainnet']).default('sandbox'),
   CANTON_JSON_API_URL: z.string().url().default('http://localhost:7575'),
+  CANTON_GRPC_URL: z.string().default('localhost:6865'),
   CANTON_MOCK: z.coerce.boolean().default(true),
+  CANTON_JWT_TOKEN: z.string().optional(),
+  CANTON_TLS_CERT_PATH: z.string().optional(),
+  CANTON_OPERATOR_PARTY: z.string().default('party::operator'),
+  CANTON_ORACLE_PARTY: z.string().default('party::oracle'),
 
   // Database
   DATABASE_URL: z.string().default('postgresql://localhost:5432/dualis'),
