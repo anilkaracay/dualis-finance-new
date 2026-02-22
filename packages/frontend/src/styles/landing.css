@@ -418,6 +418,22 @@
   animation: eco-slide 4s ease-in-out infinite;
 }
 
+/* ─── Innovation Card — Rotating Gradient Border ─── */
+@property --innov-border-angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+
+@keyframes innov-border-rotate {
+  from { --innov-border-angle: 0deg; }
+  to { --innov-border-angle: 360deg; }
+}
+
+.innov-gradient-border {
+  animation: innov-border-rotate 3s linear infinite;
+}
+
 /* ─── Reduced Motion ─── */
 @media (prefers-reduced-motion: reduce) {
   .lp-pulse-dot,
@@ -427,7 +443,8 @@
   .eco-float,
   .eco-spin-slow,
   .eco-spin-reverse,
-  .eco-slide {
+  .eco-slide,
+  .innov-gradient-border {
     animation: none;
   }
 
