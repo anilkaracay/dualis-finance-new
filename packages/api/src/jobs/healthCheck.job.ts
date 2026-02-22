@@ -87,7 +87,7 @@ async function healthCheckHandler(): Promise<void> {
     const hf = calculateHealthFactor(
       [{ valueUSD: pos.collateralValueUSD, liquidationThreshold: pos.liquidationThreshold }],
       pos.borrowValueUSD,
-    );
+    ) as number;
 
     // Broadcast position health to subscribers
     const positionPayload: WsPositionPayload = {

@@ -168,6 +168,31 @@ export default function LoginPage() {
             <Wallet className="w-5 h-5 text-accent-teal" />
             {walletConnecting ? 'Connecting...' : 'Connect Wallet'}
           </button>
+
+          {/* Demo login button */}
+          <button
+            type="button"
+            onClick={() => {
+              setEmail('demo@dualis.finance');
+              setPassword('Demo1234!');
+              setFormError(null);
+              clearError();
+              setTimeout(() => {
+                loginWithEmail('demo@dualis.finance', 'Demo1234!')
+                  .then(() => router.push(redirect))
+                  .catch(() => {});
+              }, 300);
+            }}
+            disabled={isLoading}
+            className="w-full h-12 mt-3 rounded-xl font-jakarta font-medium text-sm text-accent-teal flex items-center justify-center gap-2.5 transition-all duration-300 border border-accent-teal/20 hover:border-accent-teal/40 bg-accent-teal/[0.04] hover:bg-accent-teal/[0.08]"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
+              <polyline points="10 17 15 12 10 7" />
+              <line x1="15" y1="12" x2="3" y2="12" />
+            </svg>
+            Demo Login
+          </button>
         </div>
       </div>
 

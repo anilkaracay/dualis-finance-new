@@ -270,6 +270,7 @@ export {
 } from './utils/format';
 
 export {
+  // Legacy exports (backward compatible)
   calculateAPY,
   calculateUtilization,
   calculateBorrowRate,
@@ -278,6 +279,42 @@ export {
   calculateWeightedLTV,
   calculateLiquidationPrice,
   calculateCreditScore,
+  // New financial math engine exports
+  calculateBorrowAPR,
+  calculateSupplyAPR,
+  calculateTierAdjustedBorrowAPR,
+  calculatePoolAPY,
+  aprToApy,
+  apyToApr,
+  annualToPerSecond,
+  accrueInterest,
+  calculateCurrentBalance,
+  calculateInterestDelta,
+  calculateMaxBorrowable,
+  calculateLiquidation,
+  generateRateCurve,
+  simulatePriceImpact,
+  findLiquidationPrice,
+  formatRatePercent,
+  formatUSD,
+  formatHealthFactor,
+  // Constants
+  SECONDS_PER_YEAR,
+  CLOSE_FACTOR_NORMAL,
+  CLOSE_FACTOR_CRITICAL,
+  CRITICAL_HF_THRESHOLD,
+  RESERVE_SPLIT_LIQUIDATOR,
+  RESERVE_SPLIT_PROTOCOL,
+} from './utils/math';
+
+export type {
+  InterestRateModelConfig,
+  CollateralPositionInput,
+  DebtPositionInput,
+  HealthFactorResult,
+  HealthFactorStatus,
+  LiquidationCalcResult,
+  AccrualResult,
 } from './utils/math';
 
 export {
@@ -290,6 +327,24 @@ export {
   PROTOCOL_DEFAULTS,
   SCORE_MAXES,
 } from './utils/constants';
+
+// Config exports (rate models, collateral params, credit tiers)
+export {
+  RATE_MODELS,
+  getRateModel,
+  COLLATERAL_PARAMS,
+  getCollateralParams,
+  CREDIT_TIER_MATH,
+  ALERT_THRESHOLDS,
+  HF_COLORS,
+  getEffectiveLTV,
+  getAlertLevel,
+} from './config';
+
+export type {
+  CollateralParamsConfig,
+  CreditTierMathConfig,
+} from './config';
 
 // Composite credit constants
 export { TIER_BENEFITS } from './types/compositeCredit';

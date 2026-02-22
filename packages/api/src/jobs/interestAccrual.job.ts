@@ -1,9 +1,10 @@
 import type { WsPoolPayload } from '@dualis/shared';
 import {
   calculateUtilization,
-  calculateBorrowRate,
-  calculateSupplyRate,
-  PROTOCOL_DEFAULTS,
+  calculatePoolAPY,
+  accrueInterest,
+  getRateModel,
+  type InterestRateModelConfig,
 } from '@dualis/shared';
 import { createChildLogger } from '../config/logger.js';
 import { channelManager } from '../ws/channels.js';
@@ -20,88 +21,94 @@ const log = createChildLogger('interest-accrual');
 const INTERVAL_MS = 5 * 60 * 1_000;
 
 // ---------------------------------------------------------------------------
-// Mock pool state (mutable so we can simulate drift)
+// Pool state with index-based accrual
 // ---------------------------------------------------------------------------
 
-interface MockPoolState {
+interface PoolState {
   poolId: string;
+  assetSymbol: string;
   totalSupply: number;
   totalBorrow: number;
   totalReserves: number;
   priceUSD: number;
-  /** Variable-rate model parameters */
-  baseRate: number;
-  multiplier: number;
-  kink: number;
-  jumpMultiplier: number;
+  model: InterestRateModelConfig;
+  borrowIndex: number;
+  supplyIndex: number;
+  lastAccrualTs: number; // Unix seconds
 }
 
-const MOCK_POOLS: MockPoolState[] = [
+const POOLS: PoolState[] = [
   {
     poolId: 'usdc-main',
+    assetSymbol: 'USDC',
     totalSupply: 245_600_000,
     totalBorrow: 178_200_000,
     totalReserves: 4_912_000,
     priceUSD: 1.0,
-    baseRate: 0.02,
-    multiplier: 0.05,
-    kink: 0.8,
-    jumpMultiplier: 0.15,
+    model: getRateModel('USDC'),
+    borrowIndex: 1.0,
+    supplyIndex: 1.0,
+    lastAccrualTs: Math.floor(Date.now() / 1000),
   },
   {
     poolId: 'wbtc-main',
+    assetSymbol: 'wBTC',
     totalSupply: 1_850,
     totalBorrow: 920,
     totalReserves: 12.5,
     priceUSD: 97_234.56,
-    baseRate: 0.02,
-    multiplier: 0.04,
-    kink: 0.75,
-    jumpMultiplier: 0.20,
+    model: getRateModel('wBTC'),
+    borrowIndex: 1.0,
+    supplyIndex: 1.0,
+    lastAccrualTs: Math.floor(Date.now() / 1000),
   },
   {
     poolId: 'eth-main',
+    assetSymbol: 'ETH',
     totalSupply: 45_200,
     totalBorrow: 28_900,
     totalReserves: 340,
     priceUSD: 3_456.78,
-    baseRate: 0.02,
-    multiplier: 0.05,
-    kink: 0.8,
-    jumpMultiplier: 0.15,
+    model: getRateModel('ETH'),
+    borrowIndex: 1.0,
+    supplyIndex: 1.0,
+    lastAccrualTs: Math.floor(Date.now() / 1000),
   },
   {
     poolId: 'cc-receivable',
+    assetSymbol: 'CC-REC',
     totalSupply: 89_000_000,
     totalBorrow: 67_400_000,
     totalReserves: 1_780_000,
     priceUSD: 1.0,
-    baseRate: 0.03,
-    multiplier: 0.06,
-    kink: 0.7,
-    jumpMultiplier: 0.25,
+    model: getRateModel('CC-REC'),
+    borrowIndex: 1.0,
+    supplyIndex: 1.0,
+    lastAccrualTs: Math.floor(Date.now() / 1000),
   },
   {
     poolId: 'tbill-short',
+    assetSymbol: 'T-BILL',
     totalSupply: 320_000_000,
     totalBorrow: 198_400_000,
     totalReserves: 6_400_000,
     priceUSD: 99.87,
-    baseRate: 0.015,
-    multiplier: 0.04,
-    kink: 0.85,
-    jumpMultiplier: 0.12,
+    model: getRateModel('T-BILL'),
+    borrowIndex: 1.0,
+    supplyIndex: 1.0,
+    lastAccrualTs: Math.floor(Date.now() / 1000),
   },
   {
     poolId: 'spy-equity',
+    assetSymbol: 'SPY',
     totalSupply: 326_000,
     totalBorrow: 142_800,
     totalReserves: 4_890,
     priceUSD: 512.45,
-    baseRate: 0.02,
-    multiplier: 0.05,
-    kink: 0.75,
-    jumpMultiplier: 0.18,
+    model: getRateModel('SPY'),
+    borrowIndex: 1.0,
+    supplyIndex: 1.0,
+    lastAccrualTs: Math.floor(Date.now() / 1000),
   },
 ];
 
@@ -110,30 +117,40 @@ const MOCK_POOLS: MockPoolState[] = [
 // ---------------------------------------------------------------------------
 
 async function interestAccrualHandler(): Promise<void> {
-  const now = new Date().toISOString();
+  const now = Math.floor(Date.now() / 1000);
+  const nowIso = new Date().toISOString();
   const db = getDb();
 
-  for (const pool of MOCK_POOLS) {
+  for (const pool of POOLS) {
     // Simulate minor supply/borrow drift
     const supplyDrift = 1 + (Math.random() - 0.5) * 0.002;
     const borrowDrift = 1 + (Math.random() - 0.5) * 0.003;
     pool.totalSupply = Number((pool.totalSupply * supplyDrift).toFixed(2));
     pool.totalBorrow = Number((pool.totalBorrow * borrowDrift).toFixed(2));
 
-    // Recompute rates
+    // Accrue interest using index-based system
+    const accrual = accrueInterest(
+      pool.model,
+      pool.totalBorrow,
+      pool.totalSupply,
+      pool.totalReserves,
+      pool.borrowIndex,
+      pool.supplyIndex,
+      pool.lastAccrualTs,
+      now,
+    );
+
+    // Update pool state
+    pool.totalBorrow = accrual.newTotalBorrows;
+    pool.totalReserves = accrual.newTotalReserves;
+    pool.borrowIndex = accrual.newBorrowIndex;
+    pool.supplyIndex = accrual.newSupplyIndex;
+    pool.lastAccrualTs = now;
+
+    // Compute display rates
     const utilization = calculateUtilization(pool.totalBorrow, pool.totalSupply);
-    const borrowAPY = calculateBorrowRate(
-      utilization,
-      pool.baseRate,
-      pool.multiplier,
-      pool.kink,
-      pool.jumpMultiplier,
-    );
-    const supplyAPY = calculateSupplyRate(
-      borrowAPY,
-      utilization,
-      PROTOCOL_DEFAULTS.protocolFeeRate,
-    );
+    const supplyAPY = calculatePoolAPY(pool.model, utilization, 'supply');
+    const borrowAPY = calculatePoolAPY(pool.model, utilization, 'borrow');
 
     // Broadcast pool update via WebSocket
     const payload: WsPoolPayload = {
@@ -143,7 +160,7 @@ async function interestAccrualHandler(): Promise<void> {
       utilization: Number(utilization.toFixed(6)),
       supplyAPY: Number(supplyAPY.toFixed(6)),
       borrowAPY: Number(borrowAPY.toFixed(6)),
-      ts: now,
+      ts: nowIso,
     };
     channelManager.broadcast(`pool:${pool.poolId}`, payload);
 
@@ -167,7 +184,7 @@ async function interestAccrualHandler(): Promise<void> {
     }
   }
 
-  log.debug({ pools: MOCK_POOLS.length }, 'Interest accrual complete');
+  log.debug({ pools: POOLS.length }, 'Interest accrual complete');
 }
 
 // ---------------------------------------------------------------------------

@@ -8,13 +8,20 @@ import type {
   TransactionMeta,
   CreditTier,
 } from '@dualis/shared';
+import {
+  calculatePoolAPY,
+  calculateMaxBorrowable,
+  calculateHealthFactor,
+  getRateModel,
+  getCollateralParams,
+  type CollateralPositionInput,
+  type DebtPositionInput,
+  type HealthFactorResult,
+} from '@dualis/shared';
 import { randomUUID } from 'node:crypto';
 import * as compositeCreditService from './compositeCredit.service.js';
 
 const log = createChildLogger('borrow-service');
-
-// Base APY before tier-based discounts
-const BASE_BORROW_APY = 0.068;
 
 function buildTransactionMeta(): TransactionMeta {
   return {
@@ -32,13 +39,21 @@ const COLLATERAL_PRICES: Record<string, number> = {
   'T-BILL': 1.0,
   'CC-REC': 1.0,
   SPY: 478.5,
-  // Productive project assets
   'SOLAR-ASSET': 1.0,
   'WIND-ASSET': 1.0,
   'INFRA-ASSET': 1.0,
-  // TIFA receivables
   'TIFA-REC': 1.0,
   'TIFA-INVOICE': 1.0,
+};
+
+// Pool asset symbol lookup
+const POOL_ASSETS: Record<string, string> = {
+  'usdc-main': 'USDC',
+  'wbtc-main': 'wBTC',
+  'eth-main': 'ETH',
+  'cc-receivable': 'CC-REC',
+  'tbill-short': 'T-BILL',
+  'spy-equity': 'SPY',
 };
 
 const MOCK_POSITIONS: BorrowPositionItem[] = [
@@ -110,27 +125,79 @@ const MOCK_POSITIONS: BorrowPositionItem[] = [
   },
 ];
 
+/**
+ * Build CollateralPositionInput from raw collateral data.
+ */
+function buildCollateralInputs(
+  collateralAssets: Array<{ symbol: string; amount: string }>,
+): CollateralPositionInput[] {
+  return collateralAssets.map(a => {
+    const params = getCollateralParams(a.symbol);
+    const price = COLLATERAL_PRICES[a.symbol] ?? 1;
+    return {
+      symbol: a.symbol,
+      amount: parseFloat(a.amount),
+      priceUSD: price,
+      loanToValue: params?.loanToValue ?? 0.50,
+      liquidationThreshold: params?.liquidationThreshold ?? 0.60,
+      liquidationPenalty: params?.liquidationPenalty ?? 0.10,
+      collateralTier: params?.collateralTier ?? 'crypto',
+    };
+  });
+}
+
 export function requestBorrow(
   partyId: string,
-  params: BorrowRequest
+  params: BorrowRequest,
 ): { data: BorrowResponse; transaction: TransactionMeta } {
   log.info({ partyId, params }, 'Processing borrow request');
 
-  // Look up composite score for tier-based rate discount
+  // 1. Get composite credit score for tier-based adjustments
   const compositeScore = compositeCreditService.getCompositeScore(partyId);
+  const tier = compositeScore.tier;
   const rateDiscount = compositeScore.benefits.rateDiscount;
-  const discountedAPY = Number((BASE_BORROW_APY * (1 - rateDiscount)).toFixed(4));
+  const tierMaxLTV = compositeScore.benefits.maxLTV;
+
+  // 2. Build collateral position inputs with proper params
+  const collateralInputs = buildCollateralInputs(params.collateralAssets);
+
+  // 3. Build debt for this borrow
+  const borrowAmount = parseFloat(params.borrowAmount);
+  const poolAsset = POOL_ASSETS[params.lendingPoolId] ?? 'USDC';
+  const borrowPrice = COLLATERAL_PRICES[poolAsset] ?? 1;
+  const borrowAmountUSD = borrowAmount * borrowPrice;
+
+  // 4. Check max borrowable using proper math
+  const existingDebts: DebtPositionInput[] = [];
+  const maxBorrowableUSD = calculateMaxBorrowable(collateralInputs, existingDebts, tierMaxLTV);
+
+  if (borrowAmountUSD > maxBorrowableUSD) {
+    throw new Error(`INSUFFICIENT_COLLATERAL: Max borrowable: $${maxBorrowableUSD.toFixed(2)}`);
+  }
+
+  // 5. Preview health factor with the new borrow
+  const newDebt: DebtPositionInput = {
+    symbol: poolAsset,
+    amount: borrowAmount,
+    priceUSD: borrowPrice,
+  };
+
+  const previewHF = calculateHealthFactor(collateralInputs, [newDebt]) as HealthFactorResult;
+
+  // 6. Safety check — don't allow borrow that would put HF below 1.2
+  if (previewHF.value < 1.2) {
+    throw new Error(`HEALTH_FACTOR_TOO_LOW: Projected HF: ${previewHF.value.toFixed(2)} (min: 1.20)`);
+  }
+
+  // 7. Calculate tier-adjusted borrow APY
+  const model = getRateModel(poolAsset);
+  const utilization = 0.72; // would come from pool state in production
+  const borrowAPY = calculatePoolAPY(model, utilization, 'borrow', rateDiscount);
 
   log.debug(
-    { tier: compositeScore.tier, rateDiscount, baseAPY: BASE_BORROW_APY, discountedAPY },
-    'Applied tier-based rate discount',
+    { tier, rateDiscount, borrowAPY, healthFactor: previewHF.value },
+    'Borrow approved with tier-adjusted rate',
   );
-
-  const borrowAmount = parseFloat(params.borrowAmount);
-  // Hybrid collateral: supports crypto, project assets, and TIFA receivables
-  const collateralValueUSD = params.collateralAssets.reduce((acc, a) => {
-    return acc + parseFloat(a.amount) * (COLLATERAL_PRICES[a.symbol] ?? 1);
-  }, 0);
 
   return {
     data: {
@@ -138,20 +205,20 @@ export function requestBorrow(
       collateralPositionId: `collateral-pos-${randomUUID().slice(0, 8)}`,
       borrowedAmount: params.borrowAmount,
       healthFactor: {
-        value: Number((collateralValueUSD / borrowAmount).toFixed(2)),
-        collateralValueUSD,
-        borrowValueUSD: borrowAmount,
-        weightedLTV: Number((borrowAmount / collateralValueUSD).toFixed(4)),
+        value: previewHF.value,
+        collateralValueUSD: previewHF.collateralValueUSD,
+        borrowValueUSD: previewHF.borrowValueUSD,
+        weightedLTV: previewHF.weightedLTV,
       },
-      creditTier: compositeScore.tier,
-      borrowAPY: discountedAPY,
+      creditTier: tier,
+      borrowAPY: Number(borrowAPY.toFixed(4)),
     },
     transaction: buildTransactionMeta(),
   };
 }
 
 export function getPositions(
-  partyId: string
+  partyId: string,
 ): BorrowPositionItem[] {
   log.debug({ partyId }, 'Getting borrow positions');
   return MOCK_POSITIONS;
@@ -160,7 +227,7 @@ export function getPositions(
 export function repay(
   partyId: string,
   positionId: string,
-  amount: string
+  amount: string,
 ): { data: RepayResponse; transaction: TransactionMeta } {
   log.info({ partyId, positionId, amount }, 'Processing repayment');
 
@@ -176,7 +243,7 @@ export function repay(
     data: {
       remainingDebt: Number(remaining.toFixed(2)),
       newHealthFactor: remaining === 0 ? Infinity : Number(
-        (position.healthFactor.collateralValueUSD / remaining).toFixed(2)
+        (position.healthFactor.collateralValueUSD / remaining).toFixed(2),
       ),
     },
     transaction: buildTransactionMeta(),
@@ -186,7 +253,7 @@ export function repay(
 export function addCollateral(
   partyId: string,
   positionId: string,
-  asset: { symbol: string; amount: string }
+  asset: { symbol: string; amount: string },
 ): { data: AddCollateralResponse; transaction: TransactionMeta } {
   log.info({ partyId, positionId, asset }, 'Adding collateral');
 
@@ -202,7 +269,7 @@ export function addCollateral(
     data: {
       newCollateralValueUSD: Number(newCollateralValue.toFixed(2)),
       newHealthFactor: Number(
-        (newCollateralValue / position.currentDebt).toFixed(2)
+        (newCollateralValue / position.currentDebt).toFixed(2),
       ),
     },
     transaction: buildTransactionMeta(),

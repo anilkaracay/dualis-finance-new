@@ -545,7 +545,7 @@ async function seed(): Promise<void> {
 
     // bcrypt hash of "Demo1234!" — pre-computed to avoid requiring bcrypt in seed
     // Generated with: await bcrypt.hash('Demo1234!', 12)
-    const demoPasswordHash = '$2b$12$LJ3MFnvB8yVH2O.GRYwT2eVaYGx5l0gFu3cQ3xJh6N8nXn.I9zVDW';
+    const demoPasswordHash = '$2b$12$BqdXy89V7JJbbbx/9y9Dy.CT3oaTKUIGOoUS6x9MogXc8iKeBGOz2';
 
     // Retail demo user
     await db.insert(schema.users).values({

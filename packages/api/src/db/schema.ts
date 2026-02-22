@@ -25,6 +25,9 @@ export const poolSnapshots = pgTable('pool_snapshots', {
   borrowAPY: real('borrow_apy').notNull(),
   utilization: real('utilization').notNull(),
   priceUSD: decimal('price_usd', { precision: 28, scale: 8 }).notNull(),
+  // Index-based accrual tracking
+  borrowIndex: decimal('borrow_index', { precision: 36, scale: 18 }),
+  supplyIndex: decimal('supply_index', { precision: 36, scale: 18 }),
   timestamp: timestamp('timestamp', { withTimezone: true }).defaultNow().notNull(),
 });
 
@@ -75,7 +78,11 @@ export const liquidationEvents = pgTable('liquidation_events', {
   liquidator: varchar('liquidator', { length: 256 }).notNull(),
   poolId: varchar('pool_id', { length: 128 }).notNull(),
   borrowPositionId: varchar('borrow_position_id', { length: 256 }).notNull(),
+  debtAsset: varchar('debt_asset', { length: 64 }),
+  debtRepaid: decimal('debt_repaid', { precision: 38, scale: 18 }),
+  collateralAsset: varchar('collateral_asset', { length: 64 }),
   collateralSeized: decimal('collateral_seized', { precision: 38, scale: 18 }).notNull(),
+  liquidationPenalty: real('liquidation_penalty'),
   liquidatorReward: decimal('liquidator_reward', { precision: 38, scale: 18 }).notNull(),
   protocolFee: decimal('protocol_fee', { precision: 38, scale: 18 }).notNull(),
   healthFactorBefore: real('health_factor_before').notNull(),
