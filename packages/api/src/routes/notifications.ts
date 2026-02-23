@@ -1,11 +1,14 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { eq, and, desc, sql, count } from 'drizzle-orm';
 import { authMiddleware } from '../middleware/auth.js';
+import { queryValidator, paramsValidator } from '../middleware/validate.js';
 import { getDb } from '../db/client.js';
 import * as schema from '../db/schema.js';
 import { createChildLogger } from '../config/logger.js';
 import { getUnreadCount, decrementUnreadCount, resetUnreadCount } from '../notification/ratelimit.js';
 import { channelManager } from '../ws/channels.js';
+import { notificationQuerySchema } from '../schemas/notification.js';
+import { idParamSchema } from '../schemas/common.js';
 
 const log = createChildLogger('notification-routes');
 
@@ -17,7 +20,7 @@ export async function notificationRoutes(fastify: FastifyInstance): Promise<void
   // ── GET /notifications ─────────────────────────────────────────────────
   fastify.get(
     '/notifications',
-    { preHandler: authMiddleware },
+    { preHandler: [authMiddleware, queryValidator(notificationQuerySchema)] },
     async (request: FastifyRequest, reply: FastifyReply) => {
       const partyId = request.user!.partyId;
       const query = request.query as {
@@ -138,7 +141,7 @@ export async function notificationRoutes(fastify: FastifyInstance): Promise<void
   // ── GET /notifications/:id ────────────────────────────────────────────
   fastify.get(
     '/notifications/:id',
-    { preHandler: authMiddleware },
+    { preHandler: [authMiddleware, paramsValidator(idParamSchema)] },
     async (request: FastifyRequest, reply: FastifyReply) => {
       const partyId = request.user!.partyId;
       const { id } = request.params as { id: string };
@@ -191,7 +194,7 @@ export async function notificationRoutes(fastify: FastifyInstance): Promise<void
   // ── PUT /notifications/:id/read ───────────────────────────────────────
   fastify.put(
     '/notifications/:id/read',
-    { preHandler: authMiddleware },
+    { preHandler: [authMiddleware, paramsValidator(idParamSchema)] },
     async (request: FastifyRequest, reply: FastifyReply) => {
       const partyId = request.user!.partyId;
       const { id } = request.params as { id: string };
@@ -269,7 +272,7 @@ export async function notificationRoutes(fastify: FastifyInstance): Promise<void
   // ── DELETE /notifications/:id ─────────────────────────────────────────
   fastify.delete(
     '/notifications/:id',
-    { preHandler: authMiddleware },
+    { preHandler: [authMiddleware, paramsValidator(idParamSchema)] },
     async (request: FastifyRequest, reply: FastifyReply) => {
       const partyId = request.user!.partyId;
       const { id } = request.params as { id: string };

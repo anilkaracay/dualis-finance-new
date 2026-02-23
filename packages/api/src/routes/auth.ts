@@ -4,6 +4,7 @@ import type { ApiResponse, AuthSession, AuthUser, WalletNonceResponse } from '@d
 import { AppError } from '../middleware/errorHandler.js';
 import { authMiddleware } from '../middleware/auth.js';
 import * as authService from '../services/auth.service.js';
+import { checkBruteForce, recordFailedAttempt, resetBruteForce } from '../security/brute-force.js';
 
 // ---------------------------------------------------------------------------
 // Zod Schemas
@@ -67,8 +68,16 @@ const linkWalletSchema = z.object({
 // ---------------------------------------------------------------------------
 
 export async function authRoutes(fastify: FastifyInstance): Promise<void> {
+  // ─── GET /auth/csrf-token — get CSRF token for state-changing requests ──
+  fastify.get('/auth/csrf-token', async (_request, reply) => {
+    const token = reply.generateCsrf?.();
+    return reply.status(200).send({ data: { csrfToken: token ?? null } });
+  });
+
   // POST /auth/register/retail
-  fastify.post('/auth/register/retail', async (request, reply) => {
+  fastify.post('/auth/register/retail', {
+    config: { rateLimit: { max: 5, timeWindow: '1 hour' } },
+  }, async (request, reply) => {
     const parsed = registerRetailSchema.safeParse(request.body);
     if (!parsed.success) {
       throw new AppError('VALIDATION_ERROR', 'Invalid registration data', 400, parsed.error.flatten());
@@ -86,7 +95,9 @@ export async function authRoutes(fastify: FastifyInstance): Promise<void> {
   });
 
   // POST /auth/register/institutional
-  fastify.post('/auth/register/institutional', async (request, reply) => {
+  fastify.post('/auth/register/institutional', {
+    config: { rateLimit: { max: 5, timeWindow: '1 hour' } },
+  }, async (request, reply) => {
     const parsed = registerInstitutionalSchema.safeParse(request.body);
     if (!parsed.success) {
       throw new AppError('VALIDATION_ERROR', 'Invalid registration data', 400, parsed.error.flatten());
@@ -107,24 +118,51 @@ export async function authRoutes(fastify: FastifyInstance): Promise<void> {
   });
 
   // POST /auth/login
-  fastify.post('/auth/login', async (request, reply) => {
+  fastify.post('/auth/login', {
+    config: { rateLimit: { max: 10, timeWindow: '15 minutes' } },
+  }, async (request, reply) => {
     const parsed = loginEmailSchema.safeParse(request.body);
     if (!parsed.success) {
       throw new AppError('VALIDATION_ERROR', 'Invalid login data', 400, parsed.error.flatten());
     }
 
-    const result = await authService.loginWithEmail(
-      parsed.data.email,
-      parsed.data.password,
-      request,
-    );
+    // Brute force check: ip:email combination
+    const bfIdentifier = `${request.ip}:${parsed.data.email.toLowerCase()}`;
+    const bfCheck = await checkBruteForce(bfIdentifier);
+    if (!bfCheck.allowed) {
+      throw new AppError(
+        'RATE_LIMITED',
+        'Too many failed attempts. Please try again later.',
+        429,
+        { retryAfter: bfCheck.retryAfterSeconds },
+      );
+    }
 
-    const response: ApiResponse<AuthSession> = { data: result };
-    return reply.status(200).send(response);
+    try {
+      const result = await authService.loginWithEmail(
+        parsed.data.email,
+        parsed.data.password,
+        request,
+      );
+
+      // Successful login — reset brute force counter
+      await resetBruteForce(bfIdentifier);
+
+      const response: ApiResponse<AuthSession> = { data: result };
+      return reply.status(200).send(response);
+    } catch (err) {
+      // Record failed attempt for brute force tracking (only for credential errors)
+      if (err instanceof AppError && err.code === 'INVALID_CREDENTIALS') {
+        await recordFailedAttempt(bfIdentifier);
+      }
+      throw err;
+    }
   });
 
   // POST /auth/wallet/nonce
-  fastify.post('/auth/wallet/nonce', async (request, reply) => {
+  fastify.post('/auth/wallet/nonce', {
+    config: { rateLimit: { max: 20, timeWindow: '15 minutes' } },
+  }, async (request, reply) => {
     const parsed = walletNonceSchema.safeParse(request.body);
     if (!parsed.success) {
       throw new AppError('VALIDATION_ERROR', 'Invalid wallet address', 400, parsed.error.flatten());
@@ -205,7 +243,9 @@ export async function authRoutes(fastify: FastifyInstance): Promise<void> {
   );
 
   // POST /auth/verify-email
-  fastify.post('/auth/verify-email', async (request, reply) => {
+  fastify.post('/auth/verify-email', {
+    config: { rateLimit: { max: 10, timeWindow: '1 hour' } },
+  }, async (request, reply) => {
     const parsed = verifyEmailSchema.safeParse(request.body);
     if (!parsed.success) {
       throw new AppError('VALIDATION_ERROR', 'Token required', 400, parsed.error.flatten());
@@ -218,7 +258,9 @@ export async function authRoutes(fastify: FastifyInstance): Promise<void> {
   });
 
   // POST /auth/forgot-password
-  fastify.post('/auth/forgot-password', async (request, reply) => {
+  fastify.post('/auth/forgot-password', {
+    config: { rateLimit: { max: 3, timeWindow: '1 hour' } },
+  }, async (request, reply) => {
     const parsed = forgotPasswordSchema.safeParse(request.body);
     if (!parsed.success) {
       throw new AppError('VALIDATION_ERROR', 'Email required', 400, parsed.error.flatten());
@@ -231,7 +273,9 @@ export async function authRoutes(fastify: FastifyInstance): Promise<void> {
   });
 
   // POST /auth/reset-password
-  fastify.post('/auth/reset-password', async (request, reply) => {
+  fastify.post('/auth/reset-password', {
+    config: { rateLimit: { max: 5, timeWindow: '1 hour' } },
+  }, async (request, reply) => {
     const parsed = resetPasswordSchema.safeParse(request.body);
     if (!parsed.success) {
       throw new AppError('VALIDATION_ERROR', 'Invalid reset data', 400, parsed.error.flatten());
@@ -267,6 +311,46 @@ export async function authRoutes(fastify: FastifyInstance): Promise<void> {
 
       const response: ApiResponse<typeof result> = { data: result };
       return reply.status(200).send(response);
+    },
+  );
+
+  // ─── GET /auth/sessions — list active sessions for current user ─────
+  fastify.get(
+    '/auth/sessions',
+    { preHandler: [authMiddleware] },
+    async (request, reply) => {
+      const userId = request.user?.userId;
+      if (!userId) throw new AppError('UNAUTHORIZED', 'Authentication required', 401);
+
+      const sessions = await authService.getUserSessions(userId);
+      return reply.status(200).send({ data: sessions });
+    },
+  );
+
+  // ─── DELETE /auth/sessions/:sessionId — revoke single session ───────
+  fastify.delete(
+    '/auth/sessions/:sessionId',
+    { preHandler: [authMiddleware] },
+    async (request, reply) => {
+      const userId = request.user?.userId;
+      if (!userId) throw new AppError('UNAUTHORIZED', 'Authentication required', 401);
+
+      const { sessionId } = request.params as { sessionId: string };
+      await authService.revokeSession(userId, sessionId);
+      return reply.status(200).send({ data: { success: true } });
+    },
+  );
+
+  // ─── POST /auth/revoke-all-sessions — revoke all sessions ──────────
+  fastify.post(
+    '/auth/revoke-all-sessions',
+    { preHandler: [authMiddleware] },
+    async (request, reply) => {
+      const userId = request.user?.userId;
+      if (!userId) throw new AppError('UNAUTHORIZED', 'Authentication required', 401);
+
+      await authService.logoutAll(userId);
+      return reply.status(200).send({ data: { success: true } });
     },
   );
 }

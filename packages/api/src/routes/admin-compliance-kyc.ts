@@ -12,10 +12,13 @@ import {
   amlScreenings,
 } from '../db/schema.js';
 import { requireCompliance, requireAdmin } from '../middleware/admin-auth.js';
+import { bodyValidator, paramsValidator } from '../middleware/validate.js';
 import { calculateRiskAssessment, getLatestRiskAssessment } from '../compliance/services/risk.service.js';
 import { makeDecision, manualReviewDecision } from '../compliance/services/decision.service.js';
 import { updateSanctionsList } from '../compliance/services/sanctions.service.js';
 import { logComplianceEvent } from '../compliance/audit.js';
+import { idParamSchema, userIdParamSchema } from '../schemas/common.js';
+import { approveRejectSchema, rejectKYCSchema, blockUserSchema } from '../schemas/compliance.js';
 
 export default async function adminComplianceKYCRoutes(fastify: FastifyInstance): Promise<void> {
 
@@ -51,10 +54,10 @@ export default async function adminComplianceKYCRoutes(fastify: FastifyInstance)
   // PUT /admin/compliance/kyc/:id/approve
   fastify.put(
     '/admin/compliance/kyc/:id/approve',
-    { preHandler: [requireCompliance] },
+    { preHandler: [requireCompliance, paramsValidator(idParamSchema), bodyValidator(approveRejectSchema)] },
     async (request: FastifyRequest, reply: FastifyReply) => {
       const { id } = request.params as { id: string };
-      const body = (request.body as { reason?: string }) ?? {};
+      const body = request.body as { reason?: string };
       const adminId = request.user!.userId!;
 
       const db = getDb();
@@ -77,13 +80,11 @@ export default async function adminComplianceKYCRoutes(fastify: FastifyInstance)
   // PUT /admin/compliance/kyc/:id/reject
   fastify.put(
     '/admin/compliance/kyc/:id/reject',
-    { preHandler: [requireCompliance] },
+    { preHandler: [requireCompliance, paramsValidator(idParamSchema), bodyValidator(rejectKYCSchema)] },
     async (request: FastifyRequest, reply: FastifyReply) => {
       const { id } = request.params as { id: string };
-      const body = request.body as { reason?: string };
+      const body = request.body as { reason: string };
       const adminId = request.user!.userId!;
-
-      if (!body?.reason) return reply.status(400).send({ error: 'Reason is required' });
 
       const db = getDb();
       if (!db) return reply.status(503).send({ error: 'Database unavailable' });
@@ -105,7 +106,7 @@ export default async function adminComplianceKYCRoutes(fastify: FastifyInstance)
   // GET /admin/compliance/risk/:userId
   fastify.get(
     '/admin/compliance/risk/:userId',
-    { preHandler: [requireCompliance] },
+    { preHandler: [requireCompliance, paramsValidator(userIdParamSchema)] },
     async (request: FastifyRequest, reply: FastifyReply) => {
       const { userId } = request.params as { userId: string };
 
@@ -119,7 +120,7 @@ export default async function adminComplianceKYCRoutes(fastify: FastifyInstance)
   // POST /admin/compliance/risk/:userId/reassess
   fastify.post(
     '/admin/compliance/risk/:userId/reassess',
-    { preHandler: [requireCompliance] },
+    { preHandler: [requireCompliance, paramsValidator(userIdParamSchema)] },
     async (request: FastifyRequest, reply: FastifyReply) => {
       const { userId } = request.params as { userId: string };
       const adminId = request.user!.userId!;
@@ -215,13 +216,11 @@ export default async function adminComplianceKYCRoutes(fastify: FastifyInstance)
   // POST /admin/compliance/user/:id/block
   fastify.post(
     '/admin/compliance/user/:id/block',
-    { preHandler: [requireAdmin] },
+    { preHandler: [requireAdmin, paramsValidator(idParamSchema), bodyValidator(blockUserSchema)] },
     async (request: FastifyRequest, reply: FastifyReply) => {
       const { id } = request.params as { id: string };
-      const body = request.body as { reason?: string };
+      const body = request.body as { reason: string };
       const adminId = request.user!.userId!;
-
-      if (!body?.reason) return reply.status(400).send({ error: 'Reason is required' });
 
       await manualReviewDecision(id, adminId, 'block', body.reason);
 
@@ -232,13 +231,11 @@ export default async function adminComplianceKYCRoutes(fastify: FastifyInstance)
   // POST /admin/compliance/user/:id/unblock
   fastify.post(
     '/admin/compliance/user/:id/unblock',
-    { preHandler: [requireAdmin] },
+    { preHandler: [requireAdmin, paramsValidator(idParamSchema), bodyValidator(blockUserSchema)] },
     async (request: FastifyRequest, reply: FastifyReply) => {
       const { id } = request.params as { id: string };
-      const body = request.body as { reason?: string };
+      const body = request.body as { reason: string };
       const adminId = request.user!.userId!;
-
-      if (!body?.reason) return reply.status(400).send({ error: 'Reason is required' });
 
       const db = getDb();
       if (!db) return reply.status(503).send({ error: 'Database unavailable' });

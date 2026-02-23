@@ -13,10 +13,33 @@ import type { ApiError, ApiResponse } from '@dualis/shared';
 export const apiClient = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/v1',
   timeout: 15_000,
+  withCredentials: true, // Send CSRF double-submit cookie (MP22)
   headers: {
     'Content-Type': 'application/json',
   },
 });
+
+// ---------------------------------------------------------------------------
+// CSRF token management (MP22)
+// ---------------------------------------------------------------------------
+
+let csrfToken: string | null = null;
+
+/**
+ * Fetch a CSRF token from the backend.
+ * Called once on app init and after any 403 CSRF error.
+ */
+export async function fetchCsrfToken(): Promise<void> {
+  try {
+    const response = await apiClient.get('/auth/csrf-token');
+    const token = response.data?.token ?? response.data;
+    if (typeof token === 'string') {
+      csrfToken = token;
+    }
+  } catch {
+    // CSRF may not be enabled — fail silently
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Token refresh mutex — prevents concurrent refresh requests
@@ -59,6 +82,12 @@ apiClient.interceptors.request.use(
         // localStorage or JSON parse failed — continue without auth
       }
     }
+    // Attach CSRF token for state-changing requests (MP22)
+    const method = config.method?.toUpperCase();
+    if (csrfToken && (method === 'POST' || method === 'PUT' || method === 'DELETE' || method === 'PATCH')) {
+      config.headers.set('X-CSRF-Token', csrfToken);
+    }
+
     return config;
   },
   (error: unknown) => Promise.reject(error),

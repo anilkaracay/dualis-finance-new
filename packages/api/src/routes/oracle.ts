@@ -6,6 +6,7 @@ import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import type { ApiResponse, OraclePriceItem, OraclePriceWithHistory } from '@dualis/shared';
 import { AppError } from '../middleware/errorHandler.js';
+import { requireAdmin } from '../middleware/admin-auth.js';
 import * as oracleService from '../services/oracle.service.js';
 import {
   getOracleStatus,
@@ -122,12 +123,10 @@ export async function oracleRoutes(fastify: FastifyInstance): Promise<void> {
 
   // ─── POST /oracle/manual/:asset ──────────────────────────────────────
   // Admin-only: update a manual NAV price for RWA assets
-  fastify.post(
+  fastify.post<{ Params: { asset: string } }>(
     '/oracle/manual/:asset',
-    async (
-      request: FastifyRequest<{ Params: { asset: string } }>,
-      reply,
-    ) => {
+    { preHandler: [requireAdmin] },
+    async (request, reply) => {
       const { asset } = request.params;
       const bodySchema = z.object({ price: z.number().positive() });
       const parsed = bodySchema.safeParse(request.body);
@@ -146,12 +145,10 @@ export async function oracleRoutes(fastify: FastifyInstance): Promise<void> {
 
   // ─── POST /oracle/circuit-breaker/:asset/reset ───────────────────────
   // Admin-only: manually reset a tripped circuit breaker
-  fastify.post(
+  fastify.post<{ Params: { asset: string } }>(
     '/oracle/circuit-breaker/:asset/reset',
-    async (
-      request: FastifyRequest<{ Params: { asset: string } }>,
-      reply,
-    ) => {
+    { preHandler: [requireAdmin] },
+    async (request, reply) => {
       const { asset } = request.params;
 
       resetCircuitBreaker(asset);

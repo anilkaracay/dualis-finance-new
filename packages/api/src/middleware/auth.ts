@@ -9,6 +9,7 @@ import { eq } from 'drizzle-orm';
 import type { PrivacyLevel } from '@dualis/shared';
 import * as institutionalService from '../services/institutional.service.js';
 import * as privacyService from '../services/privacy.service.js';
+import { isTokenBlacklisted } from '../security/session.js';
 
 const log = createChildLogger('auth');
 
@@ -50,6 +51,7 @@ interface JwtPayload {
   email?: string;
   role?: string;
   tier?: string;
+  jti?: string;
   iat?: number;
   exp?: number;
 }
@@ -77,6 +79,12 @@ export async function authMiddleware(
     const token = authHeader.slice(7);
     try {
       const decoded = jwt.verify(token, env.JWT_SECRET) as JwtPayload;
+
+      // Check JWT blacklist (revoked sessions)
+      if (decoded.jti && await isTokenBlacklisted(decoded.jti)) {
+        throw new AppError('UNAUTHORIZED', 'Token has been revoked', 401);
+      }
+
       request.user = {
         userId: decoded.sub,
         partyId: decoded.partyId ?? decoded.sub,
@@ -88,6 +96,7 @@ export async function authMiddleware(
       };
       return;
     } catch (err) {
+      if (err instanceof AppError) throw err;
       log.debug({ err }, 'JWT verification failed');
       throw new AppError('UNAUTHORIZED', 'Invalid or expired token', 401);
     }

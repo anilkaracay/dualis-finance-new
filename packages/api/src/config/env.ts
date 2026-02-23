@@ -37,6 +37,15 @@ const envSchema = z.object({
   RATE_LIMIT_MAX: z.coerce.number().default(120),
   RATE_LIMIT_WINDOW_MS: z.coerce.number().default(60000),
 
+  // Security (MP22)
+  BODY_SIZE_LIMIT_BYTES: z.coerce.number().default(1_048_576), // 1MB
+  COOKIE_SECRET: z.string().default('dev-cookie-secret-change-in-production'),
+  BRUTE_FORCE_MAX_ATTEMPTS: z.coerce.number().default(8),
+  BRUTE_FORCE_LOCKOUT_SEC: z.coerce.number().default(900),
+  BAN_THRESHOLD: z.coerce.number().default(3),
+  BAN_DURATION_SECONDS: z.coerce.number().default(900),
+  CSRF_ENABLED: z.coerce.boolean().default(false),
+
   // Oracle
   ORACLE_UPDATE_INTERVAL_MS: z.coerce.number().default(30000),
   COINGECKO_API_KEY: z.string().optional(),

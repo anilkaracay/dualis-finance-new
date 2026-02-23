@@ -99,6 +99,10 @@ export const ENDPOINTS = {
   WEBHOOK_DETAIL: (id: string) => `/webhooks/${id}`,
   WEBHOOK_TEST: (id: string) => `/webhooks/${id}/test`,
   WEBHOOK_DELIVERIES: (id: string) => `/webhooks/${id}/deliveries`,
+  // Auth — Security (MP22)
+  AUTH_CSRF_TOKEN: '/auth/csrf-token',
+  AUTH_SESSIONS: '/auth/sessions',
+  AUTH_REVOKE_ALL_SESSIONS: '/auth/revoke-all-sessions',
   // Compliance — KYC (MP21)
   COMPLIANCE_KYC_INITIATE: '/compliance/kyc/initiate',
   COMPLIANCE_KYC_STATUS: '/compliance/kyc/status',

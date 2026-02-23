@@ -1,13 +1,15 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
-import type { CreateWebhookRequest, UpdateWebhookRequest } from '@dualis/shared';
 import { eq, and, desc, count } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
 import { authMiddleware } from '../middleware/auth.js';
+import { bodyValidator, paramsValidator } from '../middleware/validate.js';
 import { getDb } from '../db/client.js';
 import * as schema from '../db/schema.js';
 import { createChildLogger } from '../config/logger.js';
 import { validateWebhookUrl, generateWebhookSecret } from '../notification/channels/webhook.channel.js';
 import { notificationBus } from '../notification/notification.bus.js';
+import { createWebhookSchema, updateWebhookSchema } from '../schemas/webhook.js';
+import { idParamSchema } from '../schemas/common.js';
 
 const log = createChildLogger('webhook-routes');
 
@@ -58,16 +60,12 @@ export async function webhookRoutes(fastify: FastifyInstance): Promise<void> {
   // ── POST /webhooks ─────────────────────────────────────────────────────
   fastify.post(
     '/webhooks',
-    { preHandler: authMiddleware },
+    { preHandler: [authMiddleware, bodyValidator(createWebhookSchema)] },
     async (request: FastifyRequest, reply: FastifyReply) => {
       const partyId = request.user!.partyId;
-      const body = request.body as CreateWebhookRequest;
+      const body = request.body as { url: string; events: string[] };
 
-      if (!body.url || !body.events || body.events.length === 0) {
-        return reply.status(400).send({ error: 'URL and events are required' });
-      }
-
-      // Validate URL
+      // Validate URL (SSRF protection)
       const urlCheck = validateWebhookUrl(body.url);
       if (!urlCheck.valid) {
         return reply.status(400).send({ error: urlCheck.error });
@@ -172,11 +170,11 @@ export async function webhookRoutes(fastify: FastifyInstance): Promise<void> {
   // ── PUT /webhooks/:id ──────────────────────────────────────────────────
   fastify.put(
     '/webhooks/:id',
-    { preHandler: authMiddleware },
+    { preHandler: [authMiddleware, paramsValidator(idParamSchema), bodyValidator(updateWebhookSchema)] },
     async (request: FastifyRequest, reply: FastifyReply) => {
       const partyId = request.user!.partyId;
       const { id } = request.params as { id: string };
-      const body = request.body as UpdateWebhookRequest;
+      const body = request.body as { url?: string; events?: string[]; isActive?: boolean };
 
       if (body.url) {
         const urlCheck = validateWebhookUrl(body.url);

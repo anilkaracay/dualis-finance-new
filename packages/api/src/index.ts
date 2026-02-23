@@ -10,6 +10,8 @@ import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
 import compress from '@fastify/compress';
 import websocket from '@fastify/websocket';
+import cookie from '@fastify/cookie';
+import csrfProtection from '@fastify/csrf-protection';
 import { nanoid } from 'nanoid';
 
 import { env } from './config/env.js';
@@ -18,6 +20,7 @@ import { globalErrorHandler } from './middleware/errorHandler.js';
 import { metricsOnRequest, metricsOnResponse, metricsRoute } from './middleware/metrics.js';
 import { closeDb } from './db/client.js';
 import { closeRedis } from './cache/redis.js';
+import { isBanned, recordRateLimitViolation } from './security/ban.js';
 
 // Route modules
 import { healthRoutes } from './routes/health.js';
@@ -122,23 +125,78 @@ async function main(): Promise<void> {
     logger: false, // we use our own pino logger
     genReqId: () => nanoid(),
     trustProxy: true,
+    bodyLimit: env.BODY_SIZE_LIMIT_BYTES,
   });
 
   // ---------------------------------------------------------------------------
   // Register plugins
   // ---------------------------------------------------------------------------
 
+  const allowedOrigins = env.CORS_ORIGIN.split(',').map(s => s.trim());
   await server.register(cors, {
-    origin: env.CORS_ORIGIN,
+    origin: (origin, callback) => {
+      // Allow requests with no origin (server-to-server, webhooks, health probes)
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.includes(origin)) return callback(null, true);
+      callback(new Error('Not allowed by CORS'), false);
+    },
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-API-Key', 'X-CSRF-Token', 'X-Request-ID'],
+    exposedHeaders: ['X-RateLimit-Limit', 'X-RateLimit-Remaining', 'X-RateLimit-Reset', 'X-Request-ID', 'Retry-After'],
+    maxAge: 86400,
   });
 
   await server.register(helmet, {
-    contentSecurityPolicy: false,
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'", 'https://static.sumsub.com'],
+        styleSrc: ["'self'", "'unsafe-inline'", 'https://static.sumsub.com'],
+        imgSrc: ["'self'", 'data:', 'https://static.sumsub.com'],
+        connectSrc: ["'self'", ...env.CORS_ORIGIN.split(',').map(s => s.trim()), 'https://api.sumsub.com', 'wss:'],
+        frameSrc: ['https://static.sumsub.com'],
+        fontSrc: ["'self'", 'https://static.sumsub.com'],
+        objectSrc: ["'none'"],
+        baseUri: ["'self'"],
+        formAction: ["'self'"],
+        frameAncestors: ["'none'"],
+        upgradeInsecureRequests: [],
+      },
+    },
+    hsts: {
+      maxAge: 31536000,
+      includeSubDomains: true,
+      preload: true,
+    },
+    referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+    crossOriginEmbedderPolicy: false, // Required for Sumsub KYC iframe
+    dnsPrefetchControl: { allow: false },
+    permittedCrossDomainPolicies: false,
   });
 
   await server.register(compress);
   await server.register(websocket);
+
+  // Cookie plugin (required for CSRF)
+  await server.register(cookie, {
+    secret: env.COOKIE_SECRET,
+  });
+
+  // CSRF protection (opt-in via CSRF_ENABLED env var for gradual rollout)
+  if (env.CSRF_ENABLED) {
+    await server.register(csrfProtection, {
+      sessionPlugin: '@fastify/cookie',
+      cookieOpts: {
+        signed: true,
+        httpOnly: true,
+        sameSite: 'strict',
+        secure: env.NODE_ENV === 'production',
+        path: '/',
+      },
+      getToken: (request) => request.headers['x-csrf-token'] as string,
+    });
+  }
 
   // Try to register rate limiting (requires Redis for distributed limiting,
   // but also works in-memory for single-instance setups).
@@ -146,10 +204,36 @@ async function main(): Promise<void> {
     await server.register(rateLimit, {
       max: env.RATE_LIMIT_MAX,
       timeWindow: env.RATE_LIMIT_WINDOW_MS,
+      allowList: (req) => {
+        // Skip rate limiting for health/metrics endpoints
+        const url = req.url ?? '';
+        return url.startsWith('/health') || url === '/metrics';
+      },
+      onExceeded: async (req) => {
+        try {
+          await recordRateLimitViolation(req.ip);
+        } catch {
+          // fire-and-forget
+        }
+      },
+      keyGenerator: (req) => req.ip,
     });
   } catch {
     logger.warn('Rate limiting disabled — Redis not available');
   }
+
+  // Ban check: reject requests from banned IPs before any processing
+  server.addHook('onRequest', async (request, reply) => {
+    if (await isBanned(request.ip)) {
+      return reply.status(403).send({
+        error: {
+          code: 'BANNED',
+          message: 'Temporarily banned due to excessive requests',
+          requestId: request.id,
+        },
+      });
+    }
+  });
 
   // ---------------------------------------------------------------------------
   // Global error handler
@@ -164,6 +248,17 @@ async function main(): Promise<void> {
   // Prometheus metrics hooks
   server.addHook('onRequest', metricsOnRequest);
   server.addHook('onResponse', metricsOnResponse);
+
+  // Security: return X-Request-ID and Cache-Control on all responses
+  server.addHook('onSend', (req, reply, _payload, done) => {
+    reply.header('X-Request-ID', req.id);
+    // Prevent caching of API responses containing sensitive data
+    if (!reply.getHeader('Cache-Control')) {
+      reply.header('Cache-Control', 'no-store');
+      reply.header('Pragma', 'no-cache');
+    }
+    done();
+  });
 
   // Request logging
   server.addHook('onRequest', (req, _reply, done) => {

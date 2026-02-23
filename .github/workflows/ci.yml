@@ -43,6 +43,10 @@ jobs:
       - name: Build
         run: pnpm build
 
+      - name: Security audit
+        run: pnpm audit --audit-level=high || echo "::warning::Dependency vulnerabilities found"
+        continue-on-error: true
+
       - name: Upload build artifacts
         if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/staging'
         uses: actions/upload-artifact@v4

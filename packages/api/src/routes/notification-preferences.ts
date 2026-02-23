@@ -1,12 +1,14 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
-import type { UserNotificationPreferences, TestNotificationRequest } from '@dualis/shared';
+import type { UserNotificationPreferences } from '@dualis/shared';
 import { eq } from 'drizzle-orm';
 import { authMiddleware } from '../middleware/auth.js';
+import { bodyValidator } from '../middleware/validate.js';
 import { getDb } from '../db/client.js';
 import * as schema from '../db/schema.js';
 import { createChildLogger } from '../config/logger.js';
 import { notificationBus } from '../notification/notification.bus.js';
 import { getRedis } from '../cache/redis.js';
+import { updatePreferencesSchema, testNotificationSchema } from '../schemas/notification.js';
 
 const log = createChildLogger('notification-preferences-routes');
 
@@ -100,7 +102,7 @@ export async function notificationPreferenceRoutes(fastify: FastifyInstance): Pr
   // ── PUT /notifications/preferences ─────────────────────────────────────
   fastify.put(
     '/notifications/preferences',
-    { preHandler: authMiddleware },
+    { preHandler: [authMiddleware, bodyValidator(updatePreferencesSchema)] },
     async (request: FastifyRequest, reply: FastifyReply) => {
       const partyId = request.user!.partyId;
       const body = request.body as Partial<UserNotificationPreferences>;
@@ -204,11 +206,11 @@ export async function notificationPreferenceRoutes(fastify: FastifyInstance): Pr
   // ── POST /notifications/preferences/test ───────────────────────────────
   fastify.post(
     '/notifications/preferences/test',
-    { preHandler: authMiddleware },
+    { preHandler: [authMiddleware, bodyValidator(testNotificationSchema)] },
     async (request: FastifyRequest, reply: FastifyReply) => {
       const partyId = request.user!.partyId;
-      const body = request.body as TestNotificationRequest | undefined;
-      const channel = body?.channel ?? 'in_app';
+      const body = request.body as { channel: 'in_app' | 'email' | 'webhook' };
+      const channel = body.channel;
 
       try {
         const channels = channel === 'in_app'

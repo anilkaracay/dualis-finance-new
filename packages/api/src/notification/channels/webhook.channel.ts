@@ -179,6 +179,31 @@ async function logDelivery(
 // URL validation (SSRF protection)
 // ---------------------------------------------------------------------------
 
+/**
+ * Check if an IPv4 address is private/reserved (SSRF protection).
+ */
+function isPrivateIPv4(ip: string): boolean {
+  const parts = ip.split('.').map(Number);
+  if (parts.length !== 4 || parts.some(p => isNaN(p))) return false;
+
+  const [a, b] = parts as [number, number, number, number];
+
+  // 127.0.0.0/8 — loopback
+  if (a === 127) return true;
+  // 10.0.0.0/8 — private
+  if (a === 10) return true;
+  // 172.16.0.0/12 — private (172.16.0.0 – 172.31.255.255)
+  if (a === 172 && b >= 16 && b <= 31) return true;
+  // 192.168.0.0/16 — private
+  if (a === 192 && b === 168) return true;
+  // 169.254.0.0/16 — link-local
+  if (a === 169 && b === 254) return true;
+  // 0.0.0.0/8 — unspecified
+  if (a === 0) return true;
+
+  return false;
+}
+
 export function validateWebhookUrl(url: string): { valid: boolean; error?: string } {
   try {
     const parsed = new URL(url);
@@ -188,18 +213,33 @@ export function validateWebhookUrl(url: string): { valid: boolean; error?: strin
       return { valid: false, error: 'Webhook URL must use HTTPS' };
     }
 
-    // Block internal IPs (basic SSRF protection)
-    const hostname = parsed.hostname;
+    // Block private/reserved hostnames and IPs
+    const hostname = parsed.hostname.replace(/^\[|\]$/g, ''); // strip IPv6 brackets
+
+    // Block well-known private hostnames
     if (
       hostname === 'localhost' ||
-      hostname === '127.0.0.1' ||
       hostname === '0.0.0.0' ||
-      hostname.startsWith('10.') ||
-      hostname.startsWith('172.16.') ||
-      hostname.startsWith('192.168.') ||
-      hostname === '::1'
+      hostname === '::1' ||
+      hostname === '[::1]' ||
+      hostname.endsWith('.local') ||
+      hostname.endsWith('.internal') ||
+      hostname.endsWith('.localhost')
     ) {
       return { valid: false, error: 'Webhook URL cannot point to internal/private addresses' };
+    }
+
+    // Block private IPv4 addresses
+    if (isPrivateIPv4(hostname)) {
+      return { valid: false, error: 'Webhook URL cannot point to a private IP address' };
+    }
+
+    // Block IPv6 private ranges (simplified check)
+    if (hostname.startsWith('fc') || hostname.startsWith('fd') ||
+        hostname.startsWith('fe80') || hostname === '::' ||
+        hostname.startsWith('::ffff:127') || hostname.startsWith('::ffff:10.') ||
+        hostname.startsWith('::ffff:192.168')) {
+      return { valid: false, error: 'Webhook URL cannot point to a private IPv6 address' };
     }
 
     return { valid: true };

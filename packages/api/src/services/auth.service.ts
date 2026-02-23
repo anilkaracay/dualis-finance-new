@@ -59,6 +59,7 @@ interface AccessTokenPayload {
   partyId: string;
   role: string;
   email: string;
+  jti: string;
 }
 
 function signAccessToken(user: AuthUser): string {
@@ -67,6 +68,7 @@ function signAccessToken(user: AuthUser): string {
     partyId: user.partyId,
     role: user.role,
     email: user.email,
+    jti: nanoid(16),
   };
   return jwt.sign(payload, env.JWT_SECRET, {
     expiresIn: env.JWT_ACCESS_EXPIRES_IN as string,
@@ -373,7 +375,7 @@ export async function generateWalletNonce(
 ): Promise<{ nonce: string; expiresAt: string }> {
   const db = requireDb();
 
-  const nonce = `Sign this message to authenticate with Dualis Finance:\n\nNonce: ${randomBytes(16).toString('hex')}\nTimestamp: ${new Date().toISOString()}`;
+  const nonce = `Sign this message to authenticate with Dualis Finance:\n\nDomain: ${env.FRONTEND_URL}\nNonce: ${randomBytes(16).toString('hex')}\nTimestamp: ${new Date().toISOString()}\nChain ID: 1`;
   const expiresAt = new Date(Date.now() + 5 * 60_000); // 5 minutes
 
   await db.insert(schema.walletNonces).values({
@@ -817,4 +819,57 @@ export async function getUserByEmail(email: string): Promise<AuthUser | null> {
   const db = requireDb();
   const rows = await db.select().from(schema.users).where(eq(schema.users.email, email.toLowerCase())).limit(1);
   return rows[0] ? toAuthUser(rows[0]) : null;
+}
+
+// ---------------------------------------------------------------------------
+// Session Management (MP22)
+// ---------------------------------------------------------------------------
+
+export async function getUserSessions(userId: string): Promise<Array<{
+  sessionId: string;
+  ipAddress: string | null;
+  userAgent: string | null;
+  createdAt: string;
+  lastActiveAt: string | null;
+  expiresAt: string;
+}>> {
+  const db = requireDb();
+  const rows = await db
+    .select({
+      sessionId: schema.sessions.sessionId,
+      ipAddress: schema.sessions.ipAddress,
+      userAgent: schema.sessions.userAgent,
+      createdAt: schema.sessions.createdAt,
+      lastActiveAt: schema.sessions.lastActiveAt,
+      expiresAt: schema.sessions.expiresAt,
+    })
+    .from(schema.sessions)
+    .where(eq(schema.sessions.userId, userId));
+
+  return rows.map((r) => ({
+    sessionId: r.sessionId,
+    ipAddress: r.ipAddress,
+    userAgent: r.userAgent,
+    createdAt: r.createdAt.toISOString(),
+    lastActiveAt: r.lastActiveAt?.toISOString() ?? null,
+    expiresAt: r.expiresAt.toISOString(),
+  }));
+}
+
+export async function revokeSession(userId: string, sessionId: string): Promise<void> {
+  const db = requireDb();
+
+  // Verify the session belongs to the user
+  const rows = await db
+    .select({ sessionId: schema.sessions.sessionId })
+    .from(schema.sessions)
+    .where(and(eq(schema.sessions.sessionId, sessionId), eq(schema.sessions.userId, userId)))
+    .limit(1);
+
+  if (!rows[0]) {
+    throw new AppError('NOT_FOUND', 'Session not found', 404);
+  }
+
+  await db.delete(schema.sessions).where(eq(schema.sessions.sessionId, sessionId));
+  log.info({ userId, sessionId }, 'Session revoked');
 }

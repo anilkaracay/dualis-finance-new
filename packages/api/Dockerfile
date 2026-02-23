@@ -15,9 +15,16 @@ RUN pnpm --filter @dualis/api build
 # Stage 2: Runtime
 FROM node:20-alpine
 WORKDIR /app
+
+# Create non-root user for security
+RUN addgroup -g 1001 -S dualis && \
+    adduser -S dualis -u 1001 -G dualis
+
 ENV NODE_ENV=production
-COPY --from=builder /app/packages/api/dist ./dist
-COPY --from=builder /app/packages/api/package.json ./
-COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder --chown=dualis:dualis /app/packages/api/dist ./dist
+COPY --from=builder --chown=dualis:dualis /app/packages/api/package.json ./
+COPY --from=builder --chown=dualis:dualis /app/node_modules ./node_modules
+
+USER dualis
 EXPOSE 3001
 CMD ["node", "dist/index.js"]
