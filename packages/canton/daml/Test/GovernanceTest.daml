@@ -1,0 +1,651 @@
+-- ============================================================================
+-- DUALIS FINANCE — Governance Module Tests (MP23)
+-- ============================================================================
+
+module Test.GovernanceTest where
+
+import Daml.Script
+import DA.Map qualified as Map
+import DA.Time (addRelTime, hours, days)
+
+import Dualis.Governance.Config
+import Dualis.Governance.Token
+import Dualis.Governance.Proposal
+import Dualis.Governance.Vote
+import Dualis.Governance.Timelock
+import Dualis.Governance.Delegation
+
+-- ─── Test Fixtures ───────────────────────────────────────────────────────────
+
+defaultGovConfig : GovConfig
+defaultGovConfig = GovConfig with
+  quorumPct = Map.fromList
+    [ ("PARAMETER_CHANGE", 10.0)
+    , ("NEW_POOL", 15.0)
+    , ("EMERGENCY_ACTION", 5.0)
+    , ("PROTOCOL_UPGRADE", 20.0)
+    ]
+  votingPeriodDays = Map.fromList
+    [ ("PARAMETER_CHANGE", 5)
+    , ("NEW_POOL", 7)
+    , ("EMERGENCY_ACTION", 1)
+    , ("PROTOCOL_UPGRADE", 7)
+    ]
+  timelockHours = Map.fromList
+    [ ("PARAMETER_CHANGE", 48)
+    , ("NEW_POOL", 48)
+    , ("EMERGENCY_ACTION", 0)
+    , ("PROTOCOL_UPGRADE", 96)
+    ]
+  proposalThreshold = 100.0
+  executionWindowDays = 7
+  totalDualSupply = 1000000.0
+  nextProposalNumber = 1
+  vetoEnabled = True
+
+-- ─── GovernanceConfig Tests ──────────────────────────────────────────────────
+
+testCreateGovConfig : Script ()
+testCreateGovConfig = script do
+  operator <- allocateParty "Operator"
+
+  govCid <- submit operator do
+    createCmd GovernanceConfig with
+      protocolOperator = operator
+      config = defaultGovConfig
+
+  -- Read config
+  cfg <- submit operator do
+    exerciseCmd govCid GetGovConfig
+
+  assertMsg "Threshold should be 100" (cfg.proposalThreshold == 100.0)
+  assertMsg "Next proposal should be 1" (cfg.nextProposalNumber == 1)
+  assertMsg "Veto should be enabled" cfg.vetoEnabled
+
+testAllocateProposalNumber : Script ()
+testAllocateProposalNumber = script do
+  operator <- allocateParty "Operator"
+
+  govCid <- submit operator do
+    createCmd GovernanceConfig with
+      protocolOperator = operator
+      config = defaultGovConfig
+
+  -- Allocate first number
+  (govCid2, num1) <- submit operator do
+    exerciseCmd govCid AllocateProposalNumber
+
+  assertMsg "First number should be 1" (num1 == 1)
+
+  -- Allocate second number
+  (_, num2) <- submit operator do
+    exerciseCmd govCid2 AllocateProposalNumber
+
+  assertMsg "Second number should be 2" (num2 == 2)
+
+testUpdateGovConfig : Script ()
+testUpdateGovConfig = script do
+  operator <- allocateParty "Operator"
+
+  govCid <- submit operator do
+    createCmd GovernanceConfig with
+      protocolOperator = operator
+      config = defaultGovConfig
+
+  -- Update threshold
+  govCid2 <- submit operator do
+    exerciseCmd govCid UpdateGovConfig with
+      newConfig = defaultGovConfig with proposalThreshold = 200.0
+      reason = "Increase threshold"
+
+  cfg <- submit operator do
+    exerciseCmd govCid2 GetGovConfig
+
+  assertMsg "Threshold should be 200" (cfg.proposalThreshold == 200.0)
+
+testUpdateTotalSupply : Script ()
+testUpdateTotalSupply = script do
+  operator <- allocateParty "Operator"
+
+  govCid <- submit operator do
+    createCmd GovernanceConfig with
+      protocolOperator = operator
+      config = defaultGovConfig
+
+  govCid2 <- submit operator do
+    exerciseCmd govCid UpdateTotalSupply with
+      newTotalSupply = 2000000.0
+
+  cfg <- submit operator do
+    exerciseCmd govCid2 GetGovConfig
+
+  assertMsg "Supply should be 2M" (cfg.totalDualSupply == 2000000.0)
+
+-- ─── DualTokenBalance Tests ─────────────────────────────────────────────────
+
+testMintAndTransfer : Script ()
+testMintAndTransfer = script do
+  operator <- allocateParty "Operator"
+  alice <- allocateParty "Alice"
+  bob <- allocateParty "Bob"
+
+  -- Create mint factory
+  submit operator do
+    createCmd DualMintFactory with protocolOperator = operator
+
+  -- Mint to Alice
+  aliceCid <- submit operator do
+    exerciseByKeyCmd @DualMintFactory operator Mint with
+      recipient = alice
+      mintAmount = 1000.0
+      reason = "Initial distribution"
+
+  -- Transfer from Alice to Bob (alice is observer, but Transfer is controller=owner)
+  -- Since signatory is only operator, alice can exercise as controller
+  (aliceCid2, bobCid) <- submit alice do
+    exerciseCmd aliceCid Transfer with
+      recipient = bob
+      transferAmount = 300.0
+
+  -- Verify balances via operator query
+  aliceTokens <- queryFilter @DualTokenBalance operator (\t -> t.owner == alice)
+  bobTokens <- queryFilter @DualTokenBalance operator (\t -> t.owner == bob)
+  case (aliceTokens, bobTokens) of
+    ([(_, a)], [(_, b)]) -> do
+      assertMsg "Alice should have 700" (a.amount == 700.0)
+      assertMsg "Bob should have 300" (b.amount == 300.0)
+    _ -> abort "Token contracts not found"
+
+testBurnTokens : Script ()
+testBurnTokens = script do
+  operator <- allocateParty "Operator"
+  alice <- allocateParty "Alice"
+
+  submit operator do
+    createCmd DualMintFactory with protocolOperator = operator
+
+  aliceCid <- submit operator do
+    exerciseByKeyCmd @DualMintFactory operator Mint with
+      recipient = alice
+      mintAmount = 500.0
+      reason = "Test"
+
+  -- Partial burn (operator action)
+  result <- submit operator do
+    exerciseCmd aliceCid Burn with burnAmount = 200.0
+
+  case result of
+    Some cid -> do
+      tokenOpt <- queryContractId operator cid
+      case tokenOpt of
+        Some t -> assertMsg "Should have 300 remaining" (t.amount == 300.0)
+        None -> abort "Token not found after burn"
+    None -> abort "Partial burn should return Some"
+
+-- ─── Balance Snapshot Tests ──────────────────────────────────────────────────
+
+testBalanceSnapshot : Script ()
+testBalanceSnapshot = script do
+  operator <- allocateParty "Operator"
+  alice <- allocateParty "Alice"
+
+  now <- getTime
+
+  snapCid <- submit operator do
+    createCmd BalanceSnapshot with
+      protocolOperator = operator
+      proposalId = "DIP-1"
+      owner = alice
+      balance = 1000.0
+      delegatedTo = None
+      effectivePower = 1000.0
+      snapshotTime = now
+
+  snapOpt <- queryContractId operator snapCid
+  case snapOpt of
+    Some s -> do
+      assertMsg "Balance should be 1000" (s.balance == 1000.0)
+      assertMsg "Power should be 1000" (s.effectivePower == 1000.0)
+    None -> abort "Snapshot not found"
+
+-- ─── Proposal Lifecycle Tests ────────────────────────────────────────────────
+
+testProposalCreation : Script ()
+testProposalCreation = script do
+  operator <- allocateParty "Operator"
+  alice <- allocateParty "Alice"
+
+  now <- getTime
+  let votingEnd = addRelTime now (days 5)
+
+  proposalCid <- submitMulti [operator, alice] [] do
+    createCmd Proposal with
+      protocolOperator = operator
+      proposalData = ProposalData with
+        proposalId = "DIP-1"
+        proposalNumber = 1
+        proposer = alice
+        title = "Test Proposal"
+        description = "This is a test proposal for governance"
+        discussionUrl = Some "https://forum.dualis.finance/t/1"
+        proposalType = "PARAMETER_CHANGE"
+        payload = "{\"type\":\"PARAMETER_CHANGE\",\"data\":{}}"
+        snapshotBlock = 1
+        votingStartsAt = now
+        votingEndsAt = votingEnd
+        timelockHours = 48
+        quorumRequired = 100000.0
+        totalSupplyAtSnapshot = 1000000.0
+      state = Active
+      votesFor = 0.0
+      votesAgainst = 0.0
+      votesAbstain = 0.0
+      totalVoters = 0
+      voters = []
+
+  propOpt <- queryContractId operator proposalCid
+  case propOpt of
+    Some p -> do
+      assertMsg "State should be Active" (p.state == Active)
+      assertMsg "Votes for should be 0" (p.votesFor == 0.0)
+    None -> abort "Proposal not found"
+
+testVoting : Script ()
+testVoting = script do
+  operator <- allocateParty "Operator"
+  alice <- allocateParty "Alice"
+  bob <- allocateParty "Bob"
+  carol <- allocateParty "Carol"
+
+  now <- getTime
+  let votingEnd = addRelTime now (days 5)
+
+  proposalCid <- submitMulti [operator, alice] [] do
+    createCmd Proposal with
+      protocolOperator = operator
+      proposalData = ProposalData with
+        proposalId = "DIP-1"
+        proposalNumber = 1
+        proposer = alice
+        title = "Test Proposal"
+        description = "Description"
+        discussionUrl = None
+        proposalType = "PARAMETER_CHANGE"
+        payload = "{}"
+        snapshotBlock = 1
+        votingStartsAt = now
+        votingEndsAt = votingEnd
+        timelockHours = 48
+        quorumRequired = 1000.0
+        totalSupplyAtSnapshot = 100000.0
+      state = Active
+      votesFor = 0.0
+      votesAgainst = 0.0
+      votesAbstain = 0.0
+      totalVoters = 0
+      voters = []
+
+  -- Bob votes FOR
+  proposalCid2 <- submit operator do
+    exerciseCmd proposalCid AddVote with
+      voter = bob; direction = "FOR"; weight = 500.0
+
+  -- Carol votes AGAINST
+  proposalCid3 <- submit operator do
+    exerciseCmd proposalCid2 AddVote with
+      voter = carol; direction = "AGAINST"; weight = 200.0
+
+  propOpt <- queryContractId operator proposalCid3
+  case propOpt of
+    Some p -> do
+      assertMsg "For should be 500" (p.votesFor == 500.0)
+      assertMsg "Against should be 200" (p.votesAgainst == 200.0)
+      assertMsg "Total voters should be 2" (p.totalVoters == 2)
+    None -> abort "Proposal not found after voting"
+
+testFinalizeVotingPassed : Script ()
+testFinalizeVotingPassed = script do
+  operator <- allocateParty "Operator"
+  alice <- allocateParty "Alice"
+  bob <- allocateParty "Bob"
+
+  now <- getTime
+  let votingEnd = addRelTime now (hours 1)
+
+  proposalCid <- submitMulti [operator, alice] [] do
+    createCmd Proposal with
+      protocolOperator = operator
+      proposalData = ProposalData with
+        proposalId = "DIP-1"
+        proposalNumber = 1
+        proposer = alice
+        title = "Test"
+        description = "Desc"
+        discussionUrl = None
+        proposalType = "PARAMETER_CHANGE"
+        payload = "{}"
+        snapshotBlock = 1
+        votingStartsAt = now
+        votingEndsAt = votingEnd
+        timelockHours = 0
+        quorumRequired = 100.0
+        totalSupplyAtSnapshot = 10000.0
+      state = Active
+      votesFor = 0.0
+      votesAgainst = 0.0
+      votesAbstain = 0.0
+      totalVoters = 0
+      voters = []
+
+  -- Vote
+  proposalCid2 <- submit operator do
+    exerciseCmd proposalCid AddVote with
+      voter = bob; direction = "FOR"; weight = 500.0
+
+  -- Advance time past voting end
+  setTime (addRelTime now (hours 2))
+
+  -- Finalize
+  proposalCid3 <- submit operator do
+    exerciseCmd proposalCid2 FinalizeVoting
+
+  propOpt <- queryContractId operator proposalCid3
+  case propOpt of
+    Some p -> assertMsg "Should be Passed" (p.state == Passed)
+    None -> abort "Proposal not found"
+
+testFinalizeVotingRejected : Script ()
+testFinalizeVotingRejected = script do
+  operator <- allocateParty "Operator"
+  alice <- allocateParty "Alice"
+  bob <- allocateParty "Bob"
+
+  now <- getTime
+  let votingEnd = addRelTime now (hours 1)
+
+  proposalCid <- submitMulti [operator, alice] [] do
+    createCmd Proposal with
+      protocolOperator = operator
+      proposalData = ProposalData with
+        proposalId = "DIP-2"
+        proposalNumber = 2
+        proposer = alice
+        title = "Test"
+        description = "Desc"
+        discussionUrl = None
+        proposalType = "PARAMETER_CHANGE"
+        payload = "{}"
+        snapshotBlock = 1
+        votingStartsAt = now
+        votingEndsAt = votingEnd
+        timelockHours = 0
+        quorumRequired = 100.0
+        totalSupplyAtSnapshot = 10000.0
+      state = Active
+      votesFor = 0.0
+      votesAgainst = 0.0
+      votesAbstain = 0.0
+      totalVoters = 0
+      voters = []
+
+  -- Vote against
+  proposalCid2 <- submit operator do
+    exerciseCmd proposalCid AddVote with
+      voter = bob; direction = "AGAINST"; weight = 500.0
+
+  setTime (addRelTime now (hours 2))
+
+  proposalCid3 <- submit operator do
+    exerciseCmd proposalCid2 FinalizeVoting
+
+  propOpt <- queryContractId operator proposalCid3
+  case propOpt of
+    Some p -> assertMsg "Should be Rejected" (p.state == Rejected)
+    None -> abort "Proposal not found"
+
+testCancelProposal : Script ()
+testCancelProposal = script do
+  operator <- allocateParty "Operator"
+  alice <- allocateParty "Alice"
+
+  now <- getTime
+  let votingEnd = addRelTime now (days 5)
+
+  proposalCid <- submitMulti [operator, alice] [] do
+    createCmd Proposal with
+      protocolOperator = operator
+      proposalData = ProposalData with
+        proposalId = "DIP-3"
+        proposalNumber = 3
+        proposer = alice
+        title = "Cancel Test"
+        description = "Desc"
+        discussionUrl = None
+        proposalType = "PARAMETER_CHANGE"
+        payload = "{}"
+        snapshotBlock = 1
+        votingStartsAt = now
+        votingEndsAt = votingEnd
+        timelockHours = 48
+        quorumRequired = 100.0
+        totalSupplyAtSnapshot = 10000.0
+      state = Active
+      votesFor = 0.0
+      votesAgainst = 0.0
+      votesAbstain = 0.0
+      totalVoters = 0
+      voters = []
+
+  proposalCid2 <- submit alice do
+    exerciseCmd proposalCid CancelProposal
+
+  propOpt <- queryContractId operator proposalCid2
+  case propOpt of
+    Some p -> assertMsg "Should be Cancelled" (p.state == Cancelled)
+    None -> abort "Proposal not found"
+
+-- ─── VoteRecord Tests ────────────────────────────────────────────────────────
+
+testVoteRecordAndChange : Script ()
+testVoteRecordAndChange = script do
+  operator <- allocateParty "Operator"
+  bob <- allocateParty "Bob"
+
+  now <- getTime
+
+  voteCid <- submitMulti [operator, bob] [] do
+    createCmd VoteRecord with
+      protocolOperator = operator
+      proposalId = "DIP-1"
+      voter = bob
+      direction = "FOR"
+      weight = 500.0
+      isDelegated = False
+      delegatedFrom = None
+      castTime = now
+
+  -- Change vote
+  voteCid2 <- submit bob do
+    exerciseCmd voteCid ChangeVote with newDirection = "AGAINST"
+
+  voteOpt <- queryContractId operator voteCid2
+  case voteOpt of
+    Some v -> assertMsg "Direction should be AGAINST" (v.direction == "AGAINST")
+    None -> abort "Vote not found"
+
+-- ─── Timelock Tests ──────────────────────────────────────────────────────────
+
+testTimelockExecute : Script ()
+testTimelockExecute = script do
+  operator <- allocateParty "Operator"
+  executor <- allocateParty "Executor"
+
+  now <- getTime
+  let timelockEnd = addRelTime now (hours 48)
+  let deadline = addRelTime timelockEnd (days 7)
+
+  tlCid <- submit operator do
+    createCmd TimelockExecution with
+      protocolOperator = operator
+      proposalId = "DIP-1"
+      actionType = "PARAMETER_CHANGE"
+      actionPayload = "{}"
+      timelockEndsAt = timelockEnd
+      executionDeadline = deadline
+      executor = None
+      state = "PENDING"
+
+  -- Advance past timelock
+  setTime (addRelTime now (hours 49))
+
+  tlCid2 <- submit operator do
+    exerciseCmd tlCid Execute with executorParty = executor
+
+  tlOpt <- queryContractId operator tlCid2
+  case tlOpt of
+    Some tl -> do
+      assertMsg "State should be EXECUTED" (tl.state == "EXECUTED")
+      assertMsg "Executor should be set" (tl.executor == Some executor)
+    None -> abort "Timelock not found"
+
+testTimelockVeto : Script ()
+testTimelockVeto = script do
+  operator <- allocateParty "Operator"
+
+  now <- getTime
+
+  tlCid <- submit operator do
+    createCmd TimelockExecution with
+      protocolOperator = operator
+      proposalId = "DIP-2"
+      actionType = "PARAMETER_CHANGE"
+      actionPayload = "{}"
+      timelockEndsAt = addRelTime now (hours 48)
+      executionDeadline = addRelTime now (days 9)
+      executor = None
+      state = "PENDING"
+
+  tlCid2 <- submit operator do
+    exerciseCmd tlCid Veto with reason = "Security concern"
+
+  tlOpt <- queryContractId operator tlCid2
+  case tlOpt of
+    Some tl -> assertMsg "State should be VETOED" (tl.state == "VETOED")
+    None -> abort "Timelock not found"
+
+testTimelockExpire : Script ()
+testTimelockExpire = script do
+  operator <- allocateParty "Operator"
+
+  now <- getTime
+  let timelockEnd = addRelTime now (hours 1)
+  let deadline = addRelTime now (hours 2)
+
+  tlCid <- submit operator do
+    createCmd TimelockExecution with
+      protocolOperator = operator
+      proposalId = "DIP-3"
+      actionType = "PARAMETER_CHANGE"
+      actionPayload = "{}"
+      timelockEndsAt = timelockEnd
+      executionDeadline = deadline
+      executor = None
+      state = "PENDING"
+
+  -- Advance past deadline
+  setTime (addRelTime now (hours 3))
+
+  tlCid2 <- submit operator do
+    exerciseCmd tlCid MarkExpired
+
+  tlOpt <- queryContractId operator tlCid2
+  case tlOpt of
+    Some tl -> assertMsg "State should be EXPIRED" (tl.state == "EXPIRED")
+    None -> abort "Timelock not found"
+
+-- ─── Delegation Tests ────────────────────────────────────────────────────────
+
+testDelegation : Script ()
+testDelegation = script do
+  operator <- allocateParty "Operator"
+  alice <- allocateParty "Alice"
+  bob <- allocateParty "Bob"
+
+  now <- getTime
+
+  delCid <- submitMulti [operator, alice] [] do
+    createCmd VoteDelegation with
+      protocolOperator = operator
+      delegator = alice
+      delegatee = bob
+      amount = 1000.0
+      isActive = True
+      createdAt = now
+
+  delOpt <- queryContractId operator delCid
+  case delOpt of
+    Some d -> do
+      assertMsg "Amount should be 1000" (d.amount == 1000.0)
+      assertMsg "Should be active" d.isActive
+    None -> abort "Delegation not found"
+
+testUndelegate : Script ()
+testUndelegate = script do
+  operator <- allocateParty "Operator"
+  alice <- allocateParty "Alice"
+  bob <- allocateParty "Bob"
+
+  now <- getTime
+
+  delCid <- submitMulti [operator, alice] [] do
+    createCmd VoteDelegation with
+      protocolOperator = operator
+      delegator = alice
+      delegatee = bob
+      amount = 1000.0
+      isActive = True
+      createdAt = now
+
+  -- Undelegate
+  submit alice do
+    exerciseCmd delCid Undelegate
+
+  -- Delegation contract should be archived
+  return ()
+
+testUpdateDelegationAmount : Script ()
+testUpdateDelegationAmount = script do
+  operator <- allocateParty "Operator"
+  alice <- allocateParty "Alice"
+  bob <- allocateParty "Bob"
+
+  now <- getTime
+
+  delCid <- submitMulti [operator, alice] [] do
+    createCmd VoteDelegation with
+      protocolOperator = operator
+      delegator = alice
+      delegatee = bob
+      amount = 1000.0
+      isActive = True
+      createdAt = now
+
+  -- Update to 500
+  delCid2 <- submit operator do
+    exerciseCmd delCid UpdateDelegationAmount with newAmount = 500.0
+
+  delOpt <- queryContractId operator delCid2
+  case delOpt of
+    Some d -> assertMsg "Amount should be 500" (d.amount == 500.0)
+    None -> abort "Delegation not found"
+
+  -- Update to 0 (deactivates)
+  delCid3 <- submit operator do
+    exerciseCmd delCid2 UpdateDelegationAmount with newAmount = 0.0
+
+  delOpt2 <- queryContractId operator delCid3
+  case delOpt2 of
+    Some d -> do
+      assertMsg "Amount should be 0" (d.amount == 0.0)
+      assertMsg "Should be inactive" (not d.isActive)
+    None -> abort "Delegation not found"

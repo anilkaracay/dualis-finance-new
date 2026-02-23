@@ -1,0 +1,42 @@
+-- ============================================================================
+-- DUALIS FINANCE — Governance Vote Delegation
+-- ============================================================================
+-- Enables DUAL holders to delegate their voting power to another party.
+-- Max delegation depth = 1 (no chain delegation).
+-- ============================================================================
+
+module Dualis.Governance.Delegation where
+
+-- ─── VoteDelegation Template ─────────────────────────────────────────────────
+
+template VoteDelegation
+  with
+    protocolOperator : Party
+    delegator        : Party
+    delegatee        : Party
+    amount           : Decimal
+    isActive         : Bool
+    createdAt        : Time
+  where
+    signatory protocolOperator, delegator
+    observer delegatee
+    key (protocolOperator, delegator) : (Party, Party)
+    maintainer key._1
+
+    -- | Revoke delegation (delegator only)
+    choice Undelegate : ()
+      controller delegator
+      do
+        assertMsg "Delegation must be active" isActive
+        return ()
+
+    -- | Update delegated amount (operator syncs after balance change)
+    choice UpdateDelegationAmount : ContractId VoteDelegation
+      with
+        newAmount : Decimal
+      controller protocolOperator
+      do
+        assertMsg "Amount must be non-negative" (newAmount >= 0.0)
+        if newAmount == 0.0
+          then create this with isActive = False, amount = 0.0
+          else create this with amount = newAmount

@@ -54,15 +54,38 @@ export type {
   TokenAllocation,
 } from './types/token';
 
-// Governance types
-export type {
+// Governance types (MP23)
+export {
+  ProposalType,
   ProposalStatus,
-  ProposalCategory,
   VoteDirection,
+  DEFAULT_GOVERNANCE_CONFIG,
+} from './types/governance';
+
+export type {
+  ProposalCategory,
+  LegacyProposalStatus,
+  ParameterChangePayload,
+  NewPoolPayload,
+  TreasurySpendPayload,
+  EmergencyActionPayload,
+  FeeChangePayload,
+  ProposalPayload,
+  GovernanceConfigData,
+  GovernanceProposal,
+  GovernanceVote,
+  Delegation,
+  TokenSnapshot,
+  ExecutionQueueItem,
+  DualTokenBalance,
+  VoteResults,
   Proposal,
   ProposalAction,
   Vote,
 } from './types/governance';
+
+// Governance constants
+export { GOVERNANCE } from './constants/governance';
 
 // Protocol types
 export type {

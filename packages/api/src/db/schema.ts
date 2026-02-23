@@ -110,24 +110,137 @@ export const secLendingHistory = pgTable('sec_lending_history', {
 });
 
 // ---------------------------------------------------------------------------
-// 7. Governance Proposals — governance proposal records
+// 7. Governance Proposals — full governance proposal records (MP23)
 // ---------------------------------------------------------------------------
 export const governanceProposals = pgTable('governance_proposals', {
-  id: serial('id').primaryKey(),
-  proposalId: varchar('proposal_id', { length: 64 }).notNull().unique(),
+  id: varchar('id', { length: 32 }).primaryKey(),              // 'DIP-1', 'DIP-2', ...
+  proposalNumber: integer('proposal_number').notNull().unique(),
+  proposerId: varchar('proposer_id', { length: 256 }).notNull(),
+  proposerAddress: varchar('proposer_address', { length: 256 }).notNull(),
   title: text('title').notNull(),
   description: text('description').notNull(),
-  category: varchar('category', { length: 64 }).notNull(),
-  proposer: varchar('proposer', { length: 256 }).notNull(),
-  status: varchar('status', { length: 32 }).notNull(),
-  forVotes: decimal('for_votes', { precision: 38, scale: 18 }).notNull(),
-  againstVotes: decimal('against_votes', { precision: 38, scale: 18 }).notNull(),
-  abstainVotes: decimal('abstain_votes', { precision: 38, scale: 18 }).notNull(),
-  quorum: decimal('quorum', { precision: 38, scale: 18 }).notNull(),
-  startTime: timestamp('start_time', { withTimezone: true }).notNull(),
-  endTime: timestamp('end_time', { withTimezone: true }).notNull(),
+  discussionUrl: text('discussion_url'),
+  type: varchar('type', { length: 64 }).notNull(),             // ProposalType enum
+  payload: jsonb('payload').$type<Record<string, unknown>>().notNull(),
+  status: varchar('status', { length: 32 }).notNull().default('DRAFT'),
+  snapshotBlock: integer('snapshot_block'),
+  votingStartsAt: timestamp('voting_starts_at', { withTimezone: true }),
+  votingEndsAt: timestamp('voting_ends_at', { withTimezone: true }),
+  timelockEndsAt: timestamp('timelock_ends_at', { withTimezone: true }),
+  executionDeadline: timestamp('execution_deadline', { withTimezone: true }),
   executedAt: timestamp('executed_at', { withTimezone: true }),
+  cancelledAt: timestamp('cancelled_at', { withTimezone: true }),
+  vetoedAt: timestamp('vetoed_at', { withTimezone: true }),
+  vetoedBy: varchar('vetoed_by', { length: 256 }),
+  votesFor: decimal('votes_for', { precision: 28, scale: 8 }).notNull().default('0'),
+  votesAgainst: decimal('votes_against', { precision: 28, scale: 8 }).notNull().default('0'),
+  votesAbstain: decimal('votes_abstain', { precision: 28, scale: 8 }).notNull().default('0'),
+  totalVoters: integer('total_voters').notNull().default(0),
+  quorumRequired: decimal('quorum_required', { precision: 28, scale: 8 }).notNull(),
+  quorumMet: boolean('quorum_met').default(false),
+  damlContractId: varchar('daml_contract_id', { length: 256 }),
+  damlTimelockId: varchar('daml_timelock_id', { length: 256 }),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  statusIdx: index('gov_proposals_status_idx').on(table.status),
+  typeIdx: index('gov_proposals_type_idx').on(table.type),
+  proposerIdx: index('gov_proposals_proposer_idx').on(table.proposerId),
+  votingEndsIdx: index('gov_proposals_voting_ends_idx').on(table.votingEndsAt),
+}));
+
+// ---------------------------------------------------------------------------
+// 7b. Governance Votes — individual vote records (MP23)
+// ---------------------------------------------------------------------------
+export const governanceVotes = pgTable('governance_votes', {
+  id: varchar('id', { length: 64 }).primaryKey(),
+  proposalId: varchar('proposal_id', { length: 32 }).notNull(),
+  voterId: varchar('voter_id', { length: 256 }).notNull(),
+  voterAddress: varchar('voter_address', { length: 256 }).notNull(),
+  direction: varchar('direction', { length: 16 }).notNull(),   // VoteDirection enum
+  weight: decimal('weight', { precision: 28, scale: 8 }).notNull(),
+  isDelegated: boolean('is_delegated').default(false),
+  delegatedFrom: varchar('delegated_from', { length: 256 }),
+  damlContractId: varchar('daml_contract_id', { length: 256 }),
+  castAt: timestamp('cast_at', { withTimezone: true }).defaultNow().notNull(),
+  previousDirection: varchar('previous_direction', { length: 16 }),
+  changedAt: timestamp('changed_at', { withTimezone: true }),
+}, (table) => ({
+  proposalIdx: index('gov_votes_proposal_idx').on(table.proposalId),
+  voterIdx: index('gov_votes_voter_idx').on(table.voterId),
+}));
+
+// ---------------------------------------------------------------------------
+// 7c. Governance Delegations — vote power delegation records (MP23)
+// ---------------------------------------------------------------------------
+export const governanceDelegations = pgTable('governance_delegations', {
+  id: varchar('id', { length: 64 }).primaryKey(),
+  delegatorId: varchar('delegator_id', { length: 256 }).notNull(),
+  delegatorAddress: varchar('delegator_address', { length: 256 }).notNull(),
+  delegateeId: varchar('delegatee_id', { length: 256 }).notNull(),
+  delegateeAddress: varchar('delegatee_address', { length: 256 }).notNull(),
+  amount: decimal('amount', { precision: 28, scale: 8 }).notNull(),
+  isActive: boolean('is_active').default(true),
+  damlContractId: varchar('daml_contract_id', { length: 256 }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  revokedAt: timestamp('revoked_at', { withTimezone: true }),
+}, (table) => ({
+  delegatorIdx: index('gov_delegations_delegator_idx').on(table.delegatorId),
+  delegateeIdx: index('gov_delegations_delegatee_idx').on(table.delegateeId),
+  activeIdx: index('gov_delegations_active_idx').on(table.isActive),
+}));
+
+// ---------------------------------------------------------------------------
+// 7d. Governance Token Snapshots — frozen balances per proposal (MP23)
+// ---------------------------------------------------------------------------
+export const governanceTokenSnapshots = pgTable('governance_token_snapshots', {
+  id: varchar('id', { length: 64 }).primaryKey(),
+  proposalId: varchar('proposal_id', { length: 32 }).notNull(),
+  userId: varchar('user_id', { length: 256 }).notNull(),
+  userAddress: varchar('user_address', { length: 256 }).notNull(),
+  balance: decimal('balance', { precision: 28, scale: 8 }).notNull(),
+  delegatedTo: varchar('delegated_to', { length: 256 }),
+  receivedDelegation: decimal('received_delegation', { precision: 28, scale: 8 }).default('0'),
+  effectiveVotingPower: decimal('effective_voting_power', { precision: 28, scale: 8 }).notNull(),
+  snapshotBlock: integer('snapshot_block').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  proposalIdx: index('gov_snapshots_proposal_idx').on(table.proposalId),
+}));
+
+// ---------------------------------------------------------------------------
+// 7e. Governance Execution Queue — timelock tracking (MP23)
+// ---------------------------------------------------------------------------
+export const governanceExecutionQueue = pgTable('governance_execution_queue', {
+  id: varchar('id', { length: 64 }).primaryKey(),
+  proposalId: varchar('proposal_id', { length: 32 }).notNull().unique(),
+  actionType: varchar('action_type', { length: 64 }).notNull(),
+  actionPayload: jsonb('action_payload').$type<Record<string, unknown>>().notNull(),
+  timelockEndsAt: timestamp('timelock_ends_at', { withTimezone: true }).notNull(),
+  executionDeadline: timestamp('execution_deadline', { withTimezone: true }).notNull(),
+  status: varchar('status', { length: 32 }).notNull().default('PENDING'),
+  executedAt: timestamp('executed_at', { withTimezone: true }),
+  executedBy: varchar('executed_by', { length: 256 }),
+  executionTxHash: varchar('execution_tx_hash', { length: 256 }),
+  failureReason: text('failure_reason'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  statusIdx: index('gov_exec_queue_status_idx').on(table.status),
+  timelockIdx: index('gov_exec_queue_timelock_idx').on(table.timelockEndsAt),
+}));
+
+// ---------------------------------------------------------------------------
+// 7f. DUAL Token Balances — off-chain cache (MP23)
+// ---------------------------------------------------------------------------
+export const dualTokenBalances = pgTable('dual_token_balances', {
+  userId: varchar('user_id', { length: 256 }).primaryKey(),
+  userAddress: varchar('user_address', { length: 256 }).notNull(),
+  balance: decimal('balance', { precision: 28, scale: 8 }).notNull().default('0'),
+  totalDelegatedOut: decimal('total_delegated_out', { precision: 28, scale: 8 }).notNull().default('0'),
+  totalDelegatedIn: decimal('total_delegated_in', { precision: 28, scale: 8 }).notNull().default('0'),
+  effectiveVotingPower: decimal('effective_voting_power', { precision: 28, scale: 8 }).notNull().default('0'),
+  lastSyncedAt: timestamp('last_synced_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 });
 
 // ---------------------------------------------------------------------------

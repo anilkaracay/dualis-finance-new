@@ -15,6 +15,10 @@ import type {
   CastVoteResponse,
   FlashLoanResponse,
   StakingPositionResponse,
+  GovernanceProposal,
+  GovernanceVote,
+  Delegation,
+  VoteDirection,
 } from '@dualis/shared';
 
 export function useDeposit() {
@@ -126,6 +130,64 @@ export function useVote() {
     ...mutation,
     execute: (proposalId: string, body: { vote: 'for' | 'against' | 'abstain'; weight: string }) =>
       mutation.execute(ENDPOINTS.GOVERNANCE_VOTE(proposalId), body),
+  };
+}
+
+export function useCastVote() {
+  const mutation = useMutation<GovernanceVote>();
+  return {
+    ...mutation,
+    execute: (proposalId: string, body: { direction: VoteDirection }) =>
+      mutation.execute(ENDPOINTS.GOVERNANCE_VOTE(proposalId), body),
+  };
+}
+
+export function useCreateProposal() {
+  const mutation = useMutation<GovernanceProposal>();
+  return {
+    ...mutation,
+    execute: (body: {
+      title: string;
+      description: string;
+      type: string;
+      payload: { type: string; data: Record<string, unknown> };
+      discussionUrl?: string;
+    }) => mutation.execute(ENDPOINTS.GOVERNANCE_PROPOSALS, body as unknown as Record<string, unknown>),
+  };
+}
+
+export function useCancelProposal() {
+  const mutation = useMutation<GovernanceProposal>();
+  return {
+    ...mutation,
+    execute: (proposalId: string) =>
+      mutation.execute(ENDPOINTS.GOVERNANCE_PROPOSAL_CANCEL(proposalId)),
+  };
+}
+
+export function useExecuteProposal() {
+  const mutation = useMutation<GovernanceProposal>();
+  return {
+    ...mutation,
+    execute: (proposalId: string) =>
+      mutation.execute(ENDPOINTS.GOVERNANCE_EXECUTE(proposalId)),
+  };
+}
+
+export function useDelegate() {
+  const mutation = useMutation<Delegation>();
+  return {
+    ...mutation,
+    execute: (body: { delegateeId: string; delegateeAddress: string }) =>
+      mutation.execute(ENDPOINTS.GOVERNANCE_DELEGATE, body),
+  };
+}
+
+export function useUndelegate() {
+  const mutation = useMutation<{ success: boolean }>();
+  return {
+    ...mutation,
+    execute: () => mutation.execute(ENDPOINTS.GOVERNANCE_UNDELEGATE),
   };
 }
 

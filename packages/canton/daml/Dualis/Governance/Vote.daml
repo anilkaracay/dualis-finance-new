@@ -1,0 +1,36 @@
+-- ============================================================================
+-- DUALIS FINANCE — Governance Vote Record
+-- ============================================================================
+-- Individual vote records on-chain, supporting vote change.
+-- ============================================================================
+
+module Dualis.Governance.Vote where
+
+-- ─── VoteRecord Template ─────────────────────────────────────────────────────
+
+template VoteRecord
+  with
+    protocolOperator : Party
+    proposalId       : Text
+    voter            : Party
+    direction        : Text         -- "FOR" | "AGAINST" | "ABSTAIN"
+    weight           : Decimal
+    isDelegated      : Bool
+    delegatedFrom    : Optional Party
+    castTime         : Time
+  where
+    signatory protocolOperator, voter
+    key (protocolOperator, proposalId, voter) : (Party, Text, Party)
+    maintainer key._1
+
+    -- | Change vote direction
+    choice ChangeVote : ContractId VoteRecord
+      with
+        newDirection : Text
+      controller voter
+      do
+        assertMsg "Direction must be FOR, AGAINST, or ABSTAIN"
+          (newDirection `elem` ["FOR", "AGAINST", "ABSTAIN"])
+        assertMsg "Same direction" (newDirection /= direction)
+        now <- getTime
+        create this with direction = newDirection; castTime = now

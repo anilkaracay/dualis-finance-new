@@ -236,33 +236,40 @@ async function seed(): Promise<void> {
     log(`  Inserted ${secRows.length} sec lending entries`);
 
     // -----------------------------------------------------------------------
-    // 7. Governance proposals — 3 proposals
+    // 7. Governance proposals — 3 proposals (MP23 schema)
     // -----------------------------------------------------------------------
     log('Inserting governance proposals...');
     const proposalRows: (typeof schema.governanceProposals.$inferInsert)[] = [];
 
     const proposals = [
-      { id: 'DIP-001', title: 'Reduce USDC Reserve Factor to 5%', category: 'parameter_change', status: 'executed' },
-      { id: 'DIP-002', title: 'Add T-NOTE-10Y as Collateral Asset', category: 'asset_listing', status: 'active' },
-      { id: 'DIP-003', title: 'Protocol v2.0 Upgrade Roadmap', category: 'protocol_upgrade', status: 'passed' },
+      { id: 'DIP-1', num: 1, title: 'Reduce USDC Reserve Factor to 5%', type: 'PARAMETER_CHANGE', status: 'EXECUTED' },
+      { id: 'DIP-2', num: 2, title: 'Add T-NOTE-10Y as Collateral Asset', type: 'COLLATERAL_ADD', status: 'ACTIVE' },
+      { id: 'DIP-3', num: 3, title: 'Protocol v2.0 Upgrade Roadmap', type: 'PROTOCOL_UPGRADE', status: 'PASSED' },
     ] as const;
 
     for (const p of proposals) {
-      const startDay = p.status === 'executed' ? 20 : p.status === 'passed' ? 10 : 2;
+      const startDay = p.status === 'EXECUTED' ? 20 : p.status === 'PASSED' ? 10 : 2;
+      const proposer = randomElement(USERS);
       proposalRows.push({
-        proposalId: p.id,
+        id: p.id,
+        proposalNumber: p.num,
+        proposerId: proposer,
+        proposerAddress: proposer,
         title: p.title,
-        description: `Full description for proposal ${p.id}: ${p.title}. This proposal aims to improve protocol efficiency and user experience.`,
-        category: p.category,
-        proposer: randomElement(USERS),
+        description: `Full description for proposal ${p.id}: ${p.title}. This proposal aims to improve protocol efficiency and user experience. It has been thoroughly reviewed by the risk committee and community members.`,
+        type: p.type,
+        payload: { type: p.type, data: { rationale: 'Seed data' } },
         status: p.status,
-        forVotes: randomBetween(100_000, 500_000).toFixed(8),
-        againstVotes: randomBetween(10_000, 100_000).toFixed(8),
-        abstainVotes: randomBetween(1_000, 20_000).toFixed(8),
-        quorum: '100000.00000000',
-        startTime: daysAgo(startDay),
-        endTime: daysAgo(Math.max(0, startDay - 7)),
-        executedAt: p.status === 'executed' ? daysAgo(startDay - 8) : null,
+        snapshotBlock: p.num,
+        votingStartsAt: daysAgo(startDay),
+        votingEndsAt: daysAgo(Math.max(0, startDay - 7)),
+        votesFor: randomBetween(100_000, 500_000).toFixed(8),
+        votesAgainst: randomBetween(10_000, 100_000).toFixed(8),
+        votesAbstain: randomBetween(1_000, 20_000).toFixed(8),
+        totalVoters: Math.floor(randomBetween(10, 100)),
+        quorumRequired: '100000.00000000',
+        quorumMet: true,
+        executedAt: p.status === 'EXECUTED' ? daysAgo(startDay - 8) : null,
       });
     }
 

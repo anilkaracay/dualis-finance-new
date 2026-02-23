@@ -12,7 +12,12 @@ import type {
   CreditScoreResponse,
   CreditHistoryPoint,
   OraclePriceItem,
-  ProposalListItem,
+  GovernanceProposal,
+  GovernanceVote,
+  GovernanceConfigData,
+  VoteResults,
+  DualTokenBalance,
+  Delegation,
   StakingInfo,
   StakingPositionResponse,
   AnalyticsOverview,
@@ -62,7 +67,37 @@ export function useOraclePrices() {
 
 export function useGovernanceProposals(status?: string | undefined) {
   const params = status && status !== 'all' ? `?status=${status}` : '';
-  return useQuery<ProposalListItem[]>(`${ENDPOINTS.GOVERNANCE_PROPOSALS}${params}`);
+  return useQuery<GovernanceProposal[]>(`${ENDPOINTS.GOVERNANCE_PROPOSALS}${params}`);
+}
+
+export function useProposalDetail(proposalId: string | null) {
+  return useQuery<GovernanceProposal>(
+    proposalId ? ENDPOINTS.GOVERNANCE_PROPOSAL_DETAIL(proposalId) : null,
+  );
+}
+
+export function useProposalVotes(proposalId: string | null) {
+  return useQuery<VoteResults>(
+    proposalId ? ENDPOINTS.GOVERNANCE_VOTES(proposalId) : null,
+  );
+}
+
+export function useMyVote(proposalId: string | null) {
+  return useQuery<GovernanceVote | null>(
+    proposalId ? ENDPOINTS.GOVERNANCE_MY_VOTE(proposalId) : null,
+  );
+}
+
+export function useGovernanceConfig() {
+  return useQuery<GovernanceConfigData>(ENDPOINTS.GOVERNANCE_CONFIG);
+}
+
+export function useVotingPower() {
+  return useQuery<DualTokenBalance>(ENDPOINTS.GOVERNANCE_VOTING_POWER);
+}
+
+export function useDelegations() {
+  return useQuery<Delegation[]>(ENDPOINTS.GOVERNANCE_DELEGATIONS);
 }
 
 export function useStakingInfo() {

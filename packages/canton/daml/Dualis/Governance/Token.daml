@@ -1,0 +1,98 @@
+-- ============================================================================
+-- DUALIS FINANCE — Governance Token (Per-Holder Balances)
+-- ============================================================================
+-- Per-holder DUAL token balance contracts for governance voting.
+-- Separate from the global DUALToken singleton in Dualis.Token.DUAL.
+-- ============================================================================
+
+module Dualis.Governance.Token where
+
+-- ─── DualTokenBalance Template ───────────────────────────────────────────────
+-- Tracks each holder's DUAL balance for governance purposes.
+
+template DualTokenBalance
+  with
+    protocolOperator : Party
+    owner            : Party
+    amount           : Decimal
+  where
+    signatory protocolOperator
+    observer owner
+    ensure amount >= 0.0
+
+    key (protocolOperator, owner) : (Party, Party)
+    maintainer key._1
+
+    -- | Transfer DUAL to another holder
+    choice Transfer : (ContractId DualTokenBalance, ContractId DualTokenBalance)
+      with
+        recipient      : Party
+        transferAmount : Decimal
+      controller owner
+      do
+        assertMsg "Transfer amount must be positive" (transferAmount > 0.0)
+        assertMsg "Insufficient balance" (transferAmount <= amount)
+        senderCid <- create this with amount = amount - transferAmount
+        recipientCid <- create DualTokenBalance with
+          protocolOperator
+          owner = recipient
+          amount = transferAmount
+        return (senderCid, recipientCid)
+
+    -- | Burn tokens (operator action)
+    choice Burn : Optional (ContractId DualTokenBalance)
+      with
+        burnAmount : Decimal
+      controller protocolOperator
+      do
+        assertMsg "Burn amount must be positive" (burnAmount > 0.0)
+        assertMsg "Insufficient balance" (burnAmount <= amount)
+        let remaining = amount - burnAmount
+        if remaining > 0.0
+          then do
+            cid <- create this with amount = remaining
+            return (Some cid)
+          else return None
+
+-- ─── DualMintFactory Template ────────────────────────────────────────────────
+-- Factory for minting new DUAL tokens to holders.
+
+template DualMintFactory
+  with
+    protocolOperator : Party
+  where
+    signatory protocolOperator
+    key protocolOperator : Party
+    maintainer key
+
+    -- | Mint DUAL tokens to a recipient (non-consuming)
+    nonconsuming choice Mint : ContractId DualTokenBalance
+      with
+        recipient  : Party
+        mintAmount : Decimal
+        reason     : Text
+      controller protocolOperator
+      do
+        assertMsg "Mint amount must be positive" (mintAmount > 0.0)
+        create DualTokenBalance with
+          protocolOperator
+          owner = recipient
+          amount = mintAmount
+
+-- ─── BalanceSnapshot Template ────────────────────────────────────────────────
+-- Records a holder's balance at proposal creation time.
+
+template BalanceSnapshot
+  with
+    protocolOperator : Party
+    proposalId       : Text
+    owner            : Party
+    balance          : Decimal
+    delegatedTo      : Optional Party
+    effectivePower   : Decimal
+    snapshotTime     : Time
+  where
+    signatory protocolOperator
+    observer owner
+    key (protocolOperator, proposalId, owner) : (Party, Text, Party)
+    maintainer key._1

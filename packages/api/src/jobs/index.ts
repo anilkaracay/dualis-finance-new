@@ -25,4 +25,7 @@ import './kybExpiryCheck.job.js';
 import './complianceScreening.job.js';
 import './sanctionsListUpdate.job.js';
 
+// Governance jobs (MP23)
+import './governanceFinalization.job.js';
+
 export { initScheduler, stopScheduler } from './scheduler.js';

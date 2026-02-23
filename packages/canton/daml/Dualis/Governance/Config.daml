@@ -1,0 +1,70 @@
+-- ============================================================================
+-- DUALIS FINANCE — Governance Configuration
+-- ============================================================================
+-- On-chain governance configuration template.
+-- Manages quorum, voting periods, timelocks, and proposal numbering.
+-- ============================================================================
+
+module Dualis.Governance.Config where
+
+import DA.Map qualified as Map
+
+-- ─── Governance Config Data ──────────────────────────────────────────────────
+
+data GovConfig = GovConfig
+  with
+    quorumPct           : Map.Map Text Decimal    -- ProposalType -> quorum %
+    votingPeriodDays    : Map.Map Text Int         -- ProposalType -> voting days
+    timelockHours       : Map.Map Text Int         -- ProposalType -> timelock hours
+    proposalThreshold   : Decimal                  -- Min DUAL to create proposal
+    executionWindowDays : Int                      -- Days to execute after timelock
+    totalDualSupply     : Decimal                  -- Current total supply
+    nextProposalNumber  : Int                      -- Auto-increment counter
+    vetoEnabled         : Bool                     -- Protocol operator veto
+  deriving (Eq, Show)
+
+-- ─── GovernanceConfig Template ───────────────────────────────────────────────
+
+template GovernanceConfig
+  with
+    protocolOperator : Party
+    config           : GovConfig
+  where
+    signatory protocolOperator
+    key protocolOperator : Party
+    maintainer key
+
+    -- | Read governance configuration (non-consuming)
+    nonconsuming choice GetGovConfig : GovConfig
+      controller protocolOperator
+      do return config
+
+    -- | Update governance configuration
+    choice UpdateGovConfig : ContractId GovernanceConfig
+      with
+        newConfig : GovConfig
+        reason    : Text
+      controller protocolOperator
+      do
+        assertMsg "Proposal threshold must be positive" (newConfig.proposalThreshold > 0.0)
+        assertMsg "Execution window must be positive" (newConfig.executionWindowDays > 0)
+        assertMsg "Total supply must be positive" (newConfig.totalDualSupply > 0.0)
+        create this with config = newConfig
+
+    -- | Allocate next proposal number (auto-increment)
+    choice AllocateProposalNumber : (ContractId GovernanceConfig, Int)
+      controller protocolOperator
+      do
+        let num = config.nextProposalNumber
+        newCid <- create this with
+          config = config with nextProposalNumber = num + 1
+        return (newCid, num)
+
+    -- | Update total DUAL supply (after mint/burn)
+    choice UpdateTotalSupply : ContractId GovernanceConfig
+      with
+        newTotalSupply : Decimal
+      controller protocolOperator
+      do
+        assertMsg "Total supply must be non-negative" (newTotalSupply >= 0.0)
+        create this with config = config with totalDualSupply = newTotalSupply

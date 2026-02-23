@@ -49,9 +49,12 @@ export type NotificationType =
   | 'GDPR_REQUEST_COMPLETED'
   // Governance (low priority — informational)
   | 'PROPOSAL_CREATED'
+  | 'PROPOSAL_VOTED'
+  | 'PROPOSAL_PASSED'
   | 'VOTE_DEADLINE_24H'
   | 'PROPOSAL_EXECUTED'
   | 'PROPOSAL_REJECTED'
+  | 'PROPOSAL_VETOED'
   // System (admin + internal)
   | 'ORACLE_STALE_PRICE'
   | 'ORACLE_CIRCUIT_BREAKER'
@@ -294,9 +297,12 @@ export const NOTIFICATION_DEFAULTS: Record<NotificationType, NotificationDefault
 
   // Governance
   PROPOSAL_CREATED:         { category: 'governance',  severity: 'info',     channels: ['in_app'] },
+  PROPOSAL_VOTED:           { category: 'governance',  severity: 'info',     channels: ['in_app'] },
+  PROPOSAL_PASSED:          { category: 'governance',  severity: 'info',     channels: ['in_app', 'email'] },
   VOTE_DEADLINE_24H:        { category: 'governance',  severity: 'info',     channels: ['in_app', 'email'] },
   PROPOSAL_EXECUTED:        { category: 'governance',  severity: 'info',     channels: ['in_app'] },
   PROPOSAL_REJECTED:        { category: 'governance',  severity: 'info',     channels: ['in_app'] },
+  PROPOSAL_VETOED:          { category: 'governance',  severity: 'warning',  channels: ['in_app', 'email'] },
 
   // System
   ORACLE_STALE_PRICE:       { category: 'system',      severity: 'critical', channels: ['in_app'] },
@@ -363,9 +369,12 @@ export function notificationTypeToDisplayType(type: NotificationType): Notificat
       return 'success';
 
     case 'PROPOSAL_CREATED':
+    case 'PROPOSAL_VOTED':
+    case 'PROPOSAL_PASSED':
     case 'VOTE_DEADLINE_24H':
     case 'PROPOSAL_EXECUTED':
     case 'PROPOSAL_REJECTED':
+    case 'PROPOSAL_VETOED':
       return 'governance';
 
     default:

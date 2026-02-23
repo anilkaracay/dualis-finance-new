@@ -1,0 +1,138 @@
+-- ============================================================================
+-- DUALIS FINANCE — Governance Proposal
+-- ============================================================================
+-- On-chain proposal template with full lifecycle state machine:
+-- Active → Passed/Rejected/QuorumNotMet → Timelock → Ready → Executed
+-- Also: Cancel, Veto paths
+-- ============================================================================
+
+module Dualis.Governance.Proposal where
+
+import DA.Time (addRelTime, seconds)
+
+-- ─── Proposal Data ───────────────────────────────────────────────────────────
+
+data ProposalData = ProposalData
+  with
+    proposalId            : Text
+    proposalNumber        : Int
+    proposer              : Party
+    title                 : Text
+    description           : Text
+    discussionUrl         : Optional Text
+    proposalType          : Text            -- ProposalType enum as text
+    payload               : Text            -- JSON serialized
+    snapshotBlock         : Int
+    votingStartsAt        : Time
+    votingEndsAt          : Time
+    timelockHours         : Int
+    quorumRequired        : Decimal
+    totalSupplyAtSnapshot : Decimal
+  deriving (Eq, Show)
+
+data ProposalState
+  = Active
+  | Passed
+  | Rejected
+  | QuorumNotMet
+  | Timelock
+  | Ready
+  | Executed
+  | Vetoed
+  | Cancelled
+  deriving (Eq, Show)
+
+-- ─── Proposal Template ──────────────────────────────────────────────────────
+
+template Proposal
+  with
+    protocolOperator : Party
+    proposalData     : ProposalData
+    state            : ProposalState
+    votesFor         : Decimal
+    votesAgainst     : Decimal
+    votesAbstain     : Decimal
+    totalVoters      : Int
+    voters           : [Party]
+  where
+    signatory protocolOperator, proposalData.proposer
+    observer voters
+    key (protocolOperator, proposalData.proposalId) : (Party, Text)
+    maintainer key._1
+
+    -- | Record a vote on this proposal
+    choice AddVote : ContractId Proposal
+      with
+        voter     : Party
+        direction : Text        -- "FOR" | "AGAINST" | "ABSTAIN"
+        weight    : Decimal
+      controller protocolOperator
+      do
+        assertMsg "Proposal must be Active" (state == Active)
+        assertMsg "Already voted" (voter `notElem` voters)
+        assertMsg "Weight must be positive" (weight > 0.0)
+        let newFor     = if direction == "FOR"     then votesFor + weight     else votesFor
+        let newAgainst = if direction == "AGAINST" then votesAgainst + weight else votesAgainst
+        let newAbstain = if direction == "ABSTAIN" then votesAbstain + weight else votesAbstain
+        create this with
+          votesFor = newFor
+          votesAgainst = newAgainst
+          votesAbstain = newAbstain
+          totalVoters = totalVoters + 1
+          voters = voter :: voters
+
+    -- | Finalize voting after period ends
+    choice FinalizeVoting : ContractId Proposal
+      controller protocolOperator
+      do
+        assertMsg "Proposal must be Active" (state == Active)
+        now <- getTime
+        assertMsg "Voting period not ended" (now >= proposalData.votingEndsAt)
+        let totalVoted = votesFor + votesAgainst + votesAbstain
+        let quorumMet = totalVoted >= proposalData.quorumRequired
+        if not quorumMet
+          then create this with state = QuorumNotMet
+          else if votesFor > votesAgainst
+            then create this with state = Passed
+            else create this with state = Rejected
+
+    -- | Cancel proposal (proposer only, active only)
+    choice CancelProposal : ContractId Proposal
+      controller proposalData.proposer
+      do
+        assertMsg "Can only cancel Active proposals" (state == Active)
+        create this with state = Cancelled
+
+    -- | Move passed proposal to timelock
+    choice MoveToTimelock : ContractId Proposal
+      controller protocolOperator
+      do
+        assertMsg "Proposal must be Passed" (state == Passed)
+        create this with state = Timelock
+
+    -- | Move to ready after timelock period
+    choice MoveToReady : ContractId Proposal
+      controller protocolOperator
+      do
+        assertMsg "Proposal must be in Timelock" (state == Timelock)
+        now <- getTime
+        let timelockSecs = proposalData.timelockHours * 3600
+        let timelockEnd = addRelTime proposalData.votingEndsAt (seconds timelockSecs)
+        assertMsg "Timelock period not ended" (now >= timelockEnd)
+        create this with state = Ready
+
+    -- | Execute the proposal
+    choice ExecuteProposal : ContractId Proposal
+      controller protocolOperator
+      do
+        assertMsg "Proposal must be Ready" (state == Ready)
+        create this with state = Executed
+
+    -- | Veto during timelock (operator only)
+    choice VetoProposal : ContractId Proposal
+      with
+        reason : Text
+      controller protocolOperator
+      do
+        assertMsg "Can only veto during Timelock" (state == Timelock)
+        create this with state = Vetoed

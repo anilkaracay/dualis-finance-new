@@ -1,0 +1,55 @@
+-- ============================================================================
+-- DUALIS FINANCE — Governance Timelock Execution
+-- ============================================================================
+-- Timelock mechanism for governance proposal execution.
+-- Passed proposals wait in timelock before becoming executable.
+-- ============================================================================
+
+module Dualis.Governance.Timelock where
+
+-- ─── TimelockExecution Template ──────────────────────────────────────────────
+
+template TimelockExecution
+  with
+    protocolOperator  : Party
+    proposalId        : Text
+    actionType        : Text
+    actionPayload     : Text          -- JSON serialized
+    timelockEndsAt    : Time
+    executionDeadline : Time
+    executor          : Optional Party
+    state             : Text          -- "PENDING" | "EXECUTED" | "VETOED" | "EXPIRED"
+  where
+    signatory protocolOperator
+    key (protocolOperator, proposalId) : (Party, Text)
+    maintainer key._1
+
+    -- | Execute the timelocked action
+    choice Execute : ContractId TimelockExecution
+      with
+        executorParty : Party
+      controller protocolOperator
+      do
+        assertMsg "Must be PENDING" (state == "PENDING")
+        now <- getTime
+        assertMsg "Timelock not ended" (now >= timelockEndsAt)
+        assertMsg "Execution deadline passed" (now <= executionDeadline)
+        create this with state = "EXECUTED"; executor = Some executorParty
+
+    -- | Veto during timelock period
+    choice Veto : ContractId TimelockExecution
+      with
+        reason : Text
+      controller protocolOperator
+      do
+        assertMsg "Must be PENDING" (state == "PENDING")
+        create this with state = "VETOED"
+
+    -- | Mark as expired after deadline
+    choice MarkExpired : ContractId TimelockExecution
+      controller protocolOperator
+      do
+        assertMsg "Must be PENDING" (state == "PENDING")
+        now <- getTime
+        assertMsg "Deadline not passed" (now > executionDeadline)
+        create this with state = "EXPIRED"
