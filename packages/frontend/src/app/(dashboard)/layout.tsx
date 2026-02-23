@@ -15,6 +15,7 @@ import { useNotificationStore } from '@/stores/useNotificationStore';
 import { useProtocolStore } from '@/stores/useProtocolStore';
 import { useWebSocket } from '@/hooks/useWebSocket';
 import { AuthGuard } from '@/components/auth/AuthGuard';
+import { PartyLayerKit } from '@partylayer/react';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -47,6 +48,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <AuthGuard>
+    <PartyLayerKit network="mainnet" appName="Dualis Finance">
     <ToastProvider>
       <div className="flex h-screen overflow-hidden">
         {/* Sidebar — hidden on mobile */}
@@ -106,6 +108,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       <ToastViewport />
     </ToastProvider>
+    </PartyLayerKit>
     </AuthGuard>
   );
 }

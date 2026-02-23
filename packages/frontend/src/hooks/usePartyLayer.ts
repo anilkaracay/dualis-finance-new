@@ -1,131 +1,211 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
-import { authApi } from '@/lib/api/auth';
+import { useCallback, useEffect } from 'react';
+import {
+  useSession,
+  useConnect,
+  useDisconnect,
+  useSignTransaction,
+  useWallets,
+} from '@partylayer/react';
+import type { WalletId } from '@partylayer/sdk';
 import { walletApi } from '@/lib/api/wallet';
 import { useWalletStore } from '@/stores/useWalletStore';
 import { useAuthStore } from '@/stores/useAuthStore';
 import type { WalletConnection, TransactionResult, SubmitTransactionRequest } from '@dualis/shared';
 
 interface UsePartyLayerReturn {
-  // Backward-compatible interface
-  connect: (walletType: string) => Promise<{ partyId: string; address: string }>;
-  disconnect: () => void;
-  signTransaction: (command: string) => Promise<{ txHash: string }>;
+  // Connection
+  connect: (walletId?: string) => Promise<{ partyId: string; address: string }>;
+  disconnect: () => Promise<void>;
   isConnected: boolean;
   isConnecting: boolean;
   party: string | null;
   walletAddress: string | null;
 
-  // Extended interface
-  connections: WalletConnection[];
-  activeConnection: WalletConnection | null;
+  // PartyLayer session data
+  session: ReturnType<typeof useSession>;
+  wallets: ReturnType<typeof useWallets>;
+
+  // Transaction (routes through our backend)
+  signTransaction: (command: string) => Promise<{ txHash: string }>;
   submitTransaction: (params: SubmitTransactionRequest) => Promise<TransactionResult>;
   signAndSubmit: (txLogId: string, signature: string) => Promise<TransactionResult>;
+
+  // Backend wallet connections
+  connections: WalletConnection[];
   refreshConnections: () => Promise<void>;
 }
 
 /**
- * PartyLayer hook — real implementation calling wallet API.
- * Backward compatible with the old mock interface.
+ * PartyLayer hook — integrates @partylayer/sdk with our backend wallet API.
+ *
+ * Uses PartyLayer for real wallet connectivity (5 Canton wallets: Console,
+ * Loop, Cantor8, Nightly, Bron) and syncs session data with our Zustand
+ * store + backend wallet service.
  */
 export function usePartyLayer(): UsePartyLayerReturn {
   const store = useWalletStore();
   const authStore = useAuthStore();
-  const [connections, setConnections] = useState<WalletConnection[]>([]);
-  const [activeConnection, setActiveConnection] = useState<WalletConnection | null>(null);
 
+  // PartyLayer native hooks
+  const session = useSession();
+  const walletsResult = useWallets();
+  const { connect: plConnect, isConnecting } = useConnect();
+  const { disconnect: plDisconnect } = useDisconnect();
+  const { signTransaction: plSignTx } = useSignTransaction();
+
+  // Sync PartyLayer session → Zustand store
+  useEffect(() => {
+    if (session) {
+      const partyId = String(session.partyId);
+      const walletId = String(session.walletId);
+      store.setConnected(partyId, walletId, walletId);
+    } else if (store.isConnected) {
+      store.disconnect();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session?.sessionId]);
+
+  // Sync backend wallet connections when authenticated
   const refreshConnections = useCallback(async () => {
     if (!authStore.isAuthenticated) return;
     try {
       const { data } = await walletApi.getConnections();
-      setConnections(data);
       store.setConnections(data);
-
       const primary = data.find((c) => c.isPrimary) ?? data[0] ?? null;
-      setActiveConnection(primary);
-      if (primary) {
-        store.setActiveConnectionId(primary.connectionId);
-      }
+      if (primary) store.setActiveConnectionId(primary.connectionId);
     } catch {
       // Silently fail — user may not have wallet connections yet
     }
   }, [authStore.isAuthenticated, store]);
 
-  // Load connections on mount when authenticated
   useEffect(() => {
     if (authStore.isAuthenticated) {
       refreshConnections();
     }
   }, [authStore.isAuthenticated, refreshConnections]);
 
-  const connect = useCallback(async (walletType: string): Promise<{ partyId: string; address: string }> => {
+  /**
+   * Connect a wallet using PartyLayer's native wallet selection.
+   * If walletId is provided, connects directly to that wallet;
+   * otherwise opens the WalletModal.
+   */
+  const connect = useCallback(async (walletId?: string): Promise<{ partyId: string; address: string }> => {
     store.setConnecting(true);
 
     try {
-      // Step 1: Generate a mock address for the connection flow
-      // In production, this would come from the browser wallet (MetaMask, etc.)
-      const mockAddress = `0x${Array.from({ length: 40 }, () => Math.floor(Math.random() * 16).toString(16)).join('')}`;
+      // Use PartyLayer's connect — handles wallet popup, CIP-0103 handshake
+      const plSession = await plConnect(walletId ? { walletId: walletId as WalletId } : undefined);
 
-      // Step 2: Get a nonce from the auth API
-      const { data: nonceData } = await authApi.getWalletNonce(mockAddress);
+      if (!plSession) {
+        throw new Error('Wallet connection was cancelled or failed');
+      }
 
-      // Step 3: Create a mock signature (in production, wallet would sign)
-      const mockSignature = `0x${Array.from({ length: 130 }, () => Math.floor(Math.random() * 16).toString(16)).join('')}`;
+      const partyId = String(plSession.partyId);
+      const address = String(plSession.walletId);
 
-      // Step 4: Connect wallet via API
-      const { data: connection } = await walletApi.connect({
-        walletAddress: mockAddress,
-        walletType: walletType as 'metamask' | 'walletconnect' | 'ledger' | 'custodial' | 'canton-native',
-        signature: mockSignature,
-        nonce: nonceData.nonce,
-      });
+      // Sync to our backend: register the wallet connection
+      if (authStore.isAuthenticated) {
+        try {
+          await walletApi.connect({
+            walletAddress: address,
+            walletType: 'canton-native',
+            signature: partyId, // PartyLayer session proves identity
+            nonce: String(plSession.sessionId),
+          });
+          await refreshConnections();
+        } catch {
+          // Backend sync can fail without breaking wallet connection
+        }
+      }
 
-      // Step 5: Update stores
-      const partyId = authStore.user?.partyId ?? `party::${mockAddress.slice(0, 12)}`;
-      store.setConnected(partyId, connection.walletAddress, walletType);
-      store.addConnection(connection);
-      store.setActiveConnectionId(connection.connectionId);
-
-      setConnections((prev) => [...prev, connection]);
-      setActiveConnection(connection);
-
-      return { partyId, address: connection.walletAddress };
+      store.setConnected(partyId, address, String(plSession.walletId));
+      return { partyId, address };
     } catch (err) {
       store.setConnecting(false);
       throw err;
     }
-  }, [store, authStore.user]);
+  }, [plConnect, store, authStore.isAuthenticated, refreshConnections]);
 
+  /**
+   * Disconnect using PartyLayer's native disconnect.
+   */
   const disconnect = useCallback(async () => {
-    if (activeConnection) {
+    // Disconnect from PartyLayer
+    await plDisconnect();
+
+    // Notify backend
+    const activeId = store.activeConnectionId;
+    if (activeId) {
       try {
-        await walletApi.disconnect(activeConnection.connectionId);
-        store.removeConnection(activeConnection.connectionId);
-        setConnections((prev) => prev.filter((c) => c.connectionId !== activeConnection.connectionId));
+        await walletApi.disconnect(activeId);
       } catch {
-        // Continue with local disconnect even if API fails
+        // Continue even if backend fails
       }
     }
 
     store.disconnect();
-    setActiveConnection(null);
-  }, [activeConnection, store]);
+  }, [plDisconnect, store]);
 
+  /**
+   * Sign a transaction using PartyLayer's wallet signing,
+   * then submit through our backend transaction router.
+   */
   const signTransaction = useCallback(async (command: string): Promise<{ txHash: string }> => {
-    const result = await walletApi.submitTransaction({
+    // Build a Canton transaction object and sign via PartyLayer wallet
+    const tx = {
       templateId: 'Dualis.Generic:Command',
-      choiceName: 'Execute',
+      choiceId: 'Execute',
       argument: { command },
-    });
-    return { txHash: result.data.txHash ?? result.data.transactionLogId };
-  }, []);
+    };
 
+    const signed = await plSignTx({ tx });
+
+    if (!signed) {
+      throw new Error('Transaction signing was cancelled');
+    }
+
+    return { txHash: String(signed.transactionHash) };
+  }, [plSignTx]);
+
+  /**
+   * Submit a transaction through our backend routing engine.
+   * For wallet-sign mode, uses PartyLayer to sign the payload.
+   */
   const submitTransaction = useCallback(async (params: SubmitTransactionRequest): Promise<TransactionResult> => {
-    const { data } = await walletApi.submitTransaction(params);
-    return data;
-  }, []);
+    // Route through our backend first (determines proxy vs wallet-sign)
+    const { data: result } = await walletApi.submitTransaction(params);
 
+    // If backend says we need a wallet signature, use PartyLayer to sign
+    if (result.requiresWalletSign && result.signingPayload) {
+      const signed = await plSignTx({
+        tx: {
+          templateId: params.templateId,
+          choiceName: params.choiceName,
+          argument: params.argument,
+          signingPayload: result.signingPayload,
+        },
+      });
+
+      if (!signed) {
+        throw new Error('Transaction signing was cancelled');
+      }
+
+      // Submit the signed payload back to our backend
+      const { data: finalResult } = await walletApi.signTransaction(
+        result.transactionLogId,
+        String(signed.transactionHash),
+      );
+      return finalResult;
+    }
+
+    return result;
+  }, [plSignTx]);
+
+  /**
+   * Sign and submit a pending transaction (for wallet-sign mode).
+   */
   const signAndSubmit = useCallback(async (txLogId: string, signature: string): Promise<TransactionResult> => {
     const { data } = await walletApi.signTransaction(txLogId, signature);
     return data;
@@ -134,15 +214,16 @@ export function usePartyLayer(): UsePartyLayerReturn {
   return {
     connect,
     disconnect,
+    isConnected: session !== null,
+    isConnecting,
+    party: session ? String(session.partyId) : null,
+    walletAddress: session ? String(session.walletId) : null,
+    session,
+    wallets: walletsResult,
     signTransaction,
-    isConnected: store.isConnected,
-    isConnecting: store.isConnecting,
-    party: store.party,
-    walletAddress: store.walletAddress,
-    connections,
-    activeConnection,
     submitTransaction,
     signAndSubmit,
+    connections: store.connections,
     refreshConnections,
   };
 }

@@ -20,6 +20,19 @@
     "turbo": "^2.4.0",
     "typescript": "^5.7.0"
   },
+  "pnpm": {
+    "overrides": {
+      "@partylayer/core": "0.2.5",
+      "@partylayer/registry-client": "0.2.5",
+      "@partylayer/adapter-console": "0.2.4",
+      "@partylayer/adapter-loop": "0.2.4",
+      "@partylayer/adapter-cantor8": "0.2.4",
+      "@partylayer/adapter-bron": "0.2.4",
+      "@partylayer/adapter-nightly": "0.2.4",
+      "@partylayer/provider": "0.1.2",
+      "@partylayer/sdk": "0.2.7"
+    }
+  },
   "packageManager": "pnpm@9.15.0",
   "engines": {
     "node": ">=20.0.0",

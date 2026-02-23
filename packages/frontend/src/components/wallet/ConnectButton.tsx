@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/Button';
 import { Spinner } from '@/components/ui/Spinner';
 import { WalletAvatar } from './WalletAvatar';
 import { WalletConnectModal } from './WalletConnectModal';
-import { useWalletStore } from '@/stores/useWalletStore';
+import { useSession } from '@partylayer/react';
+import { usePartyLayer } from '@/hooks/usePartyLayer';
 import { Wallet } from 'lucide-react';
 
 interface ConnectButtonProps {
@@ -14,18 +15,15 @@ interface ConnectButtonProps {
   onConnectedClick?: (() => void) | undefined;
 }
 
-function formatAddr(addr: string): string {
-  if (addr.length <= 12) return addr;
-  return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
+function truncateId(id: string): string {
+  if (id.length <= 16) return id;
+  return `${id.slice(0, 8)}...${id.slice(-6)}`;
 }
 
 function ConnectButton({ className, onConnectedClick }: ConnectButtonProps) {
-  const { isConnected, isConnecting, walletAddress } = useWalletStore();
+  const session = useSession();
+  const { isConnecting } = usePartyLayer();
   const [showModal, setShowModal] = useState(false);
-
-  const handleConnect = () => {
-    setShowModal(true);
-  };
 
   if (isConnecting) {
     return (
@@ -36,7 +34,8 @@ function ConnectButton({ className, onConnectedClick }: ConnectButtonProps) {
     );
   }
 
-  if (isConnected && walletAddress) {
+  if (session) {
+    const partyId = String(session.partyId);
     return (
       <button
         onClick={onConnectedClick}
@@ -45,15 +44,15 @@ function ConnectButton({ className, onConnectedClick }: ConnectButtonProps) {
           className
         )}
       >
-        <WalletAvatar address={walletAddress} size="sm" />
-        <span className="font-mono text-xs">{formatAddr(walletAddress)}</span>
+        <WalletAvatar address={partyId} size="sm" />
+        <span className="font-mono text-xs">{truncateId(partyId)}</span>
       </button>
     );
   }
 
   return (
     <>
-      <Button variant="primary" size="sm" icon={<Wallet className="h-4 w-4" />} onClick={handleConnect} className={className}>
+      <Button variant="primary" size="sm" icon={<Wallet className="h-4 w-4" />} onClick={() => setShowModal(true)} className={className}>
         Connect Wallet
       </Button>
       <WalletConnectModal
