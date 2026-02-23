@@ -153,6 +153,9 @@ export const useAuthStore = create<AuthState & AuthActions>()(
             isAuthenticated: false,
           });
           setAuthCookie(false);
+          // Clear wallet state too
+          const { useWalletStore } = await import('@/stores/useWalletStore');
+          useWalletStore.getState().disconnect();
           return false;
         }
       },
@@ -172,6 +175,9 @@ export const useAuthStore = create<AuthState & AuthActions>()(
           error: null,
         });
         setAuthCookie(false);
+        // Clear wallet state to prevent stale data across accounts
+        const { useWalletStore } = await import('@/stores/useWalletStore');
+        useWalletStore.getState().disconnect();
       },
 
       fetchCurrentUser: async () => {

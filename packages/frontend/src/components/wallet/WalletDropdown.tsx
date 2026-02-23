@@ -25,11 +25,21 @@ interface WalletDropdownProps {
 function WalletDropdown({ className, onSettingsClick }: WalletDropdownProps) {
   const session = useSession();
   const { disconnect: plDisconnect } = useDisconnect();
-  const { creditTier, connections } = useWalletStore();
+  const walletStore = useWalletStore();
+  const { creditTier, connections } = walletStore;
   const [copied, setCopied] = useState(false);
 
-  const partyId = session ? String(session.partyId) : null;
-  const walletId = session ? String(session.walletId) : null;
+  // Use PartyLayer session if available, otherwise fall back to persisted wallet store
+  const partyId = session
+    ? String(session.partyId)
+    : walletStore.isConnected && walletStore.party
+      ? walletStore.party
+      : null;
+  const walletId = session
+    ? String(session.walletId)
+    : walletStore.isConnected && walletStore.walletAddress
+      ? walletStore.walletAddress
+      : null;
 
   const handleCopy = async () => {
     if (partyId) {
@@ -40,12 +50,12 @@ function WalletDropdown({ className, onSettingsClick }: WalletDropdownProps) {
   };
 
   const handleDisconnect = async () => {
-    await plDisconnect();
+    try { await plDisconnect(); } catch { /* PartyLayer may not have active session */ }
     useWalletStore.getState().disconnect();
     useAuthStore.getState().logout();
   };
 
-  if (!session) {
+  if (!partyId) {
     return <ConnectButton className={className} />;
   }
 
@@ -65,7 +75,7 @@ function WalletDropdown({ className, onSettingsClick }: WalletDropdownProps) {
               {partyId && <PartyIdDisplay partyId={partyId} className="mt-0.5" />}
             </div>
           </div>
-          {session.network && (
+          {session?.network && (
             <p className="mt-1 text-[10px] text-text-tertiary uppercase tracking-wide">{String(session.network)}</p>
           )}
           {creditTier && (

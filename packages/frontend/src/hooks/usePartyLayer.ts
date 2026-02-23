@@ -56,16 +56,41 @@ export function usePartyLayer(): UsePartyLayerReturn {
   const { signTransaction: plSignTx } = useSignTransaction();
 
   // Sync PartyLayer session → Zustand store
+  // Only update store when PartyLayer session changes — do NOT clear
+  // persisted wallet state just because PartyLayer hasn't restored yet.
+  // The wallet store persists connection state across page navigations.
   useEffect(() => {
     if (session) {
       const partyId = String(session.partyId);
       const walletId = String(session.walletId);
       store.setConnected(partyId, walletId, walletId);
-    } else if (store.isConnected) {
-      store.disconnect();
     }
+    // Note: We intentionally do NOT call store.disconnect() when session is null.
+    // PartyLayer session is volatile (lost on navigation), but the wallet store
+    // persists state for users who authenticated via wallet.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session?.sessionId]);
+
+  // Restore wallet state from auth user when authenticated via wallet
+  // This covers the case where user logs in via wallet on /auth/login
+  // and navigates to the dashboard — PartyLayer session is volatile but
+  // the auth store persists the user's walletAddress and partyId.
+  useEffect(() => {
+    if (
+      authStore.isAuthenticated &&
+      authStore.user?.walletAddress &&
+      authStore.user?.partyId &&
+      authStore.user?.authProvider === 'wallet' &&
+      !store.isConnected
+    ) {
+      store.setConnected(
+        authStore.user.partyId,
+        authStore.user.walletAddress,
+        'canton-native',
+      );
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authStore.isAuthenticated, authStore.user?.walletAddress]);
 
   // Sync backend wallet connections when authenticated
   const refreshConnections = useCallback(async () => {
@@ -214,10 +239,10 @@ export function usePartyLayer(): UsePartyLayerReturn {
   return {
     connect,
     disconnect,
-    isConnected: session !== null,
+    isConnected: session !== null || store.isConnected,
     isConnecting,
-    party: session ? String(session.partyId) : null,
-    walletAddress: session ? String(session.walletId) : null,
+    party: session ? String(session.partyId) : store.party,
+    walletAddress: session ? String(session.walletId) : store.walletAddress,
     session,
     wallets: walletsResult,
     signTransaction,

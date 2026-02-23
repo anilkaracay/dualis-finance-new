@@ -477,7 +477,7 @@ export const passwordResetTokens = pgTable('password_reset_tokens', {
 export const walletNonces = pgTable('wallet_nonces', {
   id: serial('id').primaryKey(),
   walletAddress: varchar('wallet_address', { length: 256 }).notNull(),
-  nonce: varchar('nonce', { length: 256 }).notNull(),
+  nonce: text('nonce').notNull(),
   expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
   usedAt: timestamp('used_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),

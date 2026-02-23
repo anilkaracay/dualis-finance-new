@@ -1,10 +1,36 @@
 'use client';
 
-import { Suspense } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
+import { Sun, Moon, Monitor } from 'lucide-react';
+import { PartyLayerKit } from '@partylayer/react';
+import { useUIStore, applyTheme, resolveTheme } from '@/stores/useUIStore';
+import type { ThemePreference } from '@/stores/useUIStore';
+
+const THEME_ICON: Record<ThemePreference, typeof Sun> = { dark: Moon, light: Sun, system: Monitor };
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
+  const { themePreference, cycleTheme } = useUIStore();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    applyTheme(themePreference);
+
+    if (themePreference === 'system') {
+      const mq = window.matchMedia('(prefers-color-scheme: dark)');
+      const handler = () => {
+        document.documentElement.setAttribute('data-theme', resolveTheme('system'));
+      };
+      mq.addEventListener('change', handler);
+      return () => mq.removeEventListener('change', handler);
+    }
+  }, [themePreference]);
+
+  const ThemeIcon = THEME_ICON[themePreference];
+
   return (
+    <PartyLayerKit network="mainnet" appName="Dualis Finance">
     <div className="relative min-h-screen bg-bg-primary flex flex-col overflow-hidden">
       {/* ── Background Layer 1: Gradient mesh ── */}
       <div
@@ -85,7 +111,8 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
       />
 
       {/* ── Header ── */}
-      <header className="relative z-20 flex items-center justify-center py-8 backdrop-blur-sm">
+      <header className="relative z-20 flex items-center justify-between px-6 py-8 backdrop-blur-sm">
+        <div className="w-9" />
         <Link href="/" className="group flex items-center gap-2.5 transition-opacity hover:opacity-80">
           <span className="font-jakarta font-bold text-xl tracking-tight">
             <span className="text-accent-teal">D</span>
@@ -95,6 +122,17 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
             Finance
           </span>
         </Link>
+        {mounted ? (
+          <button
+            onClick={cycleTheme}
+            className="w-9 h-9 flex items-center justify-center rounded-lg border border-border-default/60 hover:border-accent-teal/30 bg-bg-elevated/50 hover:bg-bg-elevated transition-all duration-200"
+            aria-label={`Theme: ${themePreference}. Click to cycle.`}
+          >
+            <ThemeIcon className="w-4 h-4 text-text-secondary" />
+          </button>
+        ) : (
+          <div className="w-9 h-9" />
+        )}
         {/* Gradient line under header */}
         <div
           className="absolute bottom-0 left-1/2 -translate-x-1/2 h-px w-[min(80%,600px)]"
@@ -143,5 +181,6 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         }
       `}</style>
     </div>
+    </PartyLayerKit>
   );
 }

@@ -59,6 +59,7 @@ export const useWalletStore = create<WalletState & WalletActions>()(
           isConnected: false,
           isConnecting: false,
           creditTier: null,
+          connections: [],
           activeConnectionId: null,
         }),
 
@@ -80,7 +81,12 @@ export const useWalletStore = create<WalletState & WalletActions>()(
     }),
     {
       name: 'dualis-wallet',
-      partialize: (state) => ({ walletType: state.walletType }),
+      partialize: (state) => ({
+        party: state.party,
+        walletAddress: state.walletAddress,
+        walletType: state.walletType,
+        isConnected: state.isConnected,
+      }),
     }
   )
 );

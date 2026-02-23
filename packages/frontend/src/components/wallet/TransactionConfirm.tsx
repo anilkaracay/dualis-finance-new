@@ -13,6 +13,7 @@ import { Spinner } from '@/components/ui/Spinner';
 import { TransactionToast } from './TransactionToast';
 import { ShieldCheck, FileText } from 'lucide-react';
 import type { TransactionResult } from '@dualis/shared';
+import { useSignTransaction } from '@partylayer/react';
 
 interface TransactionConfirmProps {
   open: boolean;
@@ -31,12 +32,15 @@ function TransactionConfirm({
   onCancel,
   isSubmitting,
 }: TransactionConfirmProps) {
+  const { signTransaction: plSignTx } = useSignTransaction();
+
   const handleSign = async () => {
-    // In production, this would call the browser wallet's signing method
-    // e.g., window.ethereum.request({ method: 'personal_sign', params: [...] })
-    // For now, generate a mock signature
-    const mockSignature = `0x${Array.from({ length: 130 }, () => Math.floor(Math.random() * 16).toString(16)).join('')}`;
-    onSign(mockSignature);
+    if (!transaction?.signingPayload) return;
+
+    // Sign via PartyLayer wallet (Console, Loop, Cantor8, Nightly, Bron)
+    const signed = await plSignTx({ tx: { signingPayload: transaction.signingPayload } });
+    if (!signed) return;
+    onSign(String(signed.transactionHash));
   };
 
   const truncatePayload = (payload: string | undefined) => {

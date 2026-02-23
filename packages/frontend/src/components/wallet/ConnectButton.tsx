@@ -8,6 +8,7 @@ import { WalletAvatar } from './WalletAvatar';
 import { WalletConnectModal } from './WalletConnectModal';
 import { useSession } from '@partylayer/react';
 import { usePartyLayer } from '@/hooks/usePartyLayer';
+import { useWalletStore } from '@/stores/useWalletStore';
 import { Wallet } from 'lucide-react';
 
 interface ConnectButtonProps {
@@ -22,8 +23,16 @@ function truncateId(id: string): string {
 
 function ConnectButton({ className, onConnectedClick }: ConnectButtonProps) {
   const session = useSession();
+  const walletStore = useWalletStore();
   const { isConnecting } = usePartyLayer();
   const [showModal, setShowModal] = useState(false);
+
+  // Use PartyLayer session if available, otherwise fall back to persisted wallet store
+  const connectedPartyId = session
+    ? String(session.partyId)
+    : walletStore.isConnected && walletStore.party
+      ? walletStore.party
+      : null;
 
   if (isConnecting) {
     return (
@@ -34,8 +43,7 @@ function ConnectButton({ className, onConnectedClick }: ConnectButtonProps) {
     );
   }
 
-  if (session) {
-    const partyId = String(session.partyId);
+  if (connectedPartyId) {
     return (
       <button
         onClick={onConnectedClick}
@@ -44,8 +52,8 @@ function ConnectButton({ className, onConnectedClick }: ConnectButtonProps) {
           className
         )}
       >
-        <WalletAvatar address={partyId} size="sm" />
-        <span className="font-mono text-xs">{truncateId(partyId)}</span>
+        <WalletAvatar address={connectedPartyId} size="sm" />
+        <span className="font-mono text-xs">{truncateId(connectedPartyId)}</span>
       </button>
     );
   }
