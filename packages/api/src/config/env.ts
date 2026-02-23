@@ -58,6 +58,43 @@ const envSchema = z.object({
 
   // CORS
   CORS_ORIGIN: z.string().default('http://localhost:3000'),
+
+  // Notification (MP20)
+  RESEND_API_KEY: z.string().optional(),
+  RESEND_FROM_ADDRESS: z.string().default('notifications@dualis.finance'),
+  RESEND_FROM_NAME: z.string().default('Dualis Finance'),
+  RESEND_DRY_RUN: z.coerce.boolean().default(false),
+  NOTIFICATION_HF_SCAN_INTERVAL_MS: z.coerce.number().default(60000),
+  NOTIFICATION_EMAIL_RATE_LIMIT: z.coerce.number().default(10),
+  NOTIFICATION_WEBHOOK_TIMEOUT_MS: z.coerce.number().default(10000),
+  NOTIFICATION_RETENTION_DAYS: z.coerce.number().default(90),
+  NOTIFICATION_DELIVERY_LOG_RETENTION_DAYS: z.coerce.number().default(30),
+  NOTIFICATION_DIGEST_TIME_UTC: z.string().default('09:00'),
+
+  // KYC — Sumsub (MP21)
+  SUMSUB_APP_TOKEN: z.string().optional(),
+  SUMSUB_SECRET_KEY: z.string().optional(),
+  SUMSUB_BASE_URL: z.string().default('https://api.sumsub.com'),
+  SUMSUB_WEBHOOK_SECRET: z.string().optional(),
+  SUMSUB_KYC_LEVEL_NAME: z.string().default('basic-kyc-level'),
+  SUMSUB_MOCK: z.coerce.boolean().default(true),
+
+  // AML — Chainalysis (MP21)
+  CHAINALYSIS_API_KEY: z.string().optional(),
+  CHAINALYSIS_BASE_URL: z.string().default('https://api.chainalysis.com/api/kyt/v2'),
+  CHAINALYSIS_MOCK: z.coerce.boolean().default(true),
+
+  // Compliance (MP21)
+  COMPLIANCE_AUTO_APPROVE_THRESHOLD: z.coerce.number().default(25),
+  COMPLIANCE_MANUAL_REVIEW_THRESHOLD: z.coerce.number().default(50),
+  COMPLIANCE_BLOCK_THRESHOLD: z.coerce.number().default(75),
+  COMPLIANCE_DOCUMENT_RETENTION_YEARS: z.coerce.number().default(8),
+  COMPLIANCE_RESCREENING_LOW_MONTHS: z.coerce.number().default(12),
+  COMPLIANCE_RESCREENING_MED_MONTHS: z.coerce.number().default(3),
+  COMPLIANCE_RESCREENING_HIGH_MONTHS: z.coerce.number().default(1),
+  COMPLIANCE_JURISDICTION: z.string().default('TR'),
+  COMPLIANCE_PERIODIC_SCREENING_INTERVAL_MS: z.coerce.number().default(86400000),
+  COMPLIANCE_SANCTIONS_UPDATE_INTERVAL_MS: z.coerce.number().default(86400000),
 });
 
 export type Env = z.infer<typeof envSchema>;

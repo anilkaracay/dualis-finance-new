@@ -4,6 +4,7 @@ import { useEffect, useRef, useCallback } from 'react';
 import { useWalletStore } from '@/stores/useWalletStore';
 import { usePriceStore } from '@/stores/usePriceStore';
 import { useNotificationStore } from '@/stores/useNotificationStore';
+import type { BackendNotification } from '@/stores/useNotificationStore';
 import { useCompositeScoreStore } from '@/stores/useCompositeScoreStore';
 import { useProductiveStore } from '@/stores/useProductiveStore';
 import { useInstitutionalStore } from '@/stores/useInstitutionalStore';
@@ -17,16 +18,11 @@ interface WsPriceData {
   change24h?: number | undefined;
 }
 
-interface WsNotificationData {
-  severity?: 'warning' | 'success' | 'governance' | 'info' | undefined;
-  title: string;
-  message: string;
-}
-
 interface WsIncomingMessage {
   type: string;
   channel?: string | undefined;
   payload?: Record<string, unknown> | undefined;
+  data?: Record<string, unknown> | undefined;
 }
 
 interface WsCompositeScoreData {
@@ -77,6 +73,9 @@ export function useWebSocket() {
   const party = useWalletStore((s) => s.party);
   const updatePrice = usePriceStore((s) => s.updatePrice);
   const addNotification = useNotificationStore((s) => s.addNotification);
+  const addFromBackend = useNotificationStore((s) => s.addFromBackend);
+  const setUnreadCount = useNotificationStore((s) => s.setUnreadCount);
+  const markAsRead = useNotificationStore((s) => s.markAsRead);
   const compositeScoreStore = useCompositeScoreStore();
   const productiveStore = useProductiveStore();
   const institutionalStore = useInstitutionalStore();
@@ -113,13 +112,36 @@ export function useWebSocket() {
               updatePrice(payload.asset, payload.price, payload.timestamp, payload.change24h ?? 0);
             }
             if (msg.channel?.startsWith('notifications:')) {
-              const payload = msg.payload as unknown as WsNotificationData;
-              addNotification({
-                type: payload.severity ?? 'info',
-                title: payload.title,
-                description: payload.message,
-                timestamp: new Date().toISOString(),
-              });
+              const payload = msg.payload as unknown as Record<string, unknown>;
+
+              // MP20: Handle new structured notification from NotificationBus
+              if (payload.type === 'notification' && payload.data) {
+                addFromBackend(payload.data as unknown as BackendNotification);
+                return;
+              }
+
+              // MP20: Handle unread count update
+              if (payload.type === 'unread_count' && typeof (payload.data as Record<string, unknown>)?.count === 'number') {
+                setUnreadCount((payload.data as Record<string, unknown>).count as number);
+                return;
+              }
+
+              // MP20: Handle mark_read confirmation
+              if (payload.type === 'mark_read' && typeof (payload.data as Record<string, unknown>)?.notificationId === 'string') {
+                markAsRead((payload.data as Record<string, unknown>).notificationId as string);
+                return;
+              }
+
+              // Legacy: handle old-style WS notifications (health_warning, liquidation_alert)
+              const legacyPayload = payload as { severity?: string; title?: string; message?: string };
+              if (legacyPayload.title && legacyPayload.message) {
+                addNotification({
+                  type: (legacyPayload.severity as 'warning' | 'success' | 'governance' | 'info') ?? 'info',
+                  title: legacyPayload.title,
+                  description: legacyPayload.message,
+                  timestamp: new Date().toISOString(),
+                });
+              }
             }
           }
 
@@ -197,7 +219,7 @@ export function useWebSocket() {
     } catch {
       // ignore connection errors
     }
-  }, [isConnected, party, updatePrice, addNotification, compositeScoreStore, productiveStore, institutionalStore]);
+  }, [isConnected, party, updatePrice, addNotification, addFromBackend, setUnreadCount, markAsRead, compositeScoreStore, productiveStore, institutionalStore]);
 
   useEffect(() => {
     connect();

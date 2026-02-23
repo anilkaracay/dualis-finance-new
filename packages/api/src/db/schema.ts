@@ -10,6 +10,7 @@ import {
   text,
   date,
   real,
+  index,
 } from 'drizzle-orm/pg-core';
 
 // ---------------------------------------------------------------------------
@@ -148,17 +149,37 @@ export const protocolAnalytics = pgTable('protocol_analytics', {
 });
 
 // ---------------------------------------------------------------------------
-// 9. Notification Preferences — per-user notification settings
+// 9. Notification Preferences — per-user notification settings (MP20 expanded)
 // ---------------------------------------------------------------------------
 export const notificationPreferences = pgTable('notification_preferences', {
   id: serial('id').primaryKey(),
   partyId: varchar('party_id', { length: 256 }).notNull().unique(),
+  // Legacy fields (kept for backwards compat)
   healthFactorThreshold: real('health_factor_threshold').default(1.2).notNull(),
   liquidationAlerts: boolean('liquidation_alerts').default(true).notNull(),
   secLendingAlerts: boolean('sec_lending_alerts').default(true).notNull(),
   governanceAlerts: boolean('governance_alerts').default(false).notNull(),
   emailAddress: varchar('email_address', { length: 320 }),
   emailEnabled: boolean('email_enabled').default(false).notNull(),
+  // MP20 — Channel toggles
+  channelInApp: boolean('channel_in_app').default(true).notNull(),
+  channelWebhook: boolean('channel_webhook').default(false).notNull(),
+  // MP20 — Financial notification thresholds
+  hfCautionThreshold: real('hf_caution_threshold').default(1.5).notNull(),
+  hfDangerThreshold: real('hf_danger_threshold').default(1.2).notNull(),
+  hfCriticalThreshold: real('hf_critical_threshold').default(1.05).notNull(),
+  financialEnabled: boolean('financial_enabled').default(true).notNull(),
+  interestMilestones: boolean('interest_milestones').default(true).notNull(),
+  rateChanges: boolean('rate_changes').default(true).notNull(),
+  // MP20 — Auth notifications
+  authEnabled: boolean('auth_enabled').default(true).notNull(),
+  newLoginAlerts: boolean('new_login_alerts').default(true).notNull(),
+  // MP20 — Governance notifications
+  governanceEnabled: boolean('governance_enabled').default(false).notNull(),
+  // MP20 — Digest mode
+  digestEnabled: boolean('digest_enabled').default(false).notNull(),
+  digestFrequency: varchar('digest_frequency', { length: 16 }).default('daily').notNull(),
+  digestTime: varchar('digest_time', { length: 8 }).default('09:00').notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 });
 
@@ -414,6 +435,12 @@ export const users = pgTable('users', {
   emailVerifiedAt: timestamp('email_verified_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  // MP21 KYC/AML Compliance fields
+  amlStatus: varchar('aml_status', { length: 32 }).default('not_screened'),
+  complianceRiskLevel: varchar('compliance_risk_level', { length: 32 }),
+  lastRiskAssessmentAt: timestamp('last_risk_assessment_at', { withTimezone: true }),
+  sumsubApplicantId: varchar('sumsub_applicant_id', { length: 256 }),
+  nextScreeningAt: timestamp('next_screening_at', { withTimezone: true }),
   // MP19 Admin Panel fields
   isAdminActive: boolean('is_admin_active').default(false).notNull(),
   adminActivatedAt: timestamp('admin_activated_at', { withTimezone: true }),
@@ -741,3 +768,241 @@ export const poolParameterHistory = pgTable('pool_parameter_history', {
   changedAt: timestamp('changed_at', { withTimezone: true }).defaultNow().notNull(),
   reason: text('reason'),
 });
+
+// ===========================================================================
+// MP20 — Notification & Alert System Tables
+// ===========================================================================
+
+// ---------------------------------------------------------------------------
+// 44. Notifications — all notification records
+// ---------------------------------------------------------------------------
+export const notifications = pgTable('notifications', {
+  id: varchar('id', { length: 64 }).primaryKey(),
+  partyId: varchar('party_id', { length: 256 }).notNull(),
+  type: varchar('type', { length: 64 }).notNull(),
+  category: varchar('category', { length: 32 }).notNull(),
+  severity: varchar('severity', { length: 16 }).notNull(),
+  title: text('title').notNull(),
+  message: text('message').notNull(),
+  data: jsonb('data').$type<Record<string, unknown>>().default({}).notNull(),
+  status: varchar('status', { length: 16 }).notNull().default('pending'),
+  channels: jsonb('channels').$type<string[]>().default(['in_app']).notNull(),
+  link: text('link'),
+  readAt: timestamp('read_at', { withTimezone: true }),
+  deliveredAt: timestamp('delivered_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index('idx_notifications_party_created').on(table.partyId, table.createdAt),
+  index('idx_notifications_party_status').on(table.partyId, table.status),
+  index('idx_notifications_type_created').on(table.type, table.createdAt),
+]);
+
+// ---------------------------------------------------------------------------
+// 45. Webhook Endpoints — institutional webhook configurations
+// ---------------------------------------------------------------------------
+export const webhookEndpoints = pgTable('webhook_endpoints', {
+  id: varchar('id', { length: 64 }).primaryKey(),
+  partyId: varchar('party_id', { length: 256 }).notNull(),
+  url: text('url').notNull(),
+  secret: varchar('secret', { length: 256 }).notNull(),
+  events: jsonb('events').$type<string[]>().notNull(),
+  isActive: boolean('is_active').default(true).notNull(),
+  failureCount: integer('failure_count').default(0).notNull(),
+  lastDeliveryAt: timestamp('last_delivery_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index('idx_webhook_endpoints_party').on(table.partyId),
+]);
+
+// ---------------------------------------------------------------------------
+// 46. Webhook Delivery Log — webhook delivery audit trail
+// ---------------------------------------------------------------------------
+export const webhookDeliveryLog = pgTable('webhook_delivery_log', {
+  id: varchar('id', { length: 64 }).primaryKey(),
+  webhookEndpointId: varchar('webhook_endpoint_id', { length: 64 }).notNull(),
+  notificationId: varchar('notification_id', { length: 64 }).notNull(),
+  httpStatus: integer('http_status'),
+  responseBody: text('response_body'),
+  attempt: integer('attempt').notNull().default(1),
+  success: boolean('success').notNull(),
+  error: text('error'),
+  deliveredAt: timestamp('delivered_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index('idx_webhook_delivery_endpoint').on(table.webhookEndpointId, table.deliveredAt),
+  index('idx_webhook_delivery_notification').on(table.notificationId),
+]);
+
+// ---------------------------------------------------------------------------
+// 47. Email Delivery Log — email delivery audit trail
+// ---------------------------------------------------------------------------
+export const emailDeliveryLog = pgTable('email_delivery_log', {
+  id: varchar('id', { length: 64 }).primaryKey(),
+  notificationId: varchar('notification_id', { length: 64 }).notNull(),
+  partyId: varchar('party_id', { length: 256 }).notNull(),
+  toAddress: varchar('to_address', { length: 320 }).notNull(),
+  templateId: varchar('template_id', { length: 64 }).notNull(),
+  resendId: varchar('resend_id', { length: 256 }),
+  status: varchar('status', { length: 16 }).notNull(),
+  error: text('error'),
+  sentAt: timestamp('sent_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index('idx_email_delivery_party').on(table.partyId, table.sentAt),
+  index('idx_email_delivery_notification').on(table.notificationId),
+]);
+
+// ===========================================================================
+// MP21 — KYC/AML Compliance Tables
+// ===========================================================================
+
+// ---------------------------------------------------------------------------
+// 48. KYC Verifications — Sumsub identity verification records
+// ---------------------------------------------------------------------------
+export const kycVerifications = pgTable('kyc_verifications', {
+  id: serial('id').primaryKey(),
+  verificationId: varchar('verification_id', { length: 256 }).notNull().unique(),
+  userId: varchar('user_id', { length: 256 }).notNull(),
+  provider: varchar('provider', { length: 32 }).notNull().default('sumsub'),
+  externalApplicantId: varchar('external_applicant_id', { length: 256 }),
+  status: varchar('status', { length: 32 }).notNull().default('not_started'),
+  reviewAnswer: varchar('review_answer', { length: 16 }),
+  rejectionReason: text('rejection_reason'),
+  rejectionLabels: jsonb('rejection_labels').$type<string[]>().default([]).notNull(),
+  documentTypes: jsonb('document_types').$type<string[]>().default([]).notNull(),
+  checkResults: jsonb('check_results').$type<Record<string, string>>(),
+  rawResponse: jsonb('raw_response').$type<Record<string, unknown>>(),
+  attemptCount: integer('attempt_count').default(1).notNull(),
+  lastAttemptAt: timestamp('last_attempt_at', { withTimezone: true }),
+  verifiedAt: timestamp('verified_at', { withTimezone: true }),
+  expiresAt: timestamp('expires_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index('idx_kyc_verifications_user').on(table.userId),
+  index('idx_kyc_verifications_status').on(table.status),
+  index('idx_kyc_verifications_external').on(table.externalApplicantId),
+]);
+
+// ---------------------------------------------------------------------------
+// 49. AML Screenings — wallet and transaction screening records
+// ---------------------------------------------------------------------------
+export const amlScreenings = pgTable('aml_screenings', {
+  id: serial('id').primaryKey(),
+  screeningId: varchar('screening_id', { length: 256 }).notNull().unique(),
+  userId: varchar('user_id', { length: 256 }).notNull(),
+  screeningType: varchar('screening_type', { length: 32 }).notNull(),
+  provider: varchar('provider', { length: 32 }).notNull().default('chainalysis'),
+  externalId: varchar('external_id', { length: 256 }),
+  status: varchar('status', { length: 32 }).notNull().default('clean'),
+  riskScore: real('risk_score').default(0).notNull(),
+  riskCategory: varchar('risk_category', { length: 32 }),
+  walletAddress: varchar('wallet_address', { length: 256 }),
+  exposures: jsonb('exposures').$type<Array<Record<string, unknown>>>().default([]).notNull(),
+  flagReasons: jsonb('flag_reasons').$type<string[]>().default([]).notNull(),
+  rawResponse: jsonb('raw_response').$type<Record<string, unknown>>(),
+  reviewedBy: varchar('reviewed_by', { length: 256 }),
+  reviewNote: text('review_note'),
+  screenedAt: timestamp('screened_at', { withTimezone: true }).defaultNow().notNull(),
+  nextScreeningAt: timestamp('next_screening_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index('idx_aml_screenings_user_type').on(table.userId, table.screeningType, table.screenedAt),
+  index('idx_aml_screenings_wallet').on(table.walletAddress),
+  index('idx_aml_screenings_status').on(table.status),
+  index('idx_aml_screenings_next').on(table.nextScreeningAt),
+]);
+
+// ---------------------------------------------------------------------------
+// 50. Risk Assessments — composite risk scoring records
+// ---------------------------------------------------------------------------
+export const riskAssessments = pgTable('risk_assessments', {
+  id: serial('id').primaryKey(),
+  assessmentId: varchar('assessment_id', { length: 256 }).notNull().unique(),
+  userId: varchar('user_id', { length: 256 }).notNull(),
+  kycScore: real('kyc_score').notNull(),
+  amlScore: real('aml_score').notNull(),
+  pepScore: real('pep_score').notNull(),
+  geoScore: real('geo_score').notNull(),
+  behavioralScore: real('behavioral_score').notNull(),
+  compositeScore: real('composite_score').notNull(),
+  riskLevel: varchar('risk_level', { length: 32 }).notNull(),
+  factors: jsonb('factors').$type<Array<Record<string, unknown>>>().default([]).notNull(),
+  decision: varchar('decision', { length: 32 }).notNull(),
+  decisionReason: text('decision_reason').notNull(),
+  triggeredBy: varchar('triggered_by', { length: 64 }).notNull(),
+  previousRiskLevel: varchar('previous_risk_level', { length: 32 }),
+  reviewedBy: integer('reviewed_by'),
+  reviewNote: text('review_note'),
+  validUntil: timestamp('valid_until', { withTimezone: true }).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index('idx_risk_assessments_user').on(table.userId, table.createdAt),
+  index('idx_risk_assessments_level').on(table.riskLevel),
+  index('idx_risk_assessments_valid').on(table.validUntil),
+]);
+
+// ---------------------------------------------------------------------------
+// 51. Compliance Audit Log — immutable INSERT-only compliance event log
+// ---------------------------------------------------------------------------
+export const complianceAuditLog = pgTable('compliance_audit_log', {
+  id: serial('id').primaryKey(),
+  eventId: varchar('event_id', { length: 256 }).notNull().unique(),
+  userId: varchar('user_id', { length: 256 }),
+  action: varchar('action', { length: 64 }).notNull(),
+  actorId: varchar('actor_id', { length: 256 }),
+  actorType: varchar('actor_type', { length: 32 }).notNull(),
+  category: varchar('category', { length: 32 }).notNull(),
+  description: text('description').notNull(),
+  metadata: jsonb('metadata').$type<Record<string, unknown>>().default({}).notNull(),
+  ipAddress: varchar('ip_address', { length: 64 }),
+  userAgent: text('user_agent'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index('idx_compliance_audit_user').on(table.userId, table.createdAt),
+  index('idx_compliance_audit_action').on(table.action, table.createdAt),
+  index('idx_compliance_audit_category').on(table.category, table.createdAt),
+]);
+
+// ---------------------------------------------------------------------------
+// 52. Sanctions List Entries — cached sanctions/PEP list entries
+// ---------------------------------------------------------------------------
+export const sanctionsListEntries = pgTable('sanctions_list_entries', {
+  id: serial('id').primaryKey(),
+  entryId: varchar('entry_id', { length: 256 }).notNull().unique(),
+  listSource: varchar('list_source', { length: 64 }).notNull(),
+  entityType: varchar('entity_type', { length: 32 }).notNull(),
+  fullName: varchar('full_name', { length: 512 }).notNull(),
+  normalizedName: varchar('normalized_name', { length: 512 }).notNull(),
+  aliases: jsonb('aliases').$type<string[]>().default([]).notNull(),
+  nationality: varchar('nationality', { length: 8 }),
+  dateOfBirth: varchar('date_of_birth', { length: 32 }),
+  identifiers: jsonb('identifiers').$type<Record<string, string>>(),
+  isActive: boolean('is_active').default(true).notNull(),
+  addedAt: timestamp('added_at', { withTimezone: true }).defaultNow().notNull(),
+  lastUpdated: timestamp('last_updated', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index('idx_sanctions_normalized_name').on(table.normalizedName),
+  index('idx_sanctions_list_source').on(table.listSource),
+  index('idx_sanctions_active').on(table.isActive),
+]);
+
+// ---------------------------------------------------------------------------
+// 53. Data Deletion Requests — GDPR right-to-erasure tracking
+// ---------------------------------------------------------------------------
+export const dataDeletionRequests = pgTable('data_deletion_requests', {
+  id: serial('id').primaryKey(),
+  requestId: varchar('request_id', { length: 256 }).notNull().unique(),
+  userId: varchar('user_id', { length: 256 }).notNull(),
+  requestType: varchar('request_type', { length: 32 }).notNull(),
+  status: varchar('status', { length: 32 }).notNull().default('pending'),
+  reason: text('reason'),
+  retentionEndDate: timestamp('retention_end_date', { withTimezone: true }),
+  processedBy: integer('processed_by'),
+  processedAt: timestamp('processed_at', { withTimezone: true }),
+  exportFileKey: varchar('export_file_key', { length: 512 }),
+  completedAt: timestamp('completed_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index('idx_deletion_requests_user').on(table.userId),
+  index('idx_deletion_requests_status').on(table.status),
+]);

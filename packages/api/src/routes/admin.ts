@@ -4,6 +4,7 @@ import type { ApiResponse, UpdateConfigRequest } from '@dualis/shared';
 import { AppError } from '../middleware/errorHandler.js';
 import { operatorMiddleware } from '../middleware/auth.js';
 import { createChildLogger } from '../config/logger.js';
+import { notificationBus } from '../notification/notification.bus.js';
 
 const log = createChildLogger('admin-routes');
 
@@ -66,6 +67,17 @@ export async function adminRoutes(fastify: FastifyInstance): Promise<void> {
       protocolStatus.pausedAt = new Date().toISOString();
       protocolStatus.pausedBy = partyId;
 
+      // MP20: Broadcast protocol pause to all users
+      notificationBus.emitBroadcast({
+        type: 'PROTOCOL_PAUSED',
+        category: 'system',
+        severity: 'critical',
+        title: 'Protocol Paused',
+        message: 'The Dualis protocol has been paused by an operator. No new transactions will be processed until the protocol is resumed.',
+        data: { pausedBy: partyId, pausedAt: protocolStatus.pausedAt },
+        deduplicationKey: `protocol-paused:${protocolStatus.pausedAt}`,
+      }).catch((err) => log.warn({ err }, 'Protocol pause broadcast failed'));
+
       const response: ApiResponse<ProtocolStatus> = {
         data: { ...protocolStatus },
       };
@@ -89,6 +101,17 @@ export async function adminRoutes(fastify: FastifyInstance): Promise<void> {
 
       protocolStatus.paused = false;
       protocolStatus.resumedAt = new Date().toISOString();
+
+      // MP20: Broadcast protocol resume to all users
+      notificationBus.emitBroadcast({
+        type: 'PROTOCOL_RESUMED',
+        category: 'system',
+        severity: 'info',
+        title: 'Protocol Resumed',
+        message: 'The Dualis protocol has been resumed. Normal operations have been restored.',
+        data: { resumedBy: partyId, resumedAt: protocolStatus.resumedAt },
+        deduplicationKey: `protocol-resumed:${protocolStatus.resumedAt}`,
+      }).catch((err) => log.warn({ err }, 'Protocol resume broadcast failed'));
 
       const response: ApiResponse<ProtocolStatus> = {
         data: { ...protocolStatus },

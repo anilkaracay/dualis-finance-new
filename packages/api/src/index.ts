@@ -46,6 +46,22 @@ import { onboardingRoutes } from './routes/onboarding.js';
 // Wallet routes
 import { walletRoutes } from './routes/wallet.js';
 
+// Notification routes (MP20)
+import { notificationRoutes } from './routes/notifications.js';
+import { notificationPreferenceRoutes } from './routes/notification-preferences.js';
+import { webhookRoutes } from './routes/webhooks.js';
+
+// Notification workers & queues (MP20)
+import { initNotificationQueues, closeNotificationQueues } from './notification/queue.js';
+import { startEmailWorker, stopEmailWorker } from './notification/workers/email.worker.js';
+import { startWebhookWorker, stopWebhookWorker } from './notification/workers/webhook.worker.js';
+import { startDigestWorker, stopDigestWorker } from './notification/workers/digest.worker.js';
+import { startCleanupWorker, stopCleanupWorker } from './notification/workers/cleanup.worker.js';
+
+// Notification event sources (MP20) — side-effect imports register scheduled jobs
+import './notification/sources/rateChangeMonitor.js';
+import './notification/sources/documentExpiryChecker.js';
+
 // Admin panel routes
 import { adminDashboardRoutes } from './routes/admin-dashboard.js';
 import { adminPoolRoutes } from './routes/admin-pools.js';
@@ -182,6 +198,11 @@ async function main(): Promise<void> {
     // Wallet routes
     await app.register(walletRoutes);
 
+    // Notification routes (MP20)
+    await app.register(notificationRoutes);
+    await app.register(notificationPreferenceRoutes);
+    await app.register(webhookRoutes);
+
     // Innovation routes
     await app.register(attestationRoutes);
     await app.register(productiveRoutes);
@@ -216,6 +237,12 @@ async function main(): Promise<void> {
       logger.info(`${signal} received, shutting down`);
       stopScheduler();
       await shutdownOracle();
+      // MP20: Stop notification workers & queues
+      await stopEmailWorker();
+      await stopWebhookWorker();
+      await stopDigestWorker();
+      await stopCleanupWorker();
+      await closeNotificationQueues();
       await server.close();
       await closeDb();
       await closeRedis();
@@ -260,6 +287,18 @@ async function main(): Promise<void> {
     // Initialize background jobs if in non-test mode
     if (env.NODE_ENV !== 'test') {
       initScheduler();
+
+      // MP20: Initialize notification queues & workers
+      try {
+        initNotificationQueues();
+        startEmailWorker();
+        startWebhookWorker();
+        startDigestWorker();
+        startCleanupWorker();
+        logger.info('Notification workers started');
+      } catch (notifErr) {
+        logger.warn({ err: notifErr }, 'Notification workers failed to start — notifications may be delayed');
+      }
     }
   } catch (err) {
     logger.error({ err }, 'Failed to start server');

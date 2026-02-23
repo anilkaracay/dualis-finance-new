@@ -166,6 +166,73 @@ export type {
   AdminPoolParams,
 } from './auth';
 
+// Notification types
+export type {
+  NotificationCategory,
+  NotificationType,
+  NotificationSeverity,
+  NotificationChannel,
+  NotificationStatus,
+  NotificationDisplayType,
+  NotificationEvent,
+  StoredNotification,
+  UserNotificationPreferences,
+  WebhookEndpoint,
+  WebhookDeliveryLog,
+  EmailDeliveryLog,
+  WebhookPayload,
+  NotificationListQuery,
+  NotificationListResponse,
+  UnreadCountResponse,
+  CreateWebhookRequest,
+  UpdateWebhookRequest,
+  TestNotificationRequest,
+  NotificationDefaults,
+} from './notification';
+
+export {
+  NOTIFICATION_DEFAULTS,
+  DEDUP_WINDOWS,
+  DEFAULT_DEDUP_WINDOW_MS,
+  notificationTypeToDisplayType,
+} from './notification';
+
+// Compliance types (MP21 KYC/AML)
+export type {
+  KYCProvider,
+  KYCVerificationStatus as ComplianceKYCStatus,
+  SumsubReviewResult,
+  SumsubEventType,
+  AMLScreeningStatus,
+  AMLScreeningType,
+  WalletRiskCategory,
+  SanctionsCheckResult,
+  PEPCheckResult,
+  SanctionsListSource,
+  ScreeningMatchType,
+  RiskLevel,
+  ComplianceDecision,
+  RiskFactor,
+  ComplianceAction,
+  ComplianceAuditCategory,
+  JurisdictionCode,
+  JurisdictionConfig,
+  GDPRRequestType,
+  GDPRRequestStatus,
+  KYCVerificationRecord,
+  AMLScreeningRecord,
+  RiskAssessmentRecord,
+  ComplianceAuditEntry,
+  SanctionsMatchResult,
+  PEPScreeningResult,
+  SumsubAccessTokenResponse,
+  SumsubWebhookEvent,
+  SumsubWidgetConfig,
+  DataDeletionRequestRecord,
+} from './compliance';
+
+export { RISK_WEIGHTS } from './compliance';
+
 // Wallet & PartyLayer types
 export type {
   WalletType,

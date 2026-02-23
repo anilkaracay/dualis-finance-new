@@ -6,6 +6,7 @@ import { nanoid } from 'nanoid';
 import { createChildLogger } from '../config/logger.js';
 import { env } from '../config/env.js';
 import type { CircuitBreakerState, OracleAlert } from './types.js';
+import { notificationBus } from '../notification/notification.bus.js';
 
 const log = createChildLogger('oracle-circuit-breaker');
 
@@ -149,6 +150,19 @@ function trip(state: CircuitBreakerState, reason: string, now: number): void {
     severity: 'warning',
   });
   log.warn({ asset: state.asset, reason }, 'Circuit breaker tripped');
+
+  // MP20: Notify admin users about circuit breaker trip
+  notificationBus.emit({
+    type: 'ORACLE_CIRCUIT_BREAKER',
+    category: 'system',
+    severity: 'critical',
+    partyId: 'party::operator', // Admin party
+    title: `Circuit Breaker: ${state.asset}`,
+    message: reason,
+    data: { asset: state.asset, reason },
+    deduplicationKey: `oracle:cb:${state.asset}`,
+    channels: ['in_app'],
+  }).catch(() => { /* non-blocking */ });
 }
 
 function addAlert(partial: Omit<OracleAlert, 'id' | 'timestamp' | 'metadata'>): void {

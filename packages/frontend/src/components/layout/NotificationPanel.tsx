@@ -1,13 +1,15 @@
 'use client';
 
 import { motion, AnimatePresence } from 'framer-motion';
+import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils/cn';
-import { X, AlertTriangle, CheckCircle2, Landmark, Info } from 'lucide-react';
+import { X, AlertTriangle, CheckCircle2, Landmark, Info, AlertOctagon } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
+import type { NotificationDisplayType } from '@/stores/useNotificationStore';
 
 interface Notification {
   id: string;
-  type: 'warning' | 'success' | 'governance' | 'info';
+  type: NotificationDisplayType;
   title: string;
   description: string;
   timestamp: string;
@@ -23,21 +25,60 @@ interface NotificationPanelProps {
   onNotificationClick?: (notification: Notification) => void;
 }
 
-const typeIcons: Record<Notification['type'], React.ElementType> = {
+const typeIcons: Record<NotificationDisplayType, React.ElementType> = {
+  critical: AlertOctagon,
   warning: AlertTriangle,
   success: CheckCircle2,
   governance: Landmark,
   info: Info,
 };
 
-const typeColors: Record<Notification['type'], string> = {
+const typeColors: Record<NotificationDisplayType, string> = {
+  critical: 'text-negative',
   warning: 'text-warning',
   success: 'text-positive',
   governance: 'text-accent-indigo',
   info: 'text-info',
 };
 
+const typeBorderColors: Record<NotificationDisplayType, string> = {
+  critical: 'border-l-negative',
+  warning: 'border-l-warning',
+  success: 'border-l-positive',
+  governance: 'border-l-accent-indigo',
+  info: 'border-l-accent-teal',
+};
+
+function formatTimestamp(ts: string): string {
+  try {
+    const date = new Date(ts);
+    if (isNaN(date.getTime())) return ts;
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMin = Math.floor(diffMs / 60_000);
+    if (diffMin < 1) return 'Just now';
+    if (diffMin < 60) return `${diffMin}m ago`;
+    const diffHr = Math.floor(diffMin / 60);
+    if (diffHr < 24) return `${diffHr}h ago`;
+    const diffDays = Math.floor(diffHr / 24);
+    if (diffDays < 7) return `${diffDays}d ago`;
+    return date.toLocaleDateString();
+  } catch {
+    return ts;
+  }
+}
+
 function NotificationPanel({ open, onClose, notifications, onMarkAllRead, onNotificationClick }: NotificationPanelProps) {
+  const router = useRouter();
+
+  const handleClick = (notif: Notification) => {
+    onNotificationClick?.(notif);
+    if (notif.link) {
+      router.push(notif.link);
+      onClose();
+    }
+  };
+
   return (
     <AnimatePresence>
       {open && (
@@ -60,7 +101,7 @@ function NotificationPanel({ open, onClose, notifications, onMarkAllRead, onNoti
             <div className="flex items-center justify-between h-16 px-4 border-b border-border-subtle">
               <h2 className="text-lg font-semibold text-text-primary">Notifications</h2>
               <div className="flex items-center gap-2">
-                {onMarkAllRead && (
+                {onMarkAllRead && notifications.some((n) => !n.read) && (
                   <Button variant="ghost" size="sm" onClick={onMarkAllRead}>
                     Mark all read
                   </Button>
@@ -80,29 +121,41 @@ function NotificationPanel({ open, onClose, notifications, onMarkAllRead, onNoti
                 </div>
               ) : (
                 notifications.map((notif) => {
-                  const Icon = typeIcons[notif.type];
+                  const Icon = typeIcons[notif.type] ?? Info;
                   return (
                     <div
                       key={notif.id}
-                      onClick={() => onNotificationClick?.(notif)}
+                      onClick={() => handleClick(notif)}
                       className={cn(
                         'flex gap-3 px-4 py-3 border-b border-border-subtle cursor-pointer hover:bg-bg-hover transition-colors',
-                        !notif.read && 'border-l-2 border-l-accent-teal'
+                        !notif.read && `border-l-2 ${typeBorderColors[notif.type] ?? 'border-l-accent-teal'}`,
                       )}
                     >
-                      <Icon className={cn('h-5 w-5 shrink-0 mt-0.5', typeColors[notif.type])} />
+                      <Icon className={cn('h-5 w-5 shrink-0 mt-0.5', typeColors[notif.type] ?? 'text-info')} />
                       <div className="flex-1 min-w-0">
                         <p className={cn('text-sm', notif.read ? 'text-text-secondary' : 'text-text-primary font-medium')}>
                           {notif.title}
                         </p>
                         <p className="text-xs text-text-tertiary mt-0.5 line-clamp-2">{notif.description}</p>
-                        <p className="text-xs text-text-disabled mt-1">{notif.timestamp}</p>
+                        <p className="text-xs text-text-disabled mt-1">{formatTimestamp(notif.timestamp)}</p>
                       </div>
                     </div>
                   );
                 })
               )}
             </div>
+
+            {/* Footer */}
+            {notifications.length > 0 && (
+              <div className="border-t border-border-subtle px-4 py-3">
+                <button
+                  onClick={() => { router.push('/notifications'); onClose(); }}
+                  className="w-full text-center text-sm text-accent-teal hover:text-accent-teal/80 transition-colors font-medium"
+                >
+                  View all notifications
+                </button>
+              </div>
+            )}
           </motion.aside>
         </>
       )}

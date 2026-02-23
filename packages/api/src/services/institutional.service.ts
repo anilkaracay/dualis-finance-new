@@ -10,6 +10,7 @@ import type {
   KYBStatus,
   TransactionMeta,
 } from '@dualis/shared';
+import { notificationBus } from '../notification/notification.bus.js';
 
 const log = createChildLogger('institutional-service');
 
@@ -194,6 +195,19 @@ export function submitKYB(
     inst.kybStatus = 'InReview';
   }
 
+  // MP20: Notify institution that KYB documents were received
+  notificationBus.emit({
+    type: 'KYB_RECEIVED',
+    category: 'compliance',
+    severity: 'info',
+    partyId,
+    title: 'KYB Documents Received',
+    message: 'Your KYB verification documents have been received and are under review.',
+    data: { legalName: inst?.legalName ?? partyId },
+    deduplicationKey: `kyb-received:${partyId}`,
+    link: '/institutional/onboard',
+  }).catch((err) => log.warn({ err }, 'KYB received notification failed'));
+
   return {
     data: { status: 'InReview' },
     transaction: buildTransactionMeta(),
@@ -215,6 +229,26 @@ export function verifyKYB(
       inst.expiresAt = new Date(Date.now() + 365 * 86_400_000).toISOString();
     }
   }
+
+  // MP20: Notify institution of KYB result
+  const kybType = result.approved ? 'KYB_APPROVED' as const : 'KYB_REJECTED' as const;
+  notificationBus.emit({
+    type: kybType,
+    category: 'compliance',
+    severity: result.approved ? 'info' : 'warning',
+    partyId,
+    title: result.approved ? 'KYB Verification Approved' : 'KYB Verification Rejected',
+    message: result.approved
+      ? `Your KYB verification has been approved at level "${result.level}". Full platform access is now available.`
+      : 'Your KYB verification has been rejected. Please review the requirements and resubmit.',
+    data: {
+      legalName: inst?.legalName ?? partyId,
+      approved: result.approved,
+      level: result.level,
+    },
+    deduplicationKey: `kyb-result:${partyId}:${kybType}`,
+    link: '/institutional/onboard',
+  }).catch((err) => log.warn({ err }, 'KYB result notification failed'));
 
   return {
     data: { status: result.approved ? 'Verified' : 'Rejected' },

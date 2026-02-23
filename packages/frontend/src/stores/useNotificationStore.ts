@@ -1,62 +1,93 @@
 'use client';
 
 import { create } from 'zustand';
+import type { NotificationType } from '@dualis/shared';
+import { notificationTypeToDisplayType } from '@dualis/shared';
 
-interface NotificationItem {
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+export type NotificationDisplayType = 'warning' | 'critical' | 'success' | 'governance' | 'info';
+
+export interface NotificationItem {
   id: string;
-  type: 'warning' | 'success' | 'governance' | 'info';
+  type: NotificationDisplayType;
+  backendType?: NotificationType;
+  severity?: 'info' | 'warning' | 'critical';
   title: string;
   description: string;
   timestamp: string;
   read: boolean;
   link?: string;
+  data?: Record<string, unknown>;
 }
 
 interface NotificationState {
   notifications: NotificationItem[];
   unreadCount: number;
+  loading: boolean;
+  hasMore: boolean;
+  page: number;
 }
 
 interface NotificationActions {
   addNotification: (notification: Omit<NotificationItem, 'id' | 'read'>) => void;
+  setNotifications: (notifications: NotificationItem[]) => void;
+  setUnreadCount: (count: number) => void;
   markAsRead: (id: string) => void;
   markAllAsRead: () => void;
+  removeNotification: (id: string) => void;
   clearAll: () => void;
+  setLoading: (loading: boolean) => void;
+  setHasMore: (hasMore: boolean) => void;
+  setPage: (page: number) => void;
+  appendNotifications: (notifications: NotificationItem[]) => void;
+  /** Map a backend stored notification to a frontend NotificationItem */
+  addFromBackend: (stored: BackendNotification) => void;
 }
 
-const MOCK_NOTIFICATIONS: NotificationItem[] = [
-  {
-    id: 'notif-1',
-    type: 'warning',
-    title: 'Health Factor Alert',
-    description: 'Your USDC borrow position health factor dropped to 1.67. Consider adding collateral.',
-    timestamp: '2 hours ago',
-    read: false,
-    link: '/borrow',
-  },
-  {
-    id: 'notif-2',
-    type: 'success',
-    title: 'Deposit Confirmed',
-    description: 'Successfully deposited 500,000 USDC into the lending pool.',
-    timestamp: '5 hours ago',
-    read: false,
-    link: '/portfolio',
-  },
-  {
-    id: 'notif-3',
-    type: 'governance',
-    title: 'New Proposal: DIP-013',
-    description: 'Vote on "Add wETH as collateral asset" — voting ends in 4 days.',
-    timestamp: '1 day ago',
-    read: true,
-    link: '/governance',
-  },
-];
+/** Shape of a notification received from the backend API / WebSocket */
+export interface BackendNotification {
+  id: string;
+  type: NotificationType;
+  category: string;
+  severity: 'info' | 'warning' | 'critical';
+  title: string;
+  message: string;
+  data?: Record<string, unknown>;
+  status: string;
+  link?: string | null;
+  readAt?: string | null;
+  createdAt: string;
+}
+
+function mapBackendToItem(n: BackendNotification): NotificationItem {
+  const item: NotificationItem = {
+    id: n.id,
+    type: notificationTypeToDisplayType(n.type),
+    backendType: n.type,
+    severity: n.severity,
+    title: n.title,
+    description: n.message,
+    timestamp: n.createdAt,
+    read: n.status === 'read' || !!n.readAt,
+  };
+  if (n.link) item.link = n.link;
+  if (n.data) item.data = n.data;
+  return item;
+}
+
+// ---------------------------------------------------------------------------
+// Store
+// ---------------------------------------------------------------------------
 
 export const useNotificationStore = create<NotificationState & NotificationActions>()((set) => ({
-  notifications: MOCK_NOTIFICATIONS,
-  unreadCount: MOCK_NOTIFICATIONS.filter((n) => !n.read).length,
+  notifications: [],
+  unreadCount: 0,
+  loading: false,
+  hasMore: true,
+  page: 1,
 
   addNotification: (notification) =>
     set((state) => {
@@ -71,14 +102,38 @@ export const useNotificationStore = create<NotificationState & NotificationActio
       };
     }),
 
+  addFromBackend: (stored) =>
+    set((state) => {
+      // Avoid duplicates
+      if (state.notifications.some((n) => n.id === stored.id)) return state;
+      const item = mapBackendToItem(stored);
+      return {
+        notifications: [item, ...state.notifications],
+        unreadCount: item.read ? state.unreadCount : state.unreadCount + 1,
+      };
+    }),
+
+  setNotifications: (notifications) =>
+    set({
+      notifications,
+      unreadCount: notifications.filter((n) => !n.read).length,
+    }),
+
+  setUnreadCount: (count) => set({ unreadCount: count }),
+
+  appendNotifications: (notifications) =>
+    set((state) => ({
+      notifications: [...state.notifications, ...notifications],
+    })),
+
   markAsRead: (id) =>
     set((state) => {
       const notifications = state.notifications.map((n) =>
-        n.id === id ? { ...n, read: true } : n
+        n.id === id ? { ...n, read: true } : n,
       );
       return {
         notifications,
-        unreadCount: notifications.filter((n) => !n.read).length,
+        unreadCount: Math.max(0, state.unreadCount - (state.notifications.find((n) => n.id === id && !n.read) ? 1 : 0)),
       };
     }),
 
@@ -88,5 +143,19 @@ export const useNotificationStore = create<NotificationState & NotificationActio
       unreadCount: 0,
     })),
 
+  removeNotification: (id) =>
+    set((state) => {
+      const target = state.notifications.find((n) => n.id === id);
+      return {
+        notifications: state.notifications.filter((n) => n.id !== id),
+        unreadCount: target && !target.read ? Math.max(0, state.unreadCount - 1) : state.unreadCount,
+      };
+    }),
+
   clearAll: () => set({ notifications: [], unreadCount: 0 }),
+  setLoading: (loading) => set({ loading }),
+  setHasMore: (hasMore) => set({ hasMore }),
+  setPage: (page) => set({ page }),
 }));
+
+export { mapBackendToItem };

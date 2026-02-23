@@ -170,6 +170,37 @@ export type {
   AdminPoolParams,
 } from './types/auth';
 
+// Notification types (MP20)
+export type {
+  NotificationCategory,
+  NotificationType,
+  NotificationSeverity,
+  NotificationChannel,
+  NotificationStatus,
+  NotificationDisplayType,
+  NotificationEvent,
+  StoredNotification,
+  UserNotificationPreferences,
+  WebhookEndpoint,
+  WebhookDeliveryLog,
+  EmailDeliveryLog,
+  WebhookPayload,
+  NotificationListQuery,
+  NotificationListResponse,
+  UnreadCountResponse,
+  CreateWebhookRequest,
+  UpdateWebhookRequest,
+  TestNotificationRequest,
+  NotificationDefaults,
+} from './types/notification';
+
+export {
+  NOTIFICATION_DEFAULTS,
+  DEDUP_WINDOWS,
+  DEFAULT_DEDUP_WINDOW_MS,
+  notificationTypeToDisplayType,
+} from './types/notification';
+
 // Wallet & PartyLayer types
 export type {
   WalletType,

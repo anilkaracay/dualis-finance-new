@@ -104,6 +104,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         onClose={() => ui.setNotificationPanelOpen(false)}
         notifications={notifs.notifications}
         onMarkAllRead={notifs.markAllAsRead}
+        onNotificationClick={(n) => { if (!n.read) notifs.markAsRead(n.id); }}
       />
 
       <ToastViewport />

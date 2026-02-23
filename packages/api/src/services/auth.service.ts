@@ -2,7 +2,7 @@ import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { createHash, randomBytes } from 'node:crypto';
 import { nanoid } from 'nanoid';
-import { eq, and, isNull } from 'drizzle-orm';
+import { eq, and, isNull, gte } from 'drizzle-orm';
 import { env } from '../config/env.js';
 import { createChildLogger } from '../config/logger.js';
 import { getDb, schema } from '../db/client.js';
@@ -10,6 +10,7 @@ import { AppError } from '../middleware/errorHandler.js';
 import type { AuthUser, AuthSession } from '@dualis/shared';
 import * as walletPreferencesService from './walletPreferences.service.js';
 import * as walletService from './wallet.service.js';
+import { notificationBus } from '../notification/notification.bus.js';
 
 const log = createChildLogger('auth-service');
 
@@ -355,6 +356,11 @@ export async function loginWithEmail(
 
   await logLoginEvent(userRow.userId, email, 'email', true, req);
 
+  // MP20: Check for new device/IP and emit notification
+  checkNewLoginDevice(userRow.userId, userRow.partyId, req).catch((err) =>
+    log.warn({ err }, 'New login device check failed'),
+  );
+
   return { ...session, user };
 }
 
@@ -668,9 +674,79 @@ export async function resetPassword(token: string, newPassword: string): Promise
   await db.update(schema.users).set({ passwordHash, updatedAt: new Date() }).where(eq(schema.users.userId, record.userId));
   await db.delete(schema.sessions).where(eq(schema.sessions.userId, record.userId));
 
+  // MP20: Notify user of password change
+  const userRows = await db.select().from(schema.users).where(eq(schema.users.userId, record.userId)).limit(1);
+  if (userRows[0]) {
+    notificationBus.emit({
+      type: 'PASSWORD_CHANGED',
+      category: 'auth',
+      severity: 'warning',
+      partyId: userRows[0].partyId,
+      title: 'Password Changed',
+      message: 'Your password was successfully changed and all sessions have been invalidated. If you did not make this change, contact support immediately.',
+      data: { changedAt: new Date().toISOString() },
+      deduplicationKey: `password-changed:${record.userId}:${Date.now()}`,
+      link: '/settings/security',
+    }).catch((err) => log.warn({ err }, 'Password changed notification failed'));
+  }
+
   log.info({ userId: record.userId }, 'Password reset completed');
 
   return { success: true };
+}
+
+// ---------------------------------------------------------------------------
+// MP20: New Login Device Detection
+// ---------------------------------------------------------------------------
+
+async function checkNewLoginDevice(
+  userId: string,
+  partyId: string,
+  req?: { ip?: string; headers?: Record<string, string | string[] | undefined> },
+): Promise<void> {
+  const db = getDb();
+  if (!db || !req) return;
+
+  const currentIp = (req.ip as string) ?? 'unknown';
+  const currentUserAgent = (req.headers?.['user-agent'] as string) ?? 'unknown';
+
+  // Check if this IP+UA combo has been seen in the last 30 days
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 86_400_000);
+
+  const recentLogins = await db
+    .select({ ipAddress: schema.loginEvents.ipAddress, userAgent: schema.loginEvents.userAgent })
+    .from(schema.loginEvents)
+    .where(
+      and(
+        eq(schema.loginEvents.userId, userId),
+        eq(schema.loginEvents.success, true),
+        gte(schema.loginEvents.createdAt, thirtyDaysAgo),
+      ),
+    )
+    .limit(100);
+
+  const knownCombo = recentLogins.some(
+    (r) => r.ipAddress === currentIp && r.userAgent === currentUserAgent,
+  );
+
+  // If it's the first login ever (only 1 record = the current one), skip notification
+  if (!knownCombo && recentLogins.length > 1) {
+    await notificationBus.emit({
+      type: 'NEW_LOGIN_DEVICE',
+      category: 'auth',
+      severity: 'warning',
+      partyId,
+      title: 'New Login Detected',
+      message: `A new login to your account was detected from IP ${currentIp}. If this wasn't you, secure your account immediately.`,
+      data: {
+        ipAddress: currentIp,
+        userAgent: currentUserAgent,
+        loginAt: new Date().toISOString(),
+      },
+      deduplicationKey: `new-login:${userId}:${currentIp}`,
+      link: '/settings/security',
+    });
+  }
 }
 
 // ---------------------------------------------------------------------------

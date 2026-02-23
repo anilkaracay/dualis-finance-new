@@ -86,4 +86,17 @@ export const ENDPOINTS = {
   WALLET_TRANSACTION_STATUS: (id: string) => `/wallet/transaction/${id}`,
   WALLET_TRANSACTIONS: '/wallet/transactions',
   WALLET_PARTY_MAPPINGS: '/wallet/party-mappings',
+  // Notifications
+  NOTIFICATIONS: '/notifications',
+  NOTIFICATIONS_UNREAD_COUNT: '/notifications/unread-count',
+  NOTIFICATION_READ: (id: string) => `/notifications/${id}/read`,
+  NOTIFICATION_DELETE: (id: string) => `/notifications/${id}`,
+  NOTIFICATIONS_READ_ALL: '/notifications/read-all',
+  NOTIFICATION_PREFERENCES: '/notifications/preferences',
+  NOTIFICATION_PREFERENCES_TEST: '/notifications/preferences/test',
+  // Webhooks
+  WEBHOOKS: '/webhooks',
+  WEBHOOK_DETAIL: (id: string) => `/webhooks/${id}`,
+  WEBHOOK_TEST: (id: string) => `/webhooks/${id}/test`,
+  WEBHOOK_DELIVERIES: (id: string) => `/webhooks/${id}/deliveries`,
 } as const;

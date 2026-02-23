@@ -27,3 +27,12 @@ export const wsConnections = new Gauge({ name: 'ws_active_connections', help: 'A
 
 // Job metrics
 export const jobDuration = new Histogram({ name: 'job_duration_seconds', help: 'Background job duration', labelNames: ['job_name'], registers: [registry] });
+
+// Notification metrics (MP20)
+export const notificationsSentTotal = new Counter({ name: 'notifications_sent_total', help: 'Total notifications sent', labelNames: ['channel', 'type', 'severity'], registers: [registry] });
+export const notificationsFailedTotal = new Counter({ name: 'notifications_failed_total', help: 'Total notification failures', labelNames: ['channel', 'type', 'error_type'], registers: [registry] });
+export const notificationDeliveryLatency = new Histogram({ name: 'notification_delivery_latency_seconds', help: 'Notification delivery latency', labelNames: ['channel'], buckets: [0.01, 0.05, 0.1, 0.5, 1, 2, 5, 10], registers: [registry] });
+export const emailSendTotal = new Counter({ name: 'email_send_total', help: 'Total emails sent', labelNames: ['template', 'status'], registers: [registry] });
+export const notificationQueueDepth = new Gauge({ name: 'notification_queue_depth', help: 'Notification queue depth', labelNames: ['queue_name'], registers: [registry] });
+export const wsNotificationConnections = new Gauge({ name: 'ws_notification_connections', help: 'Active WS notification connections', registers: [registry] });
+export const hfMonitorScanDuration = new Histogram({ name: 'hf_monitor_scan_duration_seconds', help: 'Health factor monitor scan duration', buckets: [0.01, 0.05, 0.1, 0.5, 1, 2], registers: [registry] });

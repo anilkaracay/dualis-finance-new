@@ -1,8 +1,9 @@
-import type { WsPositionPayload, WsNotificationPayload, WsLiquidationPayload } from '@dualis/shared';
+import type { WsPositionPayload, WsNotificationPayload, WsLiquidationPayload, NotificationType } from '@dualis/shared';
 import { calculateHealthFactor } from '@dualis/shared';
 import { createChildLogger } from '../config/logger.js';
 import { channelManager } from '../ws/channels.js';
 import { registerJob } from './scheduler.js';
+import { notificationBus } from '../notification/notification.bus.js';
 
 const log = createChildLogger('health-check');
 
@@ -99,22 +100,66 @@ async function healthCheckHandler(): Promise<void> {
     };
     channelManager.broadcast(`position:${pos.positionId}`, positionPayload);
 
-    // Warning zone
-    if (hf < WARNING_THRESHOLD && hf >= LIQUIDATION_THRESHOLD) {
+    // Warning zone — determine HF severity level
+    // Thresholds: caution < 1.5, danger < 1.2, critical < 1.05
+    const CAUTION_THRESHOLD = 1.5;
+    const DANGER_THRESHOLD = WARNING_THRESHOLD; // 1.2
+    const CRITICAL_THRESHOLD = 1.05;
+
+    if (hf < CAUTION_THRESHOLD && hf >= LIQUIDATION_THRESHOLD) {
+      let hfType: NotificationType;
+      let hfSeverity: 'warning' | 'critical';
+      let hfTitle: string;
+
+      if (hf < CRITICAL_THRESHOLD) {
+        hfType = 'HEALTH_FACTOR_CRITICAL';
+        hfSeverity = 'critical';
+        hfTitle = 'Critical: Health Factor Extremely Low';
+      } else if (hf < DANGER_THRESHOLD) {
+        hfType = 'HEALTH_FACTOR_DANGER';
+        hfSeverity = 'warning';
+        hfTitle = 'Danger: Health Factor Low';
+      } else {
+        hfType = 'HEALTH_FACTOR_CAUTION';
+        hfSeverity = 'warning';
+        hfTitle = 'Caution: Health Factor Declining';
+      }
+
       log.warn(
-        { positionId: pos.positionId, healthFactor: hf.toFixed(4), borrower: pos.borrower },
-        'Health factor below warning threshold',
+        { positionId: pos.positionId, healthFactor: hf.toFixed(4), borrower: pos.borrower, hfType },
+        'Health factor below threshold',
       );
 
+      // Legacy WS broadcast (kept for backwards compat)
       const notification: WsNotificationPayload = {
         type: 'health_warning',
-        title: 'Health Factor Warning',
+        title: hfTitle,
         message: `Position ${pos.positionId} health factor dropped to ${hf.toFixed(4)}`,
         positionId: pos.positionId,
         healthFactor: Number(hf.toFixed(4)),
         ts: now,
       };
       channelManager.broadcastToParty(pos.borrower, notification);
+
+      // MP20: Emit to NotificationBus (async, fault-tolerant)
+      notificationBus.emit({
+        type: hfType,
+        category: 'financial',
+        severity: hfSeverity,
+        partyId: pos.borrower,
+        title: hfTitle,
+        message: `Your ${pos.borrowedAsset} position health factor is ${hf.toFixed(4)}. Consider adding collateral or repaying debt.`,
+        data: {
+          positionId: pos.positionId,
+          healthFactor: Number(hf.toFixed(4)),
+          pool: pos.poolId,
+          borrowedAsset: pos.borrowedAsset,
+          collateralValueUSD: pos.collateralValueUSD,
+          borrowValueUSD: pos.borrowValueUSD,
+        },
+        deduplicationKey: `${pos.borrower}:${hfType}:${pos.positionId}`,
+        link: '/borrow',
+      }).catch((err) => log.warn({ err }, 'NotificationBus emit failed'));
     }
 
     // Liquidation zone
@@ -142,6 +187,25 @@ async function healthCheckHandler(): Promise<void> {
         ts: now,
       };
       channelManager.broadcastToParty(pos.borrower, notification);
+
+      // MP20: Emit liquidation notification
+      notificationBus.emit({
+        type: 'LIQUIDATION_WARNING',
+        category: 'financial',
+        severity: 'critical',
+        partyId: pos.borrower,
+        title: 'Liquidation Alert',
+        message: `Your ${pos.borrowedAsset} position is eligible for liquidation (HF: ${hf.toFixed(4)}).`,
+        data: {
+          positionId: pos.positionId,
+          healthFactor: Number(hf.toFixed(4)),
+          pool: pos.poolId,
+          amount: pos.borrowValueUSD,
+          tier: pos.tier,
+        },
+        deduplicationKey: `${pos.borrower}:LIQUIDATION_WARNING:${pos.positionId}`,
+        link: '/borrow',
+      }).catch((err) => log.warn({ err }, 'NotificationBus emit failed'));
     }
   }
 

@@ -10,6 +10,7 @@ import { AppError } from '../middleware/errorHandler.js';
 import { getPartyLayerProvider } from '../canton/partylayer.js';
 import * as partyMappingService from './partyMapping.service.js';
 import type { WalletConnection, WalletType, CustodyMode } from '@dualis/shared';
+import { notificationBus } from '../notification/notification.bus.js';
 
 const log = createChildLogger('wallet-service');
 
@@ -136,6 +137,27 @@ export async function connectWallet(
   }
 
   log.info({ userId, connectionId, walletType, isPrimary: isFirst }, 'Wallet connected');
+
+  // MP20: Notify user of wallet linked — need partyId from user row
+  try {
+    const userRows = await db.select({ partyId: schema.users.partyId }).from(schema.users).where(eq(schema.users.userId, userId)).limit(1);
+    if (userRows[0]) {
+      notificationBus.emit({
+        type: 'WALLET_LINKED',
+        category: 'auth',
+        severity: 'info',
+        partyId: userRows[0].partyId,
+        title: 'Wallet Connected',
+        message: `Wallet ${normalizedAddress.slice(0, 6)}...${normalizedAddress.slice(-4)} (${walletType}) has been connected to your account.`,
+        data: { walletAddress: normalizedAddress, walletType, connectionId },
+        deduplicationKey: `wallet-linked:${userId}:${connectionId}`,
+        link: '/settings/wallets',
+      }).catch((err) => log.warn({ err }, 'Wallet linked notification failed'));
+    }
+  } catch (err) {
+    log.warn({ err }, 'Failed to send wallet linked notification');
+  }
+
   return toWalletConnection(row);
 }
 
@@ -162,6 +184,27 @@ export async function disconnectWallet(
 
   if (updated.length === 0) {
     throw new AppError('NOT_FOUND', 'Wallet connection not found', 404);
+  }
+
+  // MP20: Notify user of wallet unlinked
+  const disconnectedRow = updated[0];
+  try {
+    const userRows = await db.select({ partyId: schema.users.partyId }).from(schema.users).where(eq(schema.users.userId, userId)).limit(1);
+    if (userRows[0] && disconnectedRow) {
+      notificationBus.emit({
+        type: 'WALLET_UNLINKED',
+        category: 'auth',
+        severity: 'info',
+        partyId: userRows[0].partyId,
+        title: 'Wallet Disconnected',
+        message: `Wallet ${disconnectedRow.walletAddress.slice(0, 6)}...${disconnectedRow.walletAddress.slice(-4)} has been disconnected from your account.`,
+        data: { walletAddress: disconnectedRow.walletAddress, connectionId },
+        deduplicationKey: `wallet-unlinked:${userId}:${connectionId}`,
+        link: '/settings/wallets',
+      }).catch((err) => log.warn({ err }, 'Wallet unlinked notification failed'));
+    }
+  } catch (err) {
+    log.warn({ err }, 'Failed to send wallet unlinked notification');
   }
 
   log.info({ userId, connectionId }, 'Wallet disconnected');
