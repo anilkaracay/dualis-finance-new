@@ -21,4 +21,8 @@ import './productiveMonitor.job.js';
 import './corporateActionProcessor.job.js';
 import './kybExpiryCheck.job.js';
 
+// Compliance jobs (MP21)
+import './complianceScreening.job.js';
+import './sanctionsListUpdate.job.js';
+
 export { initScheduler, stopScheduler } from './scheduler.js';

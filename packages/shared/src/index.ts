@@ -410,3 +410,40 @@ export { TIER_BENEFITS } from './types/compositeCredit';
 
 // Productive lending constants
 export { PRODUCTIVE_RATE_DISCOUNTS, ESG_BONUSES } from './types/productive';
+
+// Compliance types (MP21 KYC/AML)
+export type {
+  KYCProvider,
+  KYCVerificationStatus as ComplianceKYCStatus,
+  SumsubReviewResult,
+  SumsubEventType,
+  AMLScreeningStatus,
+  AMLScreeningType,
+  WalletRiskCategory,
+  SanctionsCheckResult,
+  PEPCheckResult,
+  PEPLevel,
+  SanctionsListSource,
+  ScreeningMatchType,
+  RiskLevel,
+  ComplianceDecision,
+  RiskFactor,
+  ComplianceAction,
+  ComplianceAuditCategory,
+  JurisdictionCode,
+  JurisdictionConfig,
+  GDPRRequestType,
+  GDPRRequestStatus,
+  KYCVerificationRecord,
+  AMLScreeningRecord,
+  RiskAssessmentRecord,
+  ComplianceAuditEntry,
+  SanctionsMatchResult,
+  PEPScreeningResult,
+  SumsubAccessTokenResponse,
+  SumsubWebhookEvent,
+  SumsubWidgetConfig,
+  DataDeletionRequestRecord,
+} from './types/compliance';
+
+export { RISK_WEIGHTS } from './types/compliance';

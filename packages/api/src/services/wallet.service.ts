@@ -158,6 +158,11 @@ export async function connectWallet(
     log.warn({ err }, 'Failed to send wallet linked notification');
   }
 
+  // MP21: Trigger async compliance wallet screening (fire-and-forget)
+  import('../compliance/hooks/compliance.hooks.js')
+    .then(({ onWalletConnected }) => onWalletConnected(userId, normalizedAddress))
+    .catch((err) => log.warn({ err }, 'Compliance wallet screening hook failed'));
+
   return toWalletConnection(row);
 }
 

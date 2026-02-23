@@ -200,7 +200,7 @@ export {
 // Compliance types (MP21 KYC/AML)
 export type {
   KYCProvider,
-  KYCVerificationStatus as ComplianceKYCStatus,
+  KYCVerificationStatus as ComplianceKYCVerificationStatus,
   SumsubReviewResult,
   SumsubEventType,
   AMLScreeningStatus,
@@ -208,6 +208,7 @@ export type {
   WalletRiskCategory,
   SanctionsCheckResult,
   PEPCheckResult,
+  PEPLevel,
   SanctionsListSource,
   ScreeningMatchType,
   RiskLevel,

@@ -16,6 +16,7 @@ import {
   BookOpen,
   ChevronLeft,
   Bell,
+  ShieldCheck,
 } from 'lucide-react';
 import * as Tooltip from '@radix-ui/react-tooltip';
 
@@ -58,6 +59,7 @@ const navSections: readonly NavSection[] = [
     label: 'ACCOUNT',
     items: [
       { href: '/portfolio', icon: PieChart, label: 'Portfolio' },
+      { href: '/kyc', icon: ShieldCheck, label: 'Verification' },
       { href: '/notifications', icon: Bell, label: 'Notifications' },
       { href: '/settings', icon: Settings, label: 'Settings' },
     ],

@@ -99,4 +99,16 @@ export const ENDPOINTS = {
   WEBHOOK_DETAIL: (id: string) => `/webhooks/${id}`,
   WEBHOOK_TEST: (id: string) => `/webhooks/${id}/test`,
   WEBHOOK_DELIVERIES: (id: string) => `/webhooks/${id}/deliveries`,
+  // Compliance — KYC (MP21)
+  COMPLIANCE_KYC_INITIATE: '/compliance/kyc/initiate',
+  COMPLIANCE_KYC_STATUS: '/compliance/kyc/status',
+  COMPLIANCE_KYC_HISTORY: '/compliance/kyc/history',
+  COMPLIANCE_KYC_RETRY: '/compliance/kyc/retry',
+  // Compliance — AML (MP21)
+  COMPLIANCE_AML_STATUS: '/compliance/aml/status',
+  COMPLIANCE_AML_SCREENINGS: '/compliance/aml/screenings',
+  // Compliance — GDPR (MP21)
+  COMPLIANCE_GDPR_EXPORT: '/compliance/data-export',
+  COMPLIANCE_GDPR_DELETE: '/compliance/data-deletion',
+  COMPLIANCE_GDPR_STATUS: '/compliance/data-deletion/status',
 } as const;

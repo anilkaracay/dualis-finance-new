@@ -72,6 +72,22 @@ import { adminReportsRoutes } from './routes/admin-reports.js';
 import { adminSettingsRoutes } from './routes/admin-settings.js';
 import { adminAuditRoutes } from './routes/admin-audit.js';
 
+// Compliance routes (MP21 KYC/AML)
+import { complianceKYCRoutes } from './routes/compliance-kyc.js';
+import { complianceWebhookRoutes } from './routes/compliance-webhook.js';
+import complianceAMLRoutes from './routes/compliance-aml.js';
+import complianceGDPRRoutes from './routes/compliance-gdpr.js';
+import complianceAuditRoutes from './routes/compliance-audit-routes.js';
+import adminComplianceKYCRoutes from './routes/admin-compliance-kyc.js';
+import adminComplianceGDPRRoutes from './routes/admin-compliance-gdpr.js';
+
+// Compliance queues & workers (MP21)
+import { initComplianceQueues, closeComplianceQueues } from './compliance/queue.js';
+import { startWalletScreeningWorker, stopWalletScreeningWorker } from './compliance/workers/wallet-screening.worker.js';
+import { startSanctionsScreeningWorker, stopSanctionsScreeningWorker } from './compliance/workers/sanctions-screening.worker.js';
+import { startPeriodicScreeningWorker, stopPeriodicScreeningWorker } from './compliance/workers/periodic-screening.worker.js';
+import { startComplianceCleanupWorker, stopComplianceCleanupWorker } from './compliance/workers/compliance-cleanup.worker.js';
+
 // WebSocket
 import { wsRoutes } from './ws/server.js';
 
@@ -203,6 +219,15 @@ async function main(): Promise<void> {
     await app.register(notificationPreferenceRoutes);
     await app.register(webhookRoutes);
 
+    // Compliance routes (MP21 KYC/AML)
+    await app.register(complianceKYCRoutes);
+    await app.register(complianceWebhookRoutes);
+    await app.register(complianceAMLRoutes);
+    await app.register(complianceGDPRRoutes);
+    await app.register(complianceAuditRoutes);
+    await app.register(adminComplianceKYCRoutes);
+    await app.register(adminComplianceGDPRRoutes);
+
     // Innovation routes
     await app.register(attestationRoutes);
     await app.register(productiveRoutes);
@@ -243,6 +268,12 @@ async function main(): Promise<void> {
       await stopDigestWorker();
       await stopCleanupWorker();
       await closeNotificationQueues();
+      // MP21: Stop compliance workers & queues
+      await stopWalletScreeningWorker();
+      await stopSanctionsScreeningWorker();
+      await stopPeriodicScreeningWorker();
+      await stopComplianceCleanupWorker();
+      await closeComplianceQueues();
       await server.close();
       await closeDb();
       await closeRedis();
@@ -298,6 +329,18 @@ async function main(): Promise<void> {
         logger.info('Notification workers started');
       } catch (notifErr) {
         logger.warn({ err: notifErr }, 'Notification workers failed to start — notifications may be delayed');
+      }
+
+      // MP21: Initialize compliance queues & workers
+      try {
+        initComplianceQueues();
+        startWalletScreeningWorker();
+        startSanctionsScreeningWorker();
+        startPeriodicScreeningWorker();
+        startComplianceCleanupWorker();
+        logger.info('Compliance workers started');
+      } catch (compErr) {
+        logger.warn({ err: compErr }, 'Compliance workers failed to start — screening may be delayed');
       }
     }
   } catch (err) {

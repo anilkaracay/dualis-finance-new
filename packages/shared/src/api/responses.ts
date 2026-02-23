@@ -71,7 +71,10 @@ export type ApiErrorCode =
   | 'KYB_ALREADY_SUBMITTED'
   | 'PASSWORD_TOO_WEAK'
   | 'SESSION_EXPIRED'
-  | 'MAX_SESSIONS_REACHED';
+  | 'MAX_SESSIONS_REACHED'
+  | 'KYC_ALREADY_APPROVED'
+  | 'KYC_MAX_ATTEMPTS'
+  | 'COMPLIANCE_BLOCKED';
 
 /** Health check response */
 export interface HealthResponse {
