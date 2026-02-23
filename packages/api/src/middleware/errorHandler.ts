@@ -1,6 +1,7 @@
 import type { FastifyError, FastifyReply, FastifyRequest } from 'fastify';
 import type { ApiErrorCode } from '@dualis/shared';
 import { createChildLogger } from '../config/logger.js';
+import { captureException } from './sentry.js';
 
 const log = createChildLogger('error-handler');
 
@@ -77,8 +78,9 @@ export function globalErrorHandler(
     });
   }
 
-  // Unknown errors
+  // Unknown errors — capture in Sentry
   log.error({ err: error, requestId }, 'Unhandled error');
+  captureException(error);
   return reply.status(500).send({
     error: {
       code: 'INTERNAL_ERROR',

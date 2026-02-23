@@ -1,0 +1,127 @@
+name: Deploy Production
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  quality:
+    name: Quality Checks
+    uses: ./.github/workflows/ci.yml
+
+  approve:
+    name: Production Approval Gate
+    needs: quality
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Approval granted
+        run: echo "Production deployment approved"
+
+  deploy-backend:
+    name: Deploy Backend to Railway
+    needs: approve
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install Railway CLI
+        run: npm i -g @railway/cli
+
+      - name: Deploy to Railway production
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_PRODUCTION_TOKEN }}
+        run: railway up --service api --environment production --detach
+
+      - name: Health check
+        run: |
+          echo "Waiting 30s for deployment to stabilize..."
+          sleep 30
+          for i in $(seq 1 15); do
+            RESPONSE=$(curl -sf https://api.dualis.finance/health || true)
+            STATUS=$(echo "$RESPONSE" | grep -o '"status":"healthy"' || true)
+            if [ -n "$STATUS" ]; then
+              echo "Health check passed: $RESPONSE"
+              exit 0
+            fi
+            echo "Attempt $i/15 — retrying in 10s..."
+            sleep 10
+          done
+          echo "Health check failed after 15 attempts"
+          exit 1
+
+      - name: Tag deployment
+        run: |
+          VERSION=$(node -p "require('./packages/api/package.json').version")
+          TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+          TAG="deploy-prod-v${VERSION}-${TIMESTAMP}"
+          git tag "$TAG"
+          git push origin "$TAG"
+
+  deploy-frontend:
+    name: Deploy Frontend to Vercel
+    needs: approve
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Vercel CLI
+        run: npm i -g vercel@latest
+
+      - name: Pull Vercel environment
+        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Build
+        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Deploy production
+        run: vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
+
+  db-migration:
+    name: Run Database Migrations
+    needs: approve
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run migrations
+        env:
+          DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+        run: cd packages/api && npx drizzle-kit push --force
+
+  notify:
+    name: Deployment Summary
+    needs: [deploy-backend, deploy-frontend, db-migration]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Summary
+        run: |
+          echo "## Production Deploy Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Service | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|---------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Backend (Railway) | ${{ needs.deploy-backend.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Frontend (Vercel) | ${{ needs.deploy-frontend.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| DB Migration | ${{ needs.db-migration.result }} |" >> $GITHUB_STEP_SUMMARY

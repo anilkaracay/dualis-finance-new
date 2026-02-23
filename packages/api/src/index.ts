@@ -58,11 +58,20 @@ import { shutdownOracle } from './jobs/oracleUpdate.job.js';
 // Canton bootstrap
 import { initializeCanton } from './canton/startup.js';
 
+// Sentry error tracking
+import { initSentry, closeSentry } from './middleware/sentry.js';
+
 // ---------------------------------------------------------------------------
 // Main bootstrap function
 // ---------------------------------------------------------------------------
 
 async function main(): Promise<void> {
+  // ---------------------------------------------------------------------------
+  // Initialize Sentry (must be before other middleware)
+  // ---------------------------------------------------------------------------
+
+  await initSentry();
+
   // ---------------------------------------------------------------------------
   // Build Fastify server
   // ---------------------------------------------------------------------------
@@ -190,6 +199,7 @@ async function main(): Promise<void> {
       await server.close();
       await closeDb();
       await closeRedis();
+      await closeSentry();
       process.exit(0);
     });
   }

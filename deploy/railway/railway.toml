@@ -1,0 +1,11 @@
+[build]
+builder = "nixpacks"
+buildCommand = "pnpm install --frozen-lockfile && pnpm turbo build --filter=@dualis/api"
+watchPatterns = ["packages/api/**", "packages/shared/**"]
+
+[deploy]
+startCommand = "node packages/api/dist/index.js"
+healthcheckPath = "/health"
+healthcheckTimeout = 30
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3

@@ -1,0 +1,12 @@
+[phases.setup]
+nixPkgs = ["nodejs_20"]
+cmds = ["npm i -g pnpm@9"]
+
+[phases.install]
+cmds = ["pnpm install --frozen-lockfile"]
+
+[phases.build]
+cmds = ["pnpm turbo build --filter=@dualis/api"]
+
+[start]
+cmd = "node packages/api/dist/index.js"

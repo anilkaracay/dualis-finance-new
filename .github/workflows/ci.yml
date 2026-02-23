@@ -5,6 +5,7 @@ on:
     branches: [main, staging]
   pull_request:
     branches: [main]
+  workflow_call:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -41,3 +42,13 @@ jobs:
 
       - name: Build
         run: pnpm build
+
+      - name: Upload build artifacts
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/staging'
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-artifacts
+          retention-days: 1
+          path: |
+            packages/api/dist/
+            packages/frontend/.next/

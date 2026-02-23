@@ -18,6 +18,10 @@ packages/canton/daml/.daml/
 # Environment
 .env
 .env.*
+!.env.example
+!.env.production
+!.env.sandbox
+!.env.devnet
 .env.local
 .env.development.local
 .env.test.local
@@ -46,6 +50,16 @@ yarn-error.log*
 
 # Docker
 docker-compose.override.yml
+
+# Database backups
+*.dump
+backups/
+
+# Canton devnet config (secrets)
+deploy/canton/devnet.env
+
+# Vercel
+.vercel/
 
 # Misc
 *.pem
