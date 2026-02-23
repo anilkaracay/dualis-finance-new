@@ -126,4 +126,27 @@ export const ENDPOINTS = {
   COMPLIANCE_GDPR_EXPORT: '/compliance/data-export',
   COMPLIANCE_GDPR_DELETE: '/compliance/data-deletion',
   COMPLIANCE_GDPR_STATUS: '/compliance/data-deletion/status',
+  // Analytics & Reporting — Public (MP24)
+  ANALYTICS_PROTOCOL_TVL: '/analytics/protocol/tvl',
+  ANALYTICS_PROTOCOL_STATS: '/analytics/protocol/stats',
+  ANALYTICS_POOLS: '/analytics/pools',
+  ANALYTICS_POOL_HISTORY: (id: string) => `/analytics/pools/${id}/history`,
+  ANALYTICS_POOL_RATES: (id: string) => `/analytics/pools/${id}/rates`,
+  // Analytics & Reporting — Institutional (MP24)
+  INSTITUTIONAL_PORTFOLIO: '/institutional/portfolio',
+  INSTITUTIONAL_PORTFOLIO_HISTORY: '/institutional/portfolio/history',
+  INSTITUTIONAL_POSITIONS: '/institutional/positions',
+  INSTITUTIONAL_TRANSACTIONS: '/institutional/transactions',
+  INSTITUTIONAL_PNL: '/institutional/pnl',
+  INSTITUTIONAL_PNL_BREAKDOWN: '/institutional/pnl/breakdown',
+  INSTITUTIONAL_TAX_REPORT: '/institutional/tax-report',
+  INSTITUTIONAL_EXPORT: '/institutional/export',
+  INSTITUTIONAL_RISK: '/institutional/risk',
+  // Analytics & Reporting — Admin (MP24)
+  ADMIN_ANALYTICS_OVERVIEW: '/admin/analytics/overview',
+  ADMIN_ANALYTICS_HEALTH: '/admin/analytics/health',
+  ADMIN_ANALYTICS_HEALTH_HISTORY: '/admin/analytics/health/history',
+  ADMIN_ANALYTICS_REVENUE: '/admin/analytics/revenue',
+  ADMIN_ANALYTICS_POOLS: '/admin/analytics/pools',
+  ADMIN_ANALYTICS_USERS: '/admin/analytics/users',
 } as const;

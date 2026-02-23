@@ -701,6 +701,170 @@ async function seed(): Promise<void> {
     log('  Demo credentials: demo@dualis.finance / Demo1234!');
 
     // -----------------------------------------------------------------------
+    // MP24: Analytics Pool Snapshots — 30 days hourly data
+    // -----------------------------------------------------------------------
+    log('Inserting analytics pool snapshots...');
+    const analyticsPoolRows: (typeof schema.analyticsPoolSnapshots.$inferInsert)[] = [];
+
+    for (const pool of POOLS) {
+      for (let day = 29; day >= 0; day--) {
+        for (let hour = 0; hour < 24; hour += 4) { // every 4 hours to avoid huge data
+          const ts = new Date();
+          ts.setDate(ts.getDate() - day);
+          ts.setHours(hour, 0, 0, 0);
+
+          const drift = 1 + (Math.random() - 0.5) * 0.1;
+          const supplyUsd = pool.baseSupply * pool.basePrice * drift;
+          const borrowsUsd = pool.baseBorrow * pool.basePrice * drift * randomBetween(0.9, 1.1);
+          const tvl = supplyUsd - borrowsUsd;
+          const util = borrowsUsd / supplyUsd;
+          const supplyApy = util * randomBetween(0.02, 0.06);
+          const borrowApy = supplyApy * randomBetween(1.3, 1.6);
+          const reserve = supplyUsd * 0.02 * randomBetween(0.8, 1.2);
+
+          analyticsPoolRows.push({
+            poolId: pool.poolId,
+            totalSupplyUsd: supplyUsd.toFixed(6),
+            totalBorrowUsd: borrowsUsd.toFixed(6),
+            availableLiquidityUsd: (supplyUsd - borrowsUsd).toFixed(6),
+            tvlUsd: tvl.toFixed(6),
+            utilization: util.toFixed(6),
+            supplyApy: supplyApy.toFixed(6),
+            borrowApy: borrowApy.toFixed(6),
+            depositorCount: Math.round(100 + Math.random() * 200),
+            borrowerCount: Math.round(40 + Math.random() * 100),
+            reserveUsd: reserve.toFixed(6),
+            snapshotAt: ts,
+          });
+        }
+      }
+    }
+
+    // Insert in batches of 500
+    for (let i = 0; i < analyticsPoolRows.length; i += 500) {
+      await db.insert(schema.analyticsPoolSnapshots).values(analyticsPoolRows.slice(i, i + 500)).onConflictDoNothing();
+    }
+    log(`  Inserted ${analyticsPoolRows.length} analytics pool snapshots`);
+
+    // -----------------------------------------------------------------------
+    // MP24: Protocol Health Snapshots — 30 days every 4 hours
+    // -----------------------------------------------------------------------
+    log('Inserting protocol health snapshots...');
+    const healthRows: (typeof schema.protocolHealthSnapshots.$inferInsert)[] = [];
+
+    for (let day = 29; day >= 0; day--) {
+      for (let hour = 0; hour < 24; hour += 4) {
+        const ts = new Date();
+        ts.setDate(ts.getDate() - day);
+        ts.setHours(hour, 0, 0, 0);
+
+        const badDebt = 0.0002 + Math.random() * 0.001;
+        const reserve = 0.05 + Math.random() * 0.03;
+        const avgHf = 1.5 + Math.random() * 0.5;
+        const liqEff = 0.92 + Math.random() * 0.07;
+        const oracleUp = 0.995 + Math.random() * 0.005;
+        const conc = 0.15 + Math.random() * 0.2;
+        const dangerCount = Math.floor(Math.random() * 5);
+
+        const score = Math.round(Math.min(100,
+          Math.max(0, 20 - badDebt * 2000) +
+          Math.min(20, reserve * 400) +
+          (avgHf > 2 ? 20 : avgHf > 1.5 ? 15 : 10) +
+          liqEff * 15 + oracleUp * 15 +
+          Math.max(0, 10 - conc * 20)
+        ));
+
+        healthRows.push({
+          healthScore: score,
+          badDebtRatio: badDebt.toFixed(6),
+          reserveCoverage: reserve.toFixed(6),
+          avgHealthFactor: avgHf.toFixed(4),
+          hfDangerCount: dangerCount,
+          hfDangerVolumeUsd: (dangerCount * 50_000 * randomBetween(0.5, 1.5)).toFixed(6),
+          liquidationEfficiency: liqEff.toFixed(6),
+          oracleUptime: oracleUp.toFixed(6),
+          concentrationRisk: conc.toFixed(6),
+          snapshotAt: ts,
+        });
+      }
+    }
+
+    for (let i = 0; i < healthRows.length; i += 500) {
+      await db.insert(schema.protocolHealthSnapshots).values(healthRows.slice(i, i + 500)).onConflictDoNothing();
+    }
+    log(`  Inserted ${healthRows.length} protocol health snapshots`);
+
+    // -----------------------------------------------------------------------
+    // MP24: Revenue Log — 30 days of revenue entries
+    // -----------------------------------------------------------------------
+    log('Inserting revenue log entries...');
+    const revenueRows: (typeof schema.revenueLog.$inferInsert)[] = [];
+
+    for (let day = 29; day >= 0; day--) {
+      const ts = daysAgo(day);
+      for (const pool of POOLS) {
+        // Interest spread revenue
+        const interestRev = pool.baseBorrow * pool.basePrice * 0.001 * randomBetween(0.8, 1.2) / 30;
+        revenueRows.push({
+          poolId: pool.poolId,
+          revenueType: 'interest_spread',
+          amount: (interestRev / pool.basePrice).toFixed(6),
+          amountUsd: interestRev.toFixed(6),
+          asset: pool.asset,
+          periodStart: ts,
+          periodEnd: ts,
+          createdAt: ts,
+        });
+
+        // Occasional liquidation fee
+        if (Math.random() < 0.1) {
+          const liqRev = randomBetween(500, 5000);
+          revenueRows.push({
+            poolId: pool.poolId,
+            revenueType: 'liquidation_fee',
+            amount: (liqRev / pool.basePrice).toFixed(6),
+            amountUsd: liqRev.toFixed(6),
+            asset: pool.asset,
+            createdAt: ts,
+          });
+        }
+      }
+    }
+
+    for (let i = 0; i < revenueRows.length; i += 500) {
+      await db.insert(schema.revenueLog).values(revenueRows.slice(i, i + 500)).onConflictDoNothing();
+    }
+    log(`  Inserted ${revenueRows.length} revenue log entries`);
+
+    // -----------------------------------------------------------------------
+    // MP24: Analytics Events — 100 sample events
+    // -----------------------------------------------------------------------
+    log('Inserting analytics events...');
+    const eventTypes = ['deposit', 'withdraw', 'borrow', 'repay', 'liquidation'] as const;
+    const eventRows: (typeof schema.analyticsEvents.$inferInsert)[] = [];
+
+    for (let i = 0; i < 100; i++) {
+      const pool = randomElement(POOLS);
+      const user = randomElement(USERS);
+      const eventType = randomElement(eventTypes);
+      const amount = randomBetween(1000, 100_000);
+
+      eventRows.push({
+        eventType,
+        userId: user,
+        poolId: pool.poolId,
+        amount: amount.toFixed(6),
+        amountUsd: amount.toFixed(6),
+        txHash: `0x${i.toString(16).padStart(64, '0')}`,
+        metadata: { source: 'seed', asset: pool.asset },
+        createdAt: daysAgo(Math.floor(Math.random() * 30)),
+      });
+    }
+
+    await db.insert(schema.analyticsEvents).values(eventRows).onConflictDoNothing();
+    log(`  Inserted ${eventRows.length} analytics events`);
+
+    // -----------------------------------------------------------------------
     // Done
     // -----------------------------------------------------------------------
     log('Seed completed successfully!');

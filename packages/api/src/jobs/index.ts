@@ -28,4 +28,7 @@ import './sanctionsListUpdate.job.js';
 // Governance jobs (MP23)
 import './governanceFinalization.job.js';
 
+// Analytics & Reporting jobs (MP24)
+import './analyticsSnapshot.job.js';
+
 export { initScheduler, stopScheduler } from './scheduler.js';

@@ -234,6 +234,48 @@ export type {
 
 export { RISK_WEIGHTS } from './compliance';
 
+// Analytics & Reporting types (MP24)
+export type {
+  AnalyticsTimeRange,
+  AnalyticsMetric,
+  PoolSnapshot,
+  ProtocolSnapshot,
+  UserPositionSnapshot,
+  AnalyticsEventType,
+  AnalyticsEvent,
+  HealthScoreRating,
+  ProtocolHealthSnapshot,
+  RevenueType,
+  RevenueLogEntry,
+  TimeSeriesPoint,
+  PoolAnalyticsSummary,
+  PoolRanking,
+  SupplyPositionDetail,
+  BorrowPositionDetail,
+  UserPortfolio,
+  UserTransaction,
+  TaxReportEntry,
+  TaxReportSummary,
+  ProtocolStats,
+  ProtocolPoolSummary,
+  ProtocolHealthDashboard,
+  HfDistributionBucket,
+  RevenueSummary,
+  RevenueBreakdown,
+  RevenueByPool,
+  AdminAnalyticsOverview,
+  UserAnalytics,
+  CohortRow,
+  ExportFormat,
+  ExportType,
+  ExportRequest,
+  InstitutionalPortfolio,
+  InstitutionalRiskMetrics,
+  PnlBreakdown,
+} from './analytics';
+
+export { getHealthScoreRating } from './analytics';
+
 // Wallet & PartyLayer types
 export type {
   WalletType,

@@ -19,6 +19,23 @@ export {
   useStakingInfo,
   useStakingPosition,
   useAnalyticsOverview,
+  // Analytics & Reporting (MP24)
+  useProtocolStats,
+  useProtocolTvl,
+  useAnalyticsPools,
+  useAnalyticsPoolHistory,
+  useAnalyticsPoolRates,
+  useUserPortfolio,
+  useUserTransactions,
+  usePnlBreakdown,
+  useTaxReport,
+  useInstitutionalRisk,
+  useAdminAnalyticsOverview,
+  useAdminProtocolHealth,
+  useAdminHealthHistory,
+  useAdminRevenue,
+  useAdminPoolRankings,
+  useAdminUserAnalytics,
 } from './queries';
 
 // Mutation hooks

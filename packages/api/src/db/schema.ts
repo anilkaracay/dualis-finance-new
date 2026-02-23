@@ -11,6 +11,7 @@ import {
   date,
   real,
   index,
+  uniqueIndex,
 } from 'drizzle-orm/pg-core';
 
 // ---------------------------------------------------------------------------
@@ -1118,4 +1119,127 @@ export const dataDeletionRequests = pgTable('data_deletion_requests', {
 }, (table) => [
   index('idx_deletion_requests_user').on(table.userId),
   index('idx_deletion_requests_status').on(table.status),
+]);
+
+// ===========================================================================
+// MP24 — Analytics & Reporting Engine Tables
+// ===========================================================================
+
+// ---------------------------------------------------------------------------
+// 54. Analytics Pool Snapshots — hourly pool-level snapshots
+// ---------------------------------------------------------------------------
+export const analyticsPoolSnapshots = pgTable('analytics_pool_snapshots', {
+  id: serial('id').primaryKey(),
+  poolId: varchar('pool_id', { length: 128 }).notNull(),
+  totalSupplyUsd: decimal('total_supply_usd', { precision: 30, scale: 6 }).notNull(),
+  totalBorrowUsd: decimal('total_borrow_usd', { precision: 30, scale: 6 }).notNull(),
+  availableLiquidityUsd: decimal('available_liquidity_usd', { precision: 30, scale: 6 }).notNull(),
+  tvlUsd: decimal('tvl_usd', { precision: 30, scale: 6 }).notNull(),
+  utilization: decimal('utilization', { precision: 10, scale: 6 }).notNull(),
+  supplyApy: decimal('supply_apy', { precision: 10, scale: 6 }).notNull(),
+  borrowApy: decimal('borrow_apy', { precision: 10, scale: 6 }).notNull(),
+  depositorCount: integer('depositor_count').notNull().default(0),
+  borrowerCount: integer('borrower_count').notNull().default(0),
+  reserveUsd: decimal('reserve_usd', { precision: 30, scale: 6 }).notNull().default('0'),
+  snapshotAt: timestamp('snapshot_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex('uq_analytics_pool_snapshots_pool_time').on(table.poolId, table.snapshotAt),
+  index('idx_analytics_pool_snapshots_pool_time').on(table.poolId, table.snapshotAt),
+  index('idx_analytics_pool_snapshots_time').on(table.snapshotAt),
+]);
+
+// ---------------------------------------------------------------------------
+// 55. Analytics Protocol Snapshots — hourly protocol-level aggregates
+// ---------------------------------------------------------------------------
+export const analyticsProtocolSnapshots = pgTable('analytics_protocol_snapshots', {
+  id: serial('id').primaryKey(),
+  totalTvlUsd: decimal('total_tvl_usd', { precision: 30, scale: 6 }).notNull(),
+  totalSupplyUsd: decimal('total_supply_usd', { precision: 30, scale: 6 }).notNull(),
+  totalBorrowUsd: decimal('total_borrow_usd', { precision: 30, scale: 6 }).notNull(),
+  totalReserveUsd: decimal('total_reserve_usd', { precision: 30, scale: 6 }).notNull(),
+  totalUsers: integer('total_users').notNull().default(0),
+  activePools: integer('active_pools').notNull().default(0),
+  avgUtilization: decimal('avg_utilization', { precision: 10, scale: 6 }).notNull(),
+  snapshotAt: timestamp('snapshot_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index('idx_analytics_protocol_snapshots_time').on(table.snapshotAt),
+]);
+
+// ---------------------------------------------------------------------------
+// 56. Analytics User Position Snapshots — daily per-user snapshots
+// ---------------------------------------------------------------------------
+export const analyticsUserPositionSnapshots = pgTable('analytics_user_position_snapshots', {
+  id: serial('id').primaryKey(),
+  userId: varchar('user_id', { length: 256 }).notNull(),
+  totalSupplyUsd: decimal('total_supply_usd', { precision: 30, scale: 6 }).notNull().default('0'),
+  totalBorrowUsd: decimal('total_borrow_usd', { precision: 30, scale: 6 }).notNull().default('0'),
+  totalCollateralUsd: decimal('total_collateral_usd', { precision: 30, scale: 6 }).notNull().default('0'),
+  netWorthUsd: decimal('net_worth_usd', { precision: 30, scale: 6 }).notNull().default('0'),
+  interestEarnedUsd: decimal('interest_earned_usd', { precision: 30, scale: 6 }).notNull().default('0'),
+  interestPaidUsd: decimal('interest_paid_usd', { precision: 30, scale: 6 }).notNull().default('0'),
+  netInterestUsd: decimal('net_interest_usd', { precision: 30, scale: 6 }).notNull().default('0'),
+  healthFactor: decimal('health_factor', { precision: 10, scale: 4 }),
+  netApy: decimal('net_apy', { precision: 10, scale: 6 }),
+  snapshotAt: timestamp('snapshot_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex('uq_analytics_user_snapshots_user_time').on(table.userId, table.snapshotAt),
+  index('idx_analytics_user_snapshots_user_time').on(table.userId, table.snapshotAt),
+]);
+
+// ---------------------------------------------------------------------------
+// 57. Analytics Events — real-time event log for all lending actions
+// ---------------------------------------------------------------------------
+export const analyticsEvents = pgTable('analytics_events', {
+  id: serial('id').primaryKey(),
+  eventType: varchar('event_type', { length: 50 }).notNull(),
+  userId: varchar('user_id', { length: 256 }),
+  poolId: varchar('pool_id', { length: 128 }),
+  amount: decimal('amount', { precision: 30, scale: 6 }),
+  amountUsd: decimal('amount_usd', { precision: 30, scale: 6 }).notNull(),
+  txHash: text('tx_hash'),
+  metadata: jsonb('metadata').$type<Record<string, unknown>>(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index('idx_analytics_events_type').on(table.eventType, table.createdAt),
+  index('idx_analytics_events_user').on(table.userId, table.createdAt),
+  index('idx_analytics_events_pool').on(table.poolId, table.createdAt),
+]);
+
+// ---------------------------------------------------------------------------
+// 58. Protocol Health Snapshots — every 15 minutes
+// ---------------------------------------------------------------------------
+export const protocolHealthSnapshots = pgTable('protocol_health_snapshots', {
+  id: serial('id').primaryKey(),
+  healthScore: integer('health_score').notNull(),
+  badDebtRatio: decimal('bad_debt_ratio', { precision: 10, scale: 6 }).notNull(),
+  reserveCoverage: decimal('reserve_coverage', { precision: 10, scale: 6 }).notNull(),
+  avgHealthFactor: decimal('avg_health_factor', { precision: 10, scale: 4 }),
+  hfDangerCount: integer('hf_danger_count').notNull().default(0),
+  hfDangerVolumeUsd: decimal('hf_danger_volume_usd', { precision: 30, scale: 6 }).notNull().default('0'),
+  liquidationEfficiency: decimal('liquidation_efficiency', { precision: 10, scale: 6 }),
+  oracleUptime: decimal('oracle_uptime', { precision: 10, scale: 6 }),
+  concentrationRisk: decimal('concentration_risk', { precision: 10, scale: 6 }),
+  details: jsonb('details').$type<Record<string, unknown>>(),
+  snapshotAt: timestamp('snapshot_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index('idx_health_snapshots_time').on(table.snapshotAt),
+]);
+
+// ---------------------------------------------------------------------------
+// 59. Revenue Log — protocol revenue tracking
+// ---------------------------------------------------------------------------
+export const revenueLog = pgTable('revenue_log', {
+  id: serial('id').primaryKey(),
+  poolId: varchar('pool_id', { length: 128 }),
+  revenueType: varchar('revenue_type', { length: 30 }).notNull(),
+  amount: decimal('amount', { precision: 30, scale: 6 }).notNull(),
+  amountUsd: decimal('amount_usd', { precision: 30, scale: 6 }).notNull(),
+  asset: varchar('asset', { length: 20 }).notNull(),
+  txHash: text('tx_hash'),
+  periodStart: timestamp('period_start', { withTimezone: true }),
+  periodEnd: timestamp('period_end', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index('idx_revenue_log_type').on(table.revenueType, table.createdAt),
+  index('idx_revenue_log_pool').on(table.poolId, table.createdAt),
 ]);

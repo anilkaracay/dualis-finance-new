@@ -21,6 +21,19 @@ import type {
   StakingInfo,
   StakingPositionResponse,
   AnalyticsOverview,
+  ProtocolStats,
+  PoolAnalyticsSummary,
+  TimeSeriesPoint,
+  UserPortfolio,
+  UserTransaction,
+  TaxReportSummary,
+  PnlBreakdown,
+  InstitutionalRiskMetrics,
+  AdminAnalyticsOverview,
+  ProtocolHealthDashboard,
+  RevenueSummary,
+  PoolRanking,
+  UserAnalytics,
 } from '@dualis/shared';
 
 export function usePoolList(filters?: { assetType?: string | undefined } | undefined) {
@@ -110,4 +123,90 @@ export function useStakingPosition() {
 
 export function useAnalyticsOverview() {
   return useQuery<AnalyticsOverview>(ENDPOINTS.ANALYTICS_OVERVIEW);
+}
+
+// ---------------------------------------------------------------------------
+// Analytics & Reporting (MP24)
+// ---------------------------------------------------------------------------
+
+export function useProtocolStats() {
+  return useQuery<ProtocolStats>(ENDPOINTS.ANALYTICS_PROTOCOL_STATS);
+}
+
+export function useProtocolTvl(range?: string) {
+  const params = range ? `?range=${range}` : '';
+  return useQuery<{ current: number; history: TimeSeriesPoint[] }>(`${ENDPOINTS.ANALYTICS_PROTOCOL_TVL}${params}`);
+}
+
+export function useAnalyticsPools() {
+  return useQuery<PoolAnalyticsSummary[]>(ENDPOINTS.ANALYTICS_POOLS);
+}
+
+export function useAnalyticsPoolHistory(poolId: string | null, metric?: string, range?: string) {
+  const params = new URLSearchParams();
+  if (metric) params.set('metric', metric);
+  if (range) params.set('range', range);
+  const qs = params.toString() ? `?${params.toString()}` : '';
+  return useQuery<TimeSeriesPoint[]>(poolId ? `${ENDPOINTS.ANALYTICS_POOL_HISTORY(poolId)}${qs}` : null);
+}
+
+export function useAnalyticsPoolRates(poolId: string | null, range?: string) {
+  const params = range ? `?range=${range}` : '';
+  return useQuery<{ supplyApy: TimeSeriesPoint[]; borrowApy: TimeSeriesPoint[] }>(
+    poolId ? `${ENDPOINTS.ANALYTICS_POOL_RATES(poolId)}${params}` : null,
+  );
+}
+
+// Portfolio & P&L
+export function useUserPortfolio(range?: string) {
+  const params = range ? `?range=${range}` : '';
+  return useQuery<UserPortfolio>(`${ENDPOINTS.INSTITUTIONAL_PORTFOLIO}${params}`);
+}
+
+export function useUserTransactions(limit?: number, offset?: number) {
+  const params = new URLSearchParams();
+  if (limit) params.set('limit', String(limit));
+  if (offset) params.set('offset', String(offset));
+  const qs = params.toString() ? `?${params.toString()}` : '';
+  return useQuery<UserTransaction[]>(`${ENDPOINTS.INSTITUTIONAL_TRANSACTIONS}${qs}`);
+}
+
+export function usePnlBreakdown() {
+  return useQuery<PnlBreakdown[]>(ENDPOINTS.INSTITUTIONAL_PNL_BREAKDOWN);
+}
+
+export function useTaxReport(year?: number) {
+  const params = year ? `?year=${year}` : '';
+  return useQuery<TaxReportSummary>(`${ENDPOINTS.INSTITUTIONAL_TAX_REPORT}${params}`);
+}
+
+export function useInstitutionalRisk() {
+  return useQuery<InstitutionalRiskMetrics>(ENDPOINTS.INSTITUTIONAL_RISK);
+}
+
+// Admin Analytics
+export function useAdminAnalyticsOverview() {
+  return useQuery<AdminAnalyticsOverview>(ENDPOINTS.ADMIN_ANALYTICS_OVERVIEW);
+}
+
+export function useAdminProtocolHealth() {
+  return useQuery<ProtocolHealthDashboard>(ENDPOINTS.ADMIN_ANALYTICS_HEALTH);
+}
+
+export function useAdminHealthHistory(range?: string) {
+  const params = range ? `?range=${range}` : '';
+  return useQuery<TimeSeriesPoint[]>(`${ENDPOINTS.ADMIN_ANALYTICS_HEALTH_HISTORY}${params}`);
+}
+
+export function useAdminRevenue() {
+  return useQuery<RevenueSummary>(ENDPOINTS.ADMIN_ANALYTICS_REVENUE);
+}
+
+export function useAdminPoolRankings(sortBy?: string) {
+  const params = sortBy ? `?sortBy=${sortBy}` : '';
+  return useQuery<PoolRanking[]>(`${ENDPOINTS.ADMIN_ANALYTICS_POOLS}${params}`);
+}
+
+export function useAdminUserAnalytics() {
+  return useQuery<UserAnalytics>(ENDPOINTS.ADMIN_ANALYTICS_USERS);
 }

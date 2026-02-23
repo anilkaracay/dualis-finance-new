@@ -84,6 +84,11 @@ import complianceAuditRoutes from './routes/compliance-audit-routes.js';
 import adminComplianceKYCRoutes from './routes/admin-compliance-kyc.js';
 import adminComplianceGDPRRoutes from './routes/admin-compliance-gdpr.js';
 
+// Analytics & Reporting routes (MP24)
+import { analyticsPublicRoutes } from './routes/analyticsPublic.js';
+import { analyticsInstitutionalRoutes } from './routes/analyticsInstitutional.js';
+import { analyticsAdminRoutes } from './routes/analyticsAdmin.js';
+
 // Compliance queues & workers (MP21)
 import { initComplianceQueues, closeComplianceQueues } from './compliance/queue.js';
 import { startWalletScreeningWorker, stopWalletScreeningWorker } from './compliance/workers/wallet-screening.worker.js';
@@ -339,6 +344,11 @@ async function main(): Promise<void> {
     await app.register(adminReportsRoutes);
     await app.register(adminSettingsRoutes);
     await app.register(adminAuditRoutes);
+
+    // Analytics & Reporting (MP24)
+    await app.register(analyticsPublicRoutes);
+    await app.register(analyticsInstitutionalRoutes);
+    await app.register(analyticsAdminRoutes);
   }, { prefix: '/v1' });
 
   // ---------------------------------------------------------------------------
