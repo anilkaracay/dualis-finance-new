@@ -414,6 +414,16 @@ export const users = pgTable('users', {
   emailVerifiedAt: timestamp('email_verified_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  // MP19 Admin Panel fields
+  isAdminActive: boolean('is_admin_active').default(false).notNull(),
+  adminActivatedAt: timestamp('admin_activated_at', { withTimezone: true }),
+  adminActivatedBy: integer('admin_activated_by'),
+  suspendedAt: timestamp('suspended_at', { withTimezone: true }),
+  suspendedBy: integer('suspended_by'),
+  suspendedReason: text('suspended_reason'),
+  isBlacklisted: boolean('is_blacklisted').default(false).notNull(),
+  blacklistedAt: timestamp('blacklisted_at', { withTimezone: true }),
+  blacklistedReason: text('blacklisted_reason'),
 });
 
 // ---------------------------------------------------------------------------
@@ -664,4 +674,70 @@ export const transactionLogs = pgTable('transaction_logs', {
   metadata: jsonb('metadata').$type<Record<string, unknown>>(),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   confirmedAt: timestamp('confirmed_at', { withTimezone: true }),
+});
+
+// ===========================================================================
+// MP19 — Admin Panel Tables
+// ===========================================================================
+
+// ---------------------------------------------------------------------------
+// 40. Admin Audit Logs — every admin action is recorded
+// ---------------------------------------------------------------------------
+export const adminAuditLogs = pgTable('admin_audit_logs', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').notNull(),
+  action: varchar('action', { length: 128 }).notNull(),
+  targetType: varchar('target_type', { length: 64 }).notNull(),
+  targetId: varchar('target_id', { length: 256 }),
+  oldValue: jsonb('old_value').$type<unknown>(),
+  newValue: jsonb('new_value').$type<unknown>(),
+  ipAddress: varchar('ip_address', { length: 64 }),
+  userAgent: text('user_agent'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+// ---------------------------------------------------------------------------
+// 41. Admin Sessions — track admin panel logins separately
+// ---------------------------------------------------------------------------
+export const adminSessions = pgTable('admin_sessions', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').notNull(),
+  loginAt: timestamp('login_at', { withTimezone: true }).defaultNow().notNull(),
+  logoutAt: timestamp('logout_at', { withTimezone: true }),
+  ipAddress: varchar('ip_address', { length: 64 }),
+  userAgent: text('user_agent'),
+  isActive: boolean('is_active').default(true).notNull(),
+  lastActivityAt: timestamp('last_activity_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+// ---------------------------------------------------------------------------
+// 42. Protocol Config — singleton row for global protocol settings
+// ---------------------------------------------------------------------------
+export const protocolConfig = pgTable('protocol_config', {
+  id: serial('id').primaryKey(),
+  protocolFeeRate: decimal('protocol_fee_rate', { precision: 10, scale: 6 }).notNull().default('0.001'),
+  liquidationIncentiveRate: decimal('liquidation_incentive_rate', { precision: 10, scale: 6 }).notNull().default('0.05'),
+  flashLoanFeeRate: decimal('flash_loan_fee_rate', { precision: 10, scale: 6 }).notNull().default('0.0009'),
+  minBorrowAmount: decimal('min_borrow_amount', { precision: 28, scale: 8 }).notNull().default('100'),
+  maxBorrowAmount: decimal('max_borrow_amount', { precision: 28, scale: 8 }).notNull().default('10000000'),
+  isPaused: boolean('is_paused').default(false).notNull(),
+  pausedAt: timestamp('paused_at', { withTimezone: true }),
+  pausedBy: integer('paused_by'),
+  pauseReason: text('pause_reason'),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedBy: integer('updated_by'),
+});
+
+// ---------------------------------------------------------------------------
+// 43. Pool Parameter History — track every parameter change
+// ---------------------------------------------------------------------------
+export const poolParameterHistory = pgTable('pool_parameter_history', {
+  id: serial('id').primaryKey(),
+  poolId: varchar('pool_id', { length: 128 }).notNull(),
+  parameterName: varchar('parameter_name', { length: 128 }).notNull(),
+  oldValue: varchar('old_value', { length: 256 }),
+  newValue: varchar('new_value', { length: 256 }),
+  changedBy: integer('changed_by').notNull(),
+  changedAt: timestamp('changed_at', { withTimezone: true }).defaultNow().notNull(),
+  reason: text('reason'),
 });

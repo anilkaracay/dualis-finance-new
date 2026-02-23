@@ -128,6 +128,7 @@ export type {
 // Auth & Onboarding types
 export type {
   UserRole,
+  AdminRole,
   AccountStatus,
   AuthProvider,
   KYCVerificationStatus,
@@ -155,6 +156,14 @@ export type {
   KYBUpdateStepRequest,
   UBODeclarationRequest,
   DocumentUploadConfirmRequest,
+  AdminAuditLog,
+  AdminSession,
+  ProtocolConfigData,
+  PoolParameterChange,
+  AdminDashboardStats,
+  AdminPoolSummary,
+  AdminUserSummary,
+  AdminPoolParams,
 } from './auth';
 
 // Wallet & PartyLayer types

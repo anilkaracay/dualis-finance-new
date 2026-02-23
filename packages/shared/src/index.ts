@@ -159,6 +159,15 @@ export type {
   KYBUpdateStepRequest,
   UBODeclarationRequest,
   DocumentUploadConfirmRequest,
+  AdminRole,
+  AdminAuditLog,
+  AdminSession,
+  ProtocolConfigData,
+  PoolParameterChange,
+  AdminDashboardStats,
+  AdminPoolSummary,
+  AdminUserSummary,
+  AdminPoolParams,
 } from './types/auth';
 
 // Wallet & PartyLayer types

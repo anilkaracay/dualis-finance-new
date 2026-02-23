@@ -46,6 +46,16 @@ import { onboardingRoutes } from './routes/onboarding.js';
 // Wallet routes
 import { walletRoutes } from './routes/wallet.js';
 
+// Admin panel routes
+import { adminDashboardRoutes } from './routes/admin-dashboard.js';
+import { adminPoolRoutes } from './routes/admin-pools.js';
+import { adminUserRoutes } from './routes/admin-users.js';
+import { adminOracleRoutes } from './routes/admin-oracle.js';
+import { adminComplianceRoutes } from './routes/admin-compliance.js';
+import { adminReportsRoutes } from './routes/admin-reports.js';
+import { adminSettingsRoutes } from './routes/admin-settings.js';
+import { adminAuditRoutes } from './routes/admin-audit.js';
+
 // WebSocket
 import { wsRoutes } from './ws/server.js';
 
@@ -178,6 +188,16 @@ async function main(): Promise<void> {
     await app.register(advancedSecLendingRoutes);
     await app.register(institutionalRoutes);
     await app.register(privacyRoutes);
+
+    // Admin panel routes
+    await app.register(adminDashboardRoutes);
+    await app.register(adminPoolRoutes);
+    await app.register(adminUserRoutes);
+    await app.register(adminOracleRoutes);
+    await app.register(adminComplianceRoutes);
+    await app.register(adminReportsRoutes);
+    await app.register(adminSettingsRoutes);
+    await app.register(adminAuditRoutes);
   }, { prefix: '/v1' });
 
   // ---------------------------------------------------------------------------

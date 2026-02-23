@@ -2,13 +2,17 @@
 // Auth & Onboarding Types
 // ============================================================
 
-export type UserRole = 'retail' | 'institutional' | 'admin';
+export type UserRole = 'retail' | 'institutional' | 'admin' | 'compliance_officer' | 'viewer';
+
+/** Roles that can access the admin panel */
+export type AdminRole = 'admin' | 'compliance_officer' | 'viewer';
 
 export type AccountStatus =
   | 'pending_verification'
   | 'active'
   | 'suspended'
-  | 'deactivated';
+  | 'deactivated'
+  | 'blacklisted';
 
 export type AuthProvider = 'email' | 'wallet';
 
@@ -239,4 +243,115 @@ export interface DocumentUploadConfirmRequest {
   mimeType: string;
   sizeBytes: number;
   storageKey: string;
+}
+
+// ============================================================
+// Admin Panel Types (MP19)
+// ============================================================
+
+export interface AdminAuditLog {
+  id: number;
+  userId: number;
+  adminName: string;
+  adminEmail: string;
+  action: string;
+  targetType: string;
+  targetId: string | null;
+  oldValue: unknown | null;
+  newValue: unknown | null;
+  ipAddress: string | null;
+  userAgent: string | null;
+  createdAt: string;
+}
+
+export interface AdminSession {
+  id: number;
+  userId: number;
+  loginAt: string;
+  logoutAt: string | null;
+  ipAddress: string | null;
+  userAgent: string | null;
+  isActive: boolean;
+  lastActivityAt: string;
+}
+
+export interface ProtocolConfigData {
+  id: number;
+  protocolFeeRate: number;
+  liquidationIncentiveRate: number;
+  flashLoanFeeRate: number;
+  minBorrowAmount: number;
+  maxBorrowAmount: number;
+  isPaused: boolean;
+  pausedAt: string | null;
+  pausedBy: number | null;
+  pauseReason: string | null;
+  updatedAt: string;
+  updatedBy: number | null;
+}
+
+export interface PoolParameterChange {
+  id: number;
+  poolId: string;
+  parameterName: string;
+  oldValue: string;
+  newValue: string;
+  changedBy: number;
+  changedAt: string;
+  reason: string | null;
+}
+
+export interface AdminDashboardStats {
+  totalTVL: number;
+  tvlDelta24h: number;
+  activeLoans: number;
+  totalBorrowValue: number;
+  totalUsers: number;
+  newUsersThisWeek: number;
+  protocolRevenue: number;
+  revenueThisMonth: number;
+}
+
+export interface AdminPoolSummary {
+  poolId: string;
+  name: string;
+  asset: string;
+  status: 'active' | 'paused' | 'archived';
+  tvl: number;
+  totalBorrow: number;
+  utilization: number;
+  supplyAPY: number;
+  borrowAPY: number;
+  maxLTV: number;
+  liquidationThreshold: number;
+  createdAt: string;
+}
+
+export interface AdminUserSummary {
+  id: number;
+  userId: string;
+  email: string;
+  displayName: string | null;
+  role: UserRole;
+  accountStatus: AccountStatus;
+  kycStatus: string;
+  isAdminActive: boolean;
+  totalSupplied: number;
+  totalBorrowed: number;
+  minHealthFactor: number | null;
+  createdAt: string;
+  lastLoginAt: string | null;
+}
+
+export interface AdminPoolParams {
+  baseRatePerYear: number;
+  multiplierPerYear: number;
+  jumpMultiplierPerYear: number;
+  kink: number;
+  maxLTV: number;
+  liquidationThreshold: number;
+  liquidationPenalty: number;
+  liquidationBonus: number;
+  supplyCap: number;
+  borrowCap: number;
 }
