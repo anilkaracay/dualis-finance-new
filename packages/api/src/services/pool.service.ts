@@ -13,119 +13,17 @@ import {
   calculateUtilization,
   calculatePoolAPY,
   accrueInterest,
-  getRateModel,
-  type InterestRateModelConfig,
+  getCollateralParams,
 } from '@dualis/shared';
 import { randomUUID } from 'node:crypto';
+import * as registry from './poolRegistry.js';
 
 const log = createChildLogger('pool-service');
 
-// ─── Rate model lookup per pool ─────────────────────────────────────────────
-
-const POOL_RATE_MODELS: Record<string, InterestRateModelConfig> = {
-  'usdc-main': getRateModel('USDC'),
-  'wbtc-main': getRateModel('wBTC'),
-  'eth-main': getRateModel('ETH'),
-  'cc-main': getRateModel('CC'),
-  'tbill-2026': getRateModel('T-BILL'),
-  'spy-2026': getRateModel('SPY'),
-};
-
-// ─── Pool State (mutable to support accrual simulation) ─────────────────────
-
-interface PoolState {
-  poolId: string;
-  asset: { symbol: string; type: string; priceUSD: number };
-  totalSupply: number;
-  totalBorrow: number;
-  totalReserves: number;
-  borrowIndex: number;
-  supplyIndex: number;
-  lastAccrualTs: number; // Unix seconds
-  isActive: boolean;
-  contractId: string;
-}
-
-const POOL_STATES: PoolState[] = [
-  {
-    poolId: 'usdc-main',
-    asset: { symbol: 'USDC', type: 'Stablecoin', priceUSD: 1.0 },
-    totalSupply: 245_600_000,
-    totalBorrow: 178_200_000,
-    totalReserves: 4_912_000,
-    borrowIndex: 1.0,
-    supplyIndex: 1.0,
-    lastAccrualTs: Math.floor(Date.now() / 1000) - 300,
-    isActive: true,
-    contractId: 'canton::pool::usdc-main::001',
-  },
-  {
-    poolId: 'wbtc-main',
-    asset: { symbol: 'wBTC', type: 'CryptoCurrency', priceUSD: 62_450 },
-    totalSupply: 1_850,
-    totalBorrow: 920,
-    totalReserves: 12.5,
-    borrowIndex: 1.0,
-    supplyIndex: 1.0,
-    lastAccrualTs: Math.floor(Date.now() / 1000) - 300,
-    isActive: true,
-    contractId: 'canton::pool::wbtc-main::002',
-  },
-  {
-    poolId: 'eth-main',
-    asset: { symbol: 'ETH', type: 'CryptoCurrency', priceUSD: 3_420 },
-    totalSupply: 45_200,
-    totalBorrow: 28_900,
-    totalReserves: 340,
-    borrowIndex: 1.0,
-    supplyIndex: 1.0,
-    lastAccrualTs: Math.floor(Date.now() / 1000) - 300,
-    isActive: true,
-    contractId: 'canton::pool::eth-main::003',
-  },
-  {
-    poolId: 'cc-main',
-    asset: { symbol: 'CC', type: 'CryptoCurrency', priceUSD: 2.30 },
-    totalSupply: 89_000_000,
-    totalBorrow: 34_200_000,
-    totalReserves: 890_000,
-    borrowIndex: 1.0,
-    supplyIndex: 1.0,
-    lastAccrualTs: Math.floor(Date.now() / 1000) - 300,
-    isActive: true,
-    contractId: 'canton::pool::cc-main::004',
-  },
-  {
-    poolId: 'tbill-2026',
-    asset: { symbol: 'T-BILL-2026', type: 'TokenizedTreasury', priceUSD: 99.87 },
-    totalSupply: 320_000_000,
-    totalBorrow: 245_000_000,
-    totalReserves: 3_200_000,
-    borrowIndex: 1.0,
-    supplyIndex: 1.0,
-    lastAccrualTs: Math.floor(Date.now() / 1000) - 300,
-    isActive: true,
-    contractId: 'canton::pool::tbill-2026::005',
-  },
-  {
-    poolId: 'spy-2026',
-    asset: { symbol: 'SPY-2026', type: 'TokenizedEquity', priceUSD: 512.45 },
-    totalSupply: 156_000_000,
-    totalBorrow: 89_400_000,
-    totalReserves: 1_560_000,
-    borrowIndex: 1.0,
-    supplyIndex: 1.0,
-    lastAccrualTs: Math.floor(Date.now() / 1000) - 300,
-    isActive: true,
-    contractId: 'canton::pool::spy-2026::006',
-  },
-];
-
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
-function accruePoolInterest(pool: PoolState): void {
-  const model = POOL_RATE_MODELS[pool.poolId];
-  if (!model) return;
+function accruePoolInterest(pool: registry.PoolState): void {
+  const model = registry.getPoolRateModel(pool.poolId);
 
   const now = Math.floor(Date.now() / 1000);
   const result = accrueInterest(
@@ -146,8 +44,8 @@ function accruePoolInterest(pool: PoolState): void {
   pool.lastAccrualTs = now;
 }
 
-function poolToListItem(pool: PoolState): PoolListItem {
-  const model = POOL_RATE_MODELS[pool.poolId];
+function poolToListItem(pool: registry.PoolState): PoolListItem {
+  const model = registry.getPoolRateModel(pool.poolId);
   const utilization = calculateUtilization(pool.totalBorrow, pool.totalSupply);
 
   return {
@@ -159,8 +57,8 @@ function poolToListItem(pool: PoolState): PoolListItem {
     totalBorrowUSD: pool.totalBorrow * pool.asset.priceUSD,
     totalReserves: pool.totalReserves,
     utilization,
-    supplyAPY: model ? calculatePoolAPY(model, utilization, 'supply') : 0,
-    borrowAPY: model ? calculatePoolAPY(model, utilization, 'borrow') : 0,
+    supplyAPY: calculatePoolAPY(model, utilization, 'supply'),
+    borrowAPY: calculatePoolAPY(model, utilization, 'borrow'),
     isActive: pool.isActive,
     contractId: pool.contractId,
   };
@@ -175,7 +73,7 @@ function buildTransactionMeta(): TransactionMeta {
 }
 
 function generateHistoryPoints(poolId: string, period: string): PoolHistoryPoint[] {
-  const pool = POOL_STATES.find((p) => p.poolId === poolId);
+  const pool = registry.getPool(poolId);
   if (!pool) return [];
 
   const now = Date.now();
@@ -184,7 +82,7 @@ function generateHistoryPoints(poolId: string, period: string): PoolHistoryPoint
   };
   const days = periodDays[period] ?? 30;
   const points: PoolHistoryPoint[] = [];
-  const model = POOL_RATE_MODELS[poolId];
+  const model = registry.getPoolRateModel(poolId);
 
   for (let i = days; i >= 0; i--) {
     const ts = new Date(now - i * 86_400_000);
@@ -197,12 +95,8 @@ function generateHistoryPoints(poolId: string, period: string): PoolHistoryPoint
       timestamp: ts.toISOString(),
       totalSupply: Math.round(simSupply),
       totalBorrow: Math.round(simBorrow),
-      supplyAPY: model
-        ? Number(calculatePoolAPY(model, simUtil, 'supply').toFixed(4))
-        : Number((pool.totalSupply > 0 ? 0.04 * jitter : 0).toFixed(4)),
-      borrowAPY: model
-        ? Number(calculatePoolAPY(model, simUtil, 'borrow').toFixed(4))
-        : Number((0.06 * jitter).toFixed(4)),
+      supplyAPY: Number(calculatePoolAPY(model, simUtil, 'supply').toFixed(4)),
+      borrowAPY: Number(calculatePoolAPY(model, simUtil, 'borrow').toFixed(4)),
       utilization: Number(simUtil.toFixed(4)),
       priceUSD: Number((pool.asset.priceUSD * (1 + Math.sin(i * 0.2) * 0.02)).toFixed(2)),
     });
@@ -218,12 +112,14 @@ export function listPools(
 ): { data: PoolListItem[]; pagination: Pagination } {
   log.debug({ params }, 'Listing pools');
 
+  const allPools = registry.getAllPools();
+
   // Accrue interest on all pools before returning
-  for (const pool of POOL_STATES) {
+  for (const pool of allPools) {
     accruePoolInterest(pool);
   }
 
-  let filtered = POOL_STATES.map(poolToListItem);
+  let filtered = allPools.map(poolToListItem);
 
   if (params.assetType && params.assetType !== 'all') {
     const typeMap: Record<string, string> = {
@@ -264,27 +160,34 @@ export function listPools(
 
 export function getPoolDetail(poolId: string): PoolDetail {
   log.debug({ poolId }, 'Getting pool detail');
-  const pool = POOL_STATES.find((p) => p.poolId === poolId);
+  const pool = registry.getPool(poolId);
   if (!pool) throw new Error(`Pool ${poolId} not found`);
 
   // Accrue interest before returning detail
   accruePoolInterest(pool);
 
-  const model = POOL_RATE_MODELS[poolId];
+  const model = registry.getPoolRateModel(poolId);
   const listItem = poolToListItem(pool);
+
+  // Dynamic collateral config from shared config (falls back to sensible defaults)
+  const collateralCfg = getCollateralParams(pool.asset.symbol);
   const collateralConfig = {
-    loanToValue: 0.75,
-    liquidationThreshold: 0.82,
-    liquidationPenalty: 0.05,
-    borrowCap: listItem.totalSupplyUSD * 0.85,
+    loanToValue: collateralCfg?.loanToValue ?? 0.75,
+    liquidationThreshold: collateralCfg?.liquidationThreshold ?? 0.82,
+    liquidationPenalty: collateralCfg?.liquidationPenalty ?? 0.05,
+    borrowCap: collateralCfg?.borrowCap ?? listItem.totalSupplyUSD * 0.85,
   };
 
   return {
     ...listItem,
     available: pool.totalSupply - pool.totalBorrow,
-    interestRateModel: model
-      ? { type: model.type, baseRate: model.baseRate, multiplier: model.multiplier, kink: model.kink, jumpMultiplier: model.jumpMultiplier }
-      : { type: 'VariableRate', baseRate: 0.02, multiplier: 0.05, kink: 0.8, jumpMultiplier: 0.15 },
+    interestRateModel: {
+      type: model.type,
+      baseRate: model.baseRate,
+      multiplier: model.multiplier,
+      kink: model.kink,
+      jumpMultiplier: model.jumpMultiplier,
+    },
     collateralConfig,
     accumulatedBorrowIndex: pool.borrowIndex,
     accumulatedSupplyIndex: pool.supplyIndex,
@@ -294,7 +197,7 @@ export function getPoolDetail(poolId: string): PoolDetail {
 
 export function getPoolHistory(poolId: string, period: string): PoolHistoryPoint[] {
   log.debug({ poolId, period }, 'Getting pool history');
-  if (!POOL_STATES.find((p) => p.poolId === poolId)) {
+  if (!registry.hasPool(poolId)) {
     throw new Error(`Pool ${poolId} not found`);
   }
   return generateHistoryPoints(poolId, period);
@@ -306,7 +209,7 @@ export function deposit(
   amount: string,
 ): { data: DepositResponse; transaction: TransactionMeta } {
   log.info({ poolId, _partyId, amount }, 'Processing deposit');
-  const pool = POOL_STATES.find((p) => p.poolId === poolId);
+  const pool = registry.getPool(poolId);
   if (!pool) throw new Error(`Pool ${poolId} not found`);
 
   // Accrue interest before modifying state
@@ -337,7 +240,7 @@ export function withdraw(
   shares: string,
 ): { data: WithdrawResponse; transaction: TransactionMeta } {
   log.info({ poolId, _partyId, shares }, 'Processing withdrawal');
-  const pool = POOL_STATES.find((p) => p.poolId === poolId);
+  const pool = registry.getPool(poolId);
   if (!pool) throw new Error(`Pool ${poolId} not found`);
 
   // Accrue interest before modifying state

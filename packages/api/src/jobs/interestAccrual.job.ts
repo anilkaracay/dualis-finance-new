@@ -3,13 +3,12 @@ import {
   calculateUtilization,
   calculatePoolAPY,
   accrueInterest,
-  getRateModel,
-  type InterestRateModelConfig,
 } from '@dualis/shared';
 import { createChildLogger } from '../config/logger.js';
 import { channelManager } from '../ws/channels.js';
 import { getDb, schema } from '../db/client.js';
 import { registerJob } from './scheduler.js';
+import * as registry from '../services/poolRegistry.js';
 
 const log = createChildLogger('interest-accrual');
 
@@ -21,99 +20,8 @@ const log = createChildLogger('interest-accrual');
 const INTERVAL_MS = 5 * 60 * 1_000;
 
 // ---------------------------------------------------------------------------
-// Pool state with index-based accrual
-// ---------------------------------------------------------------------------
-
-interface PoolState {
-  poolId: string;
-  assetSymbol: string;
-  totalSupply: number;
-  totalBorrow: number;
-  totalReserves: number;
-  priceUSD: number;
-  model: InterestRateModelConfig;
-  borrowIndex: number;
-  supplyIndex: number;
-  lastAccrualTs: number; // Unix seconds
-}
-
-const POOLS: PoolState[] = [
-  {
-    poolId: 'usdc-main',
-    assetSymbol: 'USDC',
-    totalSupply: 245_600_000,
-    totalBorrow: 178_200_000,
-    totalReserves: 4_912_000,
-    priceUSD: 1.0,
-    model: getRateModel('USDC'),
-    borrowIndex: 1.0,
-    supplyIndex: 1.0,
-    lastAccrualTs: Math.floor(Date.now() / 1000),
-  },
-  {
-    poolId: 'wbtc-main',
-    assetSymbol: 'wBTC',
-    totalSupply: 1_850,
-    totalBorrow: 920,
-    totalReserves: 12.5,
-    priceUSD: 97_234.56,
-    model: getRateModel('wBTC'),
-    borrowIndex: 1.0,
-    supplyIndex: 1.0,
-    lastAccrualTs: Math.floor(Date.now() / 1000),
-  },
-  {
-    poolId: 'eth-main',
-    assetSymbol: 'ETH',
-    totalSupply: 45_200,
-    totalBorrow: 28_900,
-    totalReserves: 340,
-    priceUSD: 3_456.78,
-    model: getRateModel('ETH'),
-    borrowIndex: 1.0,
-    supplyIndex: 1.0,
-    lastAccrualTs: Math.floor(Date.now() / 1000),
-  },
-  {
-    poolId: 'cc-receivable',
-    assetSymbol: 'CC-REC',
-    totalSupply: 89_000_000,
-    totalBorrow: 67_400_000,
-    totalReserves: 1_780_000,
-    priceUSD: 1.0,
-    model: getRateModel('CC-REC'),
-    borrowIndex: 1.0,
-    supplyIndex: 1.0,
-    lastAccrualTs: Math.floor(Date.now() / 1000),
-  },
-  {
-    poolId: 'tbill-short',
-    assetSymbol: 'T-BILL',
-    totalSupply: 320_000_000,
-    totalBorrow: 198_400_000,
-    totalReserves: 6_400_000,
-    priceUSD: 99.87,
-    model: getRateModel('T-BILL'),
-    borrowIndex: 1.0,
-    supplyIndex: 1.0,
-    lastAccrualTs: Math.floor(Date.now() / 1000),
-  },
-  {
-    poolId: 'spy-equity',
-    assetSymbol: 'SPY',
-    totalSupply: 326_000,
-    totalBorrow: 142_800,
-    totalReserves: 4_890,
-    priceUSD: 512.45,
-    model: getRateModel('SPY'),
-    borrowIndex: 1.0,
-    supplyIndex: 1.0,
-    lastAccrualTs: Math.floor(Date.now() / 1000),
-  },
-];
-
-// ---------------------------------------------------------------------------
-// Job handler
+// Job handler — reads from the centralized pool registry so any
+// pool created at runtime is automatically covered.
 // ---------------------------------------------------------------------------
 
 async function interestAccrualHandler(): Promise<void> {
@@ -121,7 +29,13 @@ async function interestAccrualHandler(): Promise<void> {
   const nowIso = new Date().toISOString();
   const db = getDb();
 
-  for (const pool of POOLS) {
+  const allPools = registry.getAllPools();
+
+  for (const pool of allPools) {
+    if (!pool.isActive) continue;
+
+    const model = registry.getPoolRateModel(pool.poolId);
+
     // Simulate minor supply/borrow drift
     const supplyDrift = 1 + (Math.random() - 0.5) * 0.002;
     const borrowDrift = 1 + (Math.random() - 0.5) * 0.003;
@@ -130,7 +44,7 @@ async function interestAccrualHandler(): Promise<void> {
 
     // Accrue interest using index-based system
     const accrual = accrueInterest(
-      pool.model,
+      model,
       pool.totalBorrow,
       pool.totalSupply,
       pool.totalReserves,
@@ -149,8 +63,8 @@ async function interestAccrualHandler(): Promise<void> {
 
     // Compute display rates
     const utilization = calculateUtilization(pool.totalBorrow, pool.totalSupply);
-    const supplyAPY = calculatePoolAPY(pool.model, utilization, 'supply');
-    const borrowAPY = calculatePoolAPY(pool.model, utilization, 'borrow');
+    const supplyAPY = calculatePoolAPY(model, utilization, 'supply');
+    const borrowAPY = calculatePoolAPY(model, utilization, 'borrow');
 
     // Broadcast pool update via WebSocket
     const payload: WsPoolPayload = {
@@ -175,7 +89,7 @@ async function interestAccrualHandler(): Promise<void> {
           supplyAPY: Number(supplyAPY.toFixed(6)),
           borrowAPY: Number(borrowAPY.toFixed(6)),
           utilization: Number(utilization.toFixed(6)),
-          priceUSD: pool.priceUSD.toString(),
+          priceUSD: pool.asset.priceUSD.toString(),
         });
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : String(err);
@@ -184,7 +98,7 @@ async function interestAccrualHandler(): Promise<void> {
     }
   }
 
-  log.debug({ pools: POOLS.length }, 'Interest accrual complete');
+  log.debug({ pools: allPools.length }, 'Interest accrual complete');
 }
 
 // ---------------------------------------------------------------------------

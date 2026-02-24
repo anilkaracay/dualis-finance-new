@@ -27,6 +27,8 @@ const createPoolSchema = z.object({
   poolId: z.string().min(1).max(64),
   name: z.string().min(1).max(128),
   asset: z.string().min(1).max(32),
+  assetType: z.string().min(1).max(32).optional(),
+  priceUSD: z.number().min(0).optional(),
   params: poolParamsSchema,
 });
 
@@ -80,6 +82,9 @@ export async function adminPoolRoutes(fastify: FastifyInstance): Promise<void> {
       }
 
       const pool = poolService.createPool(parsed.data);
+      if (!pool) {
+        throw new AppError('INTERNAL_ERROR', 'Failed to create pool', 500);
+      }
 
       await logAdminAction(request, 'pool.create', 'pool', pool.poolId, null, { poolId: pool.poolId, asset: pool.asset });
 

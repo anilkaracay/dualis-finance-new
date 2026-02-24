@@ -85,9 +85,10 @@ function getPoolByPoolId(pools: PoolData[], poolId: string): PoolData | undefine
   return pools.find((p) => p.poolId === poolId);
 }
 
-const COLLATERAL_ASSETS = ['USDC', 'wBTC', 'ETH', 'CC'] as const;
-
-const COLLATERAL_PRICES: Record<string, number> = {
+// Collateral assets and prices are fetched from the API (/borrow/collateral-assets)
+// so any new pool/asset added at runtime is automatically available.
+const FALLBACK_COLLATERAL_ASSETS = ['USDC', 'wBTC', 'ETH', 'CC'];
+const FALLBACK_COLLATERAL_PRICES: Record<string, number> = {
   USDC: 1.0,
   wBTC: 97_234.56,
   ETH: 3_456.78,
@@ -236,18 +237,23 @@ function AddCollateralDialog({
   position,
   open,
   onOpenChange,
+  collateralAssets,
+  collateralPrices,
 }: {
   position: BorrowPosition;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  collateralAssets: string[];
+  collateralPrices: Record<string, number>;
 }) {
-  const [selectedAsset, setSelectedAsset] = useState<string>(COLLATERAL_ASSETS[0]);
+  const assets = collateralAssets.length > 0 ? collateralAssets : FALLBACK_COLLATERAL_ASSETS;
+  const [selectedAsset, setSelectedAsset] = useState<string>(assets[0] ?? 'USDC');
   const [amount, setAmount] = useState('');
   const [submitted, setSubmitted] = useState(false);
   const addCollateralMutation = useAddCollateral();
 
   const amountValue = parseFloat(amount) || 0;
-  const priceUSD = COLLATERAL_PRICES[selectedAsset] ?? 1;
+  const priceUSD = collateralPrices[selectedAsset] ?? FALLBACK_COLLATERAL_PRICES[selectedAsset] ?? 1;
   const addedValueUSD = amountValue * priceUSD;
   const existingCollateralUSD = position.collateral.reduce((sum, c) => sum + c.valueUSD, 0);
   const newTotalCollateral = existingCollateralUSD + addedValueUSD;
@@ -270,14 +276,14 @@ function AddCollateralDialog({
   const handleOpenChange = useCallback(
     (value: boolean) => {
       if (!value) {
-        setSelectedAsset(COLLATERAL_ASSETS[0]);
+        setSelectedAsset(assets[0] ?? 'USDC');
         setAmount('');
         setSubmitted(false);
         addCollateralMutation.reset();
       }
       onOpenChange(value);
     },
-    [onOpenChange, addCollateralMutation]
+    [onOpenChange, addCollateralMutation, assets]
   );
 
   return (
@@ -317,7 +323,7 @@ function AddCollateralDialog({
                   onChange={(e) => setSelectedAsset(e.target.value)}
                   className="h-9 w-full rounded-md bg-bg-tertiary border border-border-default px-3 text-sm text-text-primary focus-ring transition-colors"
                 >
-                  {COLLATERAL_ASSETS.map((asset) => (
+                  {assets.map((asset) => (
                     <option key={asset} value={asset}>
                       {asset}
                     </option>
@@ -522,14 +528,20 @@ function ActiveBorrowPositions({
 // New Borrow Section
 // ---------------------------------------------------------------------------
 
-function NewBorrowSection({ pools }: { pools: PoolData[] }) {
+function NewBorrowSection({ pools, collateralAssets, collateralPrices }: {
+  pools: PoolData[];
+  collateralAssets: string[];
+  collateralPrices: Record<string, number>;
+}) {
   const { creditTier } = useWalletStore();
   const borrowMutation = useBorrow();
+
+  const effectiveAssets = collateralAssets.length > 0 ? collateralAssets : FALLBACK_COLLATERAL_ASSETS;
 
   const [selectedPoolId, setSelectedPoolId] = useState('');
   const [borrowAmount, setBorrowAmount] = useState('');
   const [collateralEntries, setCollateralEntries] = useState<CollateralEntry[]>([
-    { asset: 'USDC', amount: '' },
+    { asset: effectiveAssets[0] ?? 'USDC', amount: '' },
   ]);
   const [showSuccess, setShowSuccess] = useState(false);
 
@@ -545,10 +557,10 @@ function NewBorrowSection({ pools }: { pools: PoolData[] }) {
   const collateralValueUSD = useMemo(() => {
     return collateralEntries.reduce((sum, entry) => {
       const amt = parseFloat(entry.amount) || 0;
-      const price = COLLATERAL_PRICES[entry.asset] ?? 1;
+      const price = collateralPrices[entry.asset] ?? FALLBACK_COLLATERAL_PRICES[entry.asset] ?? 1;
       return sum + amt * price;
     }, 0);
-  }, [collateralEntries]);
+  }, [collateralEntries, collateralPrices]);
 
   const mockHealthFactor = useMemo(() => {
     if (borrowValueUSD <= 0) return 0;
@@ -700,7 +712,7 @@ function NewBorrowSection({ pools }: { pools: PoolData[] }) {
                         onChange={(e) => handleCollateralAssetChange(index, e.target.value)}
                         className="h-9 w-full rounded-md bg-bg-tertiary border border-border-default px-3 text-sm text-text-primary focus-ring transition-colors"
                       >
-                        {COLLATERAL_ASSETS.map((asset) => (
+                        {effectiveAssets.map((asset) => (
                           <option key={asset} value={asset}>
                             {asset}
                           </option>
@@ -914,9 +926,32 @@ export default function BorrowPage() {
   const [repayPosition, setRepayPosition] = useState<BorrowPosition | null>(null);
   const [collateralPosition, setCollateralPosition] = useState<BorrowPosition | null>(null);
 
+  // Dynamic collateral assets from API
+  const [collateralAssets, setCollateralAssets] = useState<string[]>([]);
+  const [collateralPrices, setCollateralPrices] = useState<Record<string, number>>({});
+
   useEffect(() => {
     fetchPositions('mock');
     fetchPools();
+
+    // Fetch collateral assets dynamically from the API
+    import('@/lib/api/client')
+      .then(({ apiClient }) => apiClient.get<{ data: Array<{ symbol: string; priceUSD: number }> }>('/borrow/collateral-assets'))
+      .then((response) => {
+        const body = response.data;
+        const assets = Array.isArray(body) ? body : body?.data;
+        if (Array.isArray(assets) && assets.length > 0) {
+          setCollateralAssets(assets.map((a) => a.symbol));
+          const prices: Record<string, number> = {};
+          for (const a of assets) {
+            prices[a.symbol] = a.priceUSD;
+          }
+          setCollateralPrices(prices);
+        }
+      })
+      .catch(() => {
+        // Use fallback hardcoded assets if API fails
+      });
   }, [fetchPositions, fetchPools]);
 
   const isLoading = positionsLoading || poolsLoading;
@@ -968,7 +1003,7 @@ export default function BorrowPage() {
 
       {/* New Borrow Section */}
       <section>
-        <NewBorrowSection pools={pools} />
+        <NewBorrowSection pools={pools} collateralAssets={collateralAssets} collateralPrices={collateralPrices} />
       </section>
 
       {/* Repay Dialog */}
@@ -990,6 +1025,8 @@ export default function BorrowPage() {
           onOpenChange={(open) => {
             if (!open) setCollateralPosition(null);
           }}
+          collateralAssets={collateralAssets}
+          collateralPrices={collateralPrices}
         />
       )}
     </div>

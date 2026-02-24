@@ -99,31 +99,28 @@ const MOCK_ACTIVITIES: ActivityEvent[] = [
   { time: '5 hr ago', action: 'repay', user: '0xFe6G...1hIj', amount: '$1,250,000' },
 ];
 
-// ─── Collateral Params ────────────────────────────────────────────────────────
+// ─── Pool-specific params — fetched from API at runtime ───────────────────────
 
-const COLLATERAL_PARAMS: Array<{ label: string; value: string }> = [
-  { label: 'Max LTV', value: '80%' },
-  { label: 'Liquidation Threshold', value: '85%' },
-  { label: 'Liquidation Penalty', value: '5%' },
-  { label: 'Borrow Cap', value: 'Unlimited' },
-  { label: 'Reserve Factor', value: '1.0%' },
-];
+interface PoolDetailParams {
+  interestRateModel: {
+    type: string;
+    baseRate: number;
+    multiplier: number;
+    kink: number;
+    jumpMultiplier: number;
+  };
+  collateralConfig: {
+    loanToValue: number;
+    liquidationThreshold: number;
+    liquidationPenalty: number;
+    borrowCap: number;
+  };
+}
 
-// ─── Interest Rate Params ─────────────────────────────────────────────────────
-
-const IR_PARAMS = {
-  baseRate: 0.02,
-  multiplier: 0.15,
-  kink: 0.8,
-  jumpMultiplier: 0.8,
+const DEFAULT_DETAIL_PARAMS: PoolDetailParams = {
+  interestRateModel: { type: 'VariableRate', baseRate: 0.02, multiplier: 0.15, kink: 0.8, jumpMultiplier: 0.8 },
+  collateralConfig: { loanToValue: 0.80, liquidationThreshold: 0.85, liquidationPenalty: 0.05, borrowCap: 0 },
 };
-
-const IR_TABLE: Array<{ label: string; value: string }> = [
-  { label: 'Base Rate', value: '2.00%' },
-  { label: 'Multiplier', value: '0.15' },
-  { label: 'Kink', value: '80%' },
-  { label: 'Jump Multiplier', value: '0.80' },
-];
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -145,9 +142,29 @@ export default function PoolDetailPage() {
   const depositMutation = useDeposit();
   const withdrawMutation = useWithdraw();
 
+  // Pool-specific params from API (dynamic per pool)
+  const [detailParams, setDetailParams] = useState<PoolDetailParams>(DEFAULT_DETAIL_PARAMS);
+
   useEffect(() => {
     fetchPools();
-  }, [fetchPools]);
+
+    // Fetch pool detail from API for dynamic IR model + collateral params
+    import('@/lib/api/client')
+      .then(({ apiClient }) => apiClient.get<{ data: PoolDetailParams }>(`/pools/${poolId}`))
+      .then((response) => {
+        const body = response.data;
+        const detail = (body as Record<string, unknown>)?.data ?? body;
+        if (detail && typeof detail === 'object') {
+          const d = detail as Record<string, unknown>;
+          if (d.interestRateModel && d.collateralConfig) {
+            setDetailParams(d as unknown as PoolDetailParams);
+          }
+        }
+      })
+      .catch(() => {
+        // Use defaults if API call fails
+      });
+  }, [fetchPools, poolId]);
 
   const pool = useMemo(
     () => pools.find((p) => p.poolId === poolId),
@@ -606,15 +623,20 @@ export default function PoolDetailPage() {
           </CardHeader>
           <CardContent>
             <InterestRateChart
-              baseRate={IR_PARAMS.baseRate}
-              multiplier={IR_PARAMS.multiplier}
-              kink={IR_PARAMS.kink}
-              jumpMultiplier={IR_PARAMS.jumpMultiplier}
+              baseRate={detailParams.interestRateModel.baseRate}
+              multiplier={detailParams.interestRateModel.multiplier}
+              kink={detailParams.interestRateModel.kink}
+              jumpMultiplier={detailParams.interestRateModel.jumpMultiplier}
               currentUtilization={pool.utilization}
               height={280}
             />
             <div className="mt-4 flex flex-col gap-2">
-              {IR_TABLE.map((row) => (
+              {[
+                { label: 'Base Rate', value: `${(detailParams.interestRateModel.baseRate * 100).toFixed(2)}%` },
+                { label: 'Multiplier', value: detailParams.interestRateModel.multiplier.toFixed(2) },
+                { label: 'Kink', value: `${(detailParams.interestRateModel.kink * 100).toFixed(0)}%` },
+                { label: 'Jump Multiplier', value: detailParams.interestRateModel.jumpMultiplier.toFixed(2) },
+              ].map((row) => (
                 <div
                   key={row.label}
                   className="flex items-center justify-between text-sm"
@@ -634,7 +656,13 @@ export default function PoolDetailPage() {
           </CardHeader>
           <CardContent>
             <div className="flex flex-col gap-3">
-              {COLLATERAL_PARAMS.map((row) => (
+              {[
+                { label: 'Max LTV', value: `${(detailParams.collateralConfig.loanToValue * 100).toFixed(0)}%` },
+                { label: 'Liquidation Threshold', value: `${(detailParams.collateralConfig.liquidationThreshold * 100).toFixed(0)}%` },
+                { label: 'Liquidation Penalty', value: `${(detailParams.collateralConfig.liquidationPenalty * 100).toFixed(0)}%` },
+                { label: 'Borrow Cap', value: detailParams.collateralConfig.borrowCap > 0 ? formatUSD(detailParams.collateralConfig.borrowCap) : 'Unlimited' },
+                { label: 'Reserve Factor', value: '1.0%' },
+              ].map((row) => (
                 <div
                   key={row.label}
                   className="flex items-center justify-between text-sm"

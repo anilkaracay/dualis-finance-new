@@ -12,7 +12,6 @@ import {
   calculatePoolAPY,
   calculateMaxBorrowable,
   calculateHealthFactor,
-  getRateModel,
   getCollateralParams,
   type CollateralPositionInput,
   type DebtPositionInput,
@@ -21,6 +20,7 @@ import {
 import { randomUUID } from 'node:crypto';
 import * as compositeCreditService from './compositeCredit.service.js';
 import * as poolService from './pool.service.js';
+import * as registry from './poolRegistry.js';
 
 const log = createChildLogger('borrow-service');
 
@@ -32,33 +32,13 @@ function buildTransactionMeta(): TransactionMeta {
   };
 }
 
-// Hybrid collateral price map — includes crypto, project assets, and TIFA receivables
-const COLLATERAL_PRICES: Record<string, number> = {
-  USDC: 1.0,
-  ETH: 3_420,
-  wBTC: 62_450,
-  'T-BILL': 1.0,
-  'T-BILL-2026': 99.87,
-  CC: 2.30,
-  'CC-REC': 1.0,
-  SPY: 478.5,
-  'SPY-2026': 512.45,
-  'SOLAR-ASSET': 1.0,
-  'WIND-ASSET': 1.0,
-  'INFRA-ASSET': 1.0,
-  'TIFA-REC': 1.0,
-  'TIFA-INVOICE': 1.0,
-};
-
-// Pool asset symbol lookup
-const POOL_ASSETS: Record<string, string> = {
-  'usdc-main': 'USDC',
-  'wbtc-main': 'wBTC',
-  'eth-main': 'ETH',
-  'cc-main': 'CC',
-  'tbill-2026': 'T-BILL-2026',
-  'spy-2026': 'SPY-2026',
-};
+/**
+ * Resolve asset price — uses pool registry first, then known extras.
+ * New pools added at runtime are automatically covered.
+ */
+function getAssetPrice(symbol: string): number {
+  return registry.getAssetPriceMap()[symbol] ?? 1;
+}
 
 const MOCK_POSITIONS: BorrowPositionItem[] = [
   {
@@ -134,13 +114,14 @@ const MOCK_POSITIONS: BorrowPositionItem[] = [
 
 /**
  * Build CollateralPositionInput from raw collateral data.
+ * Prices are resolved dynamically from the pool registry.
  */
 function buildCollateralInputs(
   collateralAssets: Array<{ symbol: string; amount: string }>,
 ): CollateralPositionInput[] {
   return collateralAssets.map(a => {
     const params = getCollateralParams(a.symbol);
-    const price = COLLATERAL_PRICES[a.symbol] ?? 1;
+    const price = getAssetPrice(a.symbol);
     return {
       symbol: a.symbol,
       amount: parseFloat(a.amount),
@@ -175,10 +156,10 @@ export function requestBorrow(
   // 2. Build collateral position inputs with proper params
   const collateralInputs = buildCollateralInputs(params.collateralAssets);
 
-  // 3. Build debt for this borrow
+  // 3. Build debt for this borrow — derive asset from registry dynamically
   const borrowAmount = parseFloat(params.borrowAmount);
-  const poolAsset = POOL_ASSETS[params.lendingPoolId] ?? 'USDC';
-  const borrowPrice = COLLATERAL_PRICES[poolAsset] ?? 1;
+  const poolAsset = registry.getPoolAssetSymbol(params.lendingPoolId) ?? 'USDC';
+  const borrowPrice = getAssetPrice(poolAsset);
   const borrowAmountUSD = borrowAmount * borrowPrice;
 
   // 4. Check max borrowable using proper math
@@ -204,7 +185,7 @@ export function requestBorrow(
   }
 
   // 7. Calculate tier-adjusted borrow APY using real pool utilization
-  const model = getRateModel(poolAsset);
+  const model = registry.getPoolRateModel(params.lendingPoolId);
   let utilization = 0.72;
   try {
     const poolDetail = poolService.getPoolDetail(params.lendingPoolId);
@@ -280,7 +261,7 @@ export function addCollateral(
     throw new Error(`Position ${positionId} not found`);
   }
 
-  const addedValueUSD = parseFloat(asset.amount) * (COLLATERAL_PRICES[asset.symbol] ?? 1);
+  const addedValueUSD = parseFloat(asset.amount) * getAssetPrice(asset.symbol);
   const newCollateralValue = position.healthFactor.collateralValueUSD + addedValueUSD;
 
   return {

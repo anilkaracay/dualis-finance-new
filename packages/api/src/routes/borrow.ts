@@ -1,9 +1,11 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import type { ApiResponse, BorrowResponse, BorrowPositionItem, RepayResponse, AddCollateralResponse } from '@dualis/shared';
+import { getCollateralParams } from '@dualis/shared';
 import { AppError } from '../middleware/errorHandler.js';
 import { authMiddleware } from '../middleware/auth.js';
 import * as borrowService from '../services/borrow.service.js';
+import * as registry from '../services/poolRegistry.js';
 
 const positiveAmountString = z.string().min(1).refine((val) => {
   const num = parseFloat(val);
@@ -48,6 +50,23 @@ const addCollateralSchema = z.object({
 });
 
 export async function borrowRoutes(fastify: FastifyInstance): Promise<void> {
+  // GET /borrow/collateral-assets — dynamic list of collateral assets & prices
+  fastify.get('/borrow/collateral-assets', async (_request, reply) => {
+    const priceMap = registry.getAssetPriceMap();
+    const assets = Object.entries(priceMap).map(([symbol, priceUSD]) => {
+      const params = getCollateralParams(symbol);
+      return {
+        symbol,
+        priceUSD,
+        loanToValue: params?.loanToValue ?? 0.50,
+        liquidationThreshold: params?.liquidationThreshold ?? 0.60,
+        isCollateralEnabled: params?.isCollateralEnabled ?? true,
+      };
+    }).filter((a) => a.isCollateralEnabled);
+
+    return reply.status(200).send({ data: assets });
+  });
+
   // POST /borrow/request (auth)
   fastify.post(
     '/borrow/request',
