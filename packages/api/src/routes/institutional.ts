@@ -264,4 +264,39 @@ export async function institutionalRoutes(fastify: FastifyInstance): Promise<voi
       return reply.status(200).send(response);
     },
   );
+
+  // GET /institutional/api-keys (auth) — list API keys
+  fastify.get(
+    '/institutional/api-keys',
+    { preHandler: [authMiddleware] },
+    async (request, reply) => {
+      const partyId = request.user!.partyId;
+
+      // Return empty list — in production, this would query stored API keys via service
+      const response: ApiResponse<{
+        institutionParty: string;
+        keys: Array<{ id: string; name: string; keyPrefix: string; isActive: boolean; createdAt: string; expiresAt: string }>;
+      }> = {
+        data: {
+          institutionParty: partyId,
+          keys: [],
+        },
+      };
+
+      return reply.status(200).send(response);
+    },
+  );
+
+  // GET /institutional/risk-profile (auth) — alias for /institutional/risk-report
+  fastify.get(
+    '/institutional/risk-profile',
+    { preHandler: [authMiddleware] },
+    async (request, reply) => {
+      const partyId = request.user!.partyId;
+      const report = institutionalService.getRiskReport(partyId);
+
+      const response: ApiResponse<typeof report> = { data: report };
+      return reply.status(200).send(response);
+    },
+  );
 }

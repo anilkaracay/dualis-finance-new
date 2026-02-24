@@ -78,25 +78,30 @@ export function getScore(partyId: string): CreditScoreResponse {
   log.debug({ partyId }, 'Getting credit score');
 
   // Enrich with composite score data when available
-  const composite = compositeCreditService.getCompositeScore(partyId);
-  return {
-    ...MOCK_SCORE,
-    rawScore: composite.compositeScore,
-    creditTier: composite.tier,
-    tierBenefits: {
-      minCollateralRatio: composite.benefits.minCollateralRatio,
-      maxLTV: composite.benefits.maxLTV,
-      rateDiscount: composite.benefits.rateDiscount,
-    },
-    nextTier: composite.nextTier.pointsNeeded > 0
-      ? {
-          tier: composite.nextTier.name as CreditTier,
-          scoreRequired: composite.nextTier.threshold,
-          pointsNeeded: composite.nextTier.pointsNeeded,
-        }
-      : null,
-    lastUpdated: composite.lastCalculated,
-  };
+  try {
+    const composite = compositeCreditService.getCompositeScore(partyId);
+    return {
+      ...MOCK_SCORE,
+      rawScore: composite.compositeScore,
+      creditTier: composite.tier,
+      tierBenefits: {
+        minCollateralRatio: composite.benefits.minCollateralRatio,
+        maxLTV: composite.benefits.maxLTV,
+        rateDiscount: composite.benefits.rateDiscount,
+      },
+      nextTier: composite.nextTier.pointsNeeded > 0
+        ? {
+            tier: composite.nextTier.name as CreditTier,
+            scoreRequired: composite.nextTier.threshold,
+            pointsNeeded: composite.nextTier.pointsNeeded,
+          }
+        : null,
+      lastUpdated: composite.lastCalculated,
+    };
+  } catch (err) {
+    log.warn({ partyId, err }, 'Composite score unavailable, returning mock score');
+    return MOCK_SCORE;
+  }
 }
 
 export function getCompositeScoreForParty(partyId: string): CompositeScore {

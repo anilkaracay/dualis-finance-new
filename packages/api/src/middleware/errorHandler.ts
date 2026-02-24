@@ -78,6 +78,22 @@ export function globalErrorHandler(
     });
   }
 
+  // Rate limit errors from @fastify/rate-limit plugin
+  if (
+    'statusCode' in error && (error as any).statusCode === 429 ||
+    error.message?.includes('Rate limit exceeded')
+  ) {
+    log.warn({ requestId, message: error.message }, 'Rate limit exceeded');
+    return reply.status(429).send({
+      error: {
+        code: 'RATE_LIMITED',
+        message: error.message || 'Rate limit exceeded, please try again later',
+        requestId,
+        timestamp: new Date().toISOString(),
+      },
+    });
+  }
+
   // Unknown errors — capture in Sentry
   log.error({ err: error, requestId }, 'Unhandled error');
   captureException(error);

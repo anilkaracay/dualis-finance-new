@@ -67,8 +67,9 @@ const MOCK_POSITIONS: BorrowPositionItem[] = [
     healthFactor: {
       value: 1.85,
       collateralValueUSD: 92_925,
+      weightedCollateralValueUSD: 92_934.0,
       borrowValueUSD: 50_234.56,
-      weightedLTV: 0.54,
+      weightedLTV: 0.5406,
     },
     creditTier: 'Gold' as CreditTier,
     isLiquidatable: false,
@@ -89,6 +90,7 @@ const MOCK_POSITIONS: BorrowPositionItem[] = [
     healthFactor: {
       value: 2.12,
       collateralValueUSD: 87_006,
+      weightedCollateralValueUSD: 87_331.07,
       borrowValueUSD: 41_193.9,
       weightedLTV: 0.4735,
     },
@@ -111,6 +113,7 @@ const MOCK_POSITIONS: BorrowPositionItem[] = [
     healthFactor: {
       value: 1.35,
       collateralValueUSD: 272_551.5,
+      weightedCollateralValueUSD: 272_551.5,
       borrowValueUSD: 201_890,
       weightedLTV: 0.7407,
     },
@@ -153,10 +156,17 @@ export function requestBorrow(
   log.info({ partyId, params }, 'Processing borrow request');
 
   // 1. Get composite credit score for tier-based adjustments
-  const compositeScore = compositeCreditService.getCompositeScore(partyId);
-  const tier = compositeScore.tier;
-  const rateDiscount = compositeScore.benefits.rateDiscount;
-  const tierMaxLTV = compositeScore.benefits.maxLTV;
+  let tier: CreditTier = 'Unrated';
+  let rateDiscount = 0;
+  let tierMaxLTV = 0.65;
+  try {
+    const compositeScore = compositeCreditService.getCompositeScore(partyId);
+    tier = compositeScore.tier;
+    rateDiscount = compositeScore.benefits.rateDiscount;
+    tierMaxLTV = compositeScore.benefits.maxLTV;
+  } catch (err) {
+    log.warn({ partyId, err }, 'Failed to get composite score, using defaults');
+  }
 
   // 2. Build collateral position inputs with proper params
   const collateralInputs = buildCollateralInputs(params.collateralAssets);

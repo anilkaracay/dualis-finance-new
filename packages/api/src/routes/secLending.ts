@@ -174,4 +174,46 @@ export async function secLendingRoutes(fastify: FastifyInstance): Promise<void> 
       }
     }
   );
+
+  // GET /sec-lending/stats — Securities lending statistics
+  fastify.get('/sec-lending/stats', async (_request, reply) => {
+    const offers = secLendingService.listOffers({});
+    const totalOffers = offers.pagination.total;
+
+    // Calculate stats from mock deals (would be DB aggregation in production)
+    const allDeals = secLendingService.getDeals('__all__');
+    const totalDeals = allDeals.length;
+    const activeDeals = allDeals.filter((d) => d.status === 'Active').length;
+    const totalValueUSD = allDeals.reduce((sum, d) => sum + d.securityValueUSD, 0);
+    const totalFeeAccrued = allDeals.reduce((sum, d) => sum + d.feeAccrued, 0);
+    const avgCollateralRatio =
+      allDeals.length > 0
+        ? allDeals.reduce((sum, d) => sum + d.collateralRatio, 0) / allDeals.length
+        : 0;
+    const avgFeeRate =
+      offers.data.length > 0
+        ? offers.data.reduce((sum, o) => sum + o.feeStructure.value, 0) / offers.data.length
+        : 0;
+
+    const stats = {
+      totalOffers,
+      totalDeals,
+      activeDeals,
+      totalValueUSD,
+      totalFeeAccrued: Number(totalFeeAccrued.toFixed(2)),
+      avgFeeRate: Number(avgFeeRate.toFixed(4)),
+      avgCollateralRatio: Number(avgCollateralRatio.toFixed(4)),
+      assetBreakdown: {
+        equity: offers.data.filter((o) => o.security.type === 'TokenizedEquity').length,
+        bond: offers.data.filter((o) => o.security.type === 'TokenizedBond').length,
+        treasury: offers.data.filter((o) => o.security.type === 'TokenizedTreasury').length,
+      },
+    };
+
+    const response: ApiResponse<typeof stats> = {
+      data: stats,
+    };
+
+    return reply.status(200).send(response);
+  });
 }

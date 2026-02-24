@@ -5,25 +5,45 @@ import { AppError } from '../middleware/errorHandler.js';
 import { authMiddleware } from '../middleware/auth.js';
 import * as borrowService from '../services/borrow.service.js';
 
+const positiveAmountString = z.string().min(1).refine((val) => {
+  const num = parseFloat(val);
+  return !isNaN(num) && num > 0;
+}, { message: 'Amount must be a positive number' }).refine((val) => {
+  const num = parseFloat(val);
+  return num <= 1_000_000_000;
+}, { message: 'Amount exceeds maximum allowed value' });
+
 const borrowRequestSchema = z.object({
   lendingPoolId: z.string().min(1),
-  borrowAmount: z.string().min(1),
+  borrowAmount: positiveAmountString,
   collateralAssets: z.array(
     z.object({
       symbol: z.string().min(1),
-      amount: z.string().min(1),
+      amount: positiveAmountString,
     })
   ).min(1),
 });
 
 const repaySchema = z.object({
-  amount: z.string().min(1),
+  amount: z.string().min(1).refine((val) => {
+    const num = parseFloat(val);
+    return !isNaN(num) && num > 0;
+  }, { message: 'Amount must be a positive number' }).refine((val) => {
+    const num = parseFloat(val);
+    return num <= 1_000_000_000;
+  }, { message: 'Amount exceeds maximum allowed value' }),
 });
 
 const addCollateralSchema = z.object({
   asset: z.object({
     symbol: z.string().min(1),
-    amount: z.string().min(1),
+    amount: z.string().min(1).refine((val) => {
+      const num = parseFloat(val);
+      return !isNaN(num) && num > 0;
+    }, { message: 'Amount must be a positive number' }).refine((val) => {
+      const num = parseFloat(val);
+      return num <= 1_000_000_000;
+    }, { message: 'Amount exceeds maximum allowed value' }),
   }),
 });
 

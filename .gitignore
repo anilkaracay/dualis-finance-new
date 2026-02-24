@@ -61,6 +61,9 @@ deploy/canton/devnet.env
 # Vercel
 .vercel/
 
+# Process PIDs
+.pids/
+
 # Misc
 *.pem
 *.key

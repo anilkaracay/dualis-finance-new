@@ -217,4 +217,48 @@ export async function analyticsInstitutionalRoutes(fastify: FastifyInstance): Pr
     const response: ApiResponse<InstitutionalRiskMetrics> = { data: riskMetrics };
     return reply.status(200).send(response);
   });
+
+  // GET /analytics/export/csv — Export analytics as CSV
+  fastify.get('/analytics/export/csv', async (request, reply) => {
+    const userId = getUserId(request);
+    const typeSchema = z.object({
+      type: z.enum(['pool_history', 'user_transactions', 'tax_report', 'revenue']).optional().default('user_transactions'),
+      year: z.coerce.number().int().min(2020).max(2030).optional(),
+      poolId: z.string().optional(),
+    });
+    const parsed = typeSchema.safeParse(request.query);
+    const opts = parsed.success ? parsed.data : { type: 'user_transactions' as const };
+
+    const exportOpts: { year?: number; poolId?: string } = {};
+    if ('year' in opts && opts.year != null) exportOpts.year = opts.year;
+    if ('poolId' in opts && opts.poolId != null) exportOpts.poolId = opts.poolId;
+
+    const result = generateExport(opts.type, 'csv', userId, exportOpts);
+
+    reply.header('Content-Type', result.contentType);
+    reply.header('Content-Disposition', `attachment; filename="${result.fileName}"`);
+    return reply.status(200).send(result.content);
+  });
+
+  // GET /analytics/export/pdf — Export analytics as PDF (HTML)
+  fastify.get('/analytics/export/pdf', async (request, reply) => {
+    const userId = getUserId(request);
+    const typeSchema = z.object({
+      type: z.enum(['pool_history', 'user_transactions', 'tax_report', 'revenue']).optional().default('user_transactions'),
+      year: z.coerce.number().int().min(2020).max(2030).optional(),
+      poolId: z.string().optional(),
+    });
+    const parsed = typeSchema.safeParse(request.query);
+    const opts = parsed.success ? parsed.data : { type: 'user_transactions' as const };
+
+    const exportOpts: { year?: number; poolId?: string } = {};
+    if ('year' in opts && opts.year != null) exportOpts.year = opts.year;
+    if ('poolId' in opts && opts.poolId != null) exportOpts.poolId = opts.poolId;
+
+    const result = generateExport(opts.type, 'pdf', userId, exportOpts);
+
+    reply.header('Content-Type', result.contentType);
+    reply.header('Content-Disposition', `attachment; filename="${result.fileName}"`);
+    return reply.status(200).send(result.content);
+  });
 }

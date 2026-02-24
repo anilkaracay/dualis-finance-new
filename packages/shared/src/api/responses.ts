@@ -157,6 +157,7 @@ export interface WithdrawResponse {
 export interface HealthFactorResponse {
   value: number;
   collateralValueUSD: number;
+  weightedCollateralValueUSD?: number;
   borrowValueUSD: number;
   weightedLTV: number;
 }

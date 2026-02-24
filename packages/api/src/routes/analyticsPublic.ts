@@ -155,4 +155,64 @@ export async function analyticsPublicRoutes(fastify: FastifyInstance): Promise<v
     };
     return reply.status(200).send(response);
   });
+
+  // GET /analytics/protocol-health — Protocol health score (public)
+  fastify.get('/analytics/protocol-health', async (_request, reply) => {
+    const health = protocolHealth.getProtocolHealth();
+
+    const response: ApiResponse<typeof health> = {
+      data: health,
+    };
+
+    return reply.status(200).send(response);
+  });
+
+  // GET /analytics/snapshots — Recent analytics snapshots
+  fastify.get('/analytics/snapshots', async (request, reply) => {
+    const parsed = timeRangeSchema.safeParse(request.query);
+    const range = parsed.success ? (parsed.data.range as AnalyticsTimeRange) : '30d';
+
+    const allPools = poolAnalytics.getAllPoolAnalytics();
+    const health = protocolHealth.getProtocolHealth();
+
+    // Generate mock snapshots based on time range
+    const rangeConfig: Record<AnalyticsTimeRange, { points: number; stepMs: number }> = {
+      '7d': { points: 7, stepMs: 86_400_000 },
+      '30d': { points: 30, stepMs: 86_400_000 },
+      '90d': { points: 90, stepMs: 86_400_000 },
+      '1y': { points: 52, stepMs: 7 * 86_400_000 },
+    };
+    const cfg = rangeConfig[range];
+    const now = Date.now();
+    const snapshots: Array<{
+      timestamp: string;
+      tvlUsd: number;
+      totalSupplyUsd: number;
+      totalBorrowUsd: number;
+      healthScore: number;
+      avgUtilization: number;
+      poolCount: number;
+    }> = [];
+
+    const baseTvl = allPools.reduce((sum, p) => sum + p.tvlUsd, 0);
+    for (let i = cfg.points; i >= 0; i--) {
+      const trend = 1 + (cfg.points - i) / cfg.points * 0.06;
+      const noise = 1 + Math.sin(i * 0.2) * 0.015;
+      snapshots.push({
+        timestamp: new Date(now - i * cfg.stepMs).toISOString(),
+        tvlUsd: Number((baseTvl * trend * noise).toFixed(2)),
+        totalSupplyUsd: Number((baseTvl * 1.3 * trend * noise).toFixed(2)),
+        totalBorrowUsd: Number((baseTvl * 0.72 * trend * noise).toFixed(2)),
+        healthScore: Math.round(Math.min(100, Math.max(0, health.healthScore + Math.sin(i * 0.1) * 5))),
+        avgUtilization: Number((0.68 + Math.sin(i * 0.15) * 0.05).toFixed(4)),
+        poolCount: allPools.length,
+      });
+    }
+
+    const response: ApiResponse<typeof snapshots> = {
+      data: snapshots,
+    };
+
+    return reply.status(200).send(response);
+  });
 }

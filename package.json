@@ -14,7 +14,11 @@
     "docker:down": "docker compose down",
     "docker:dev": "docker compose -f docker-compose.yml -f docker-compose.dev.yml up",
     "docker:build": "docker compose build",
-    "docker:logs": "docker compose logs -f"
+    "docker:logs": "docker compose logs -f",
+    "start": "./scripts/start-all.sh",
+    "start:quick": "./scripts/start-all.sh --skip-monitoring --skip-daml",
+    "start:fresh": "./scripts/start-all.sh --fresh-db",
+    "stop": "./scripts/start-all.sh --stop"
   },
   "devDependencies": {
     "turbo": "^2.4.0",
