@@ -79,11 +79,11 @@ function NavItemLink({
     <Link
       href={item.href}
       className={cn(
-        'flex items-center gap-2 h-9 rounded-sm text-[13px] font-medium transition-colors duration-150',
+        'flex items-center gap-2 h-9 rounded-md text-[13px] font-medium transition-all duration-150',
         collapsed ? 'justify-center w-10 mx-auto' : 'px-3',
         active
-          ? 'bg-accent-teal-subtle text-accent-teal font-semibold'
-          : 'text-text-secondary hover:text-text-primary hover:bg-bg-hover'
+          ? 'bg-accent-teal-subtle text-accent-teal font-semibold active-indicator'
+          : 'text-text-secondary hover:text-text-primary hover:bg-bg-hover/60'
       )}
     >
       <item.icon
@@ -172,7 +172,7 @@ function Sidebar({ collapsed = false, onToggleCollapse, className }: SidebarProp
         {collapsed && onToggleCollapse && (
           <button
             onClick={onToggleCollapse}
-            className="absolute top-7 -right-3 z-10 flex items-center justify-center h-6 w-6 rounded-full bg-bg-secondary border border-border-default text-text-tertiary hover:text-text-primary hover:bg-bg-hover shadow-sm transition-colors duration-150"
+            className="absolute top-7 -right-3 z-10 flex items-center justify-center h-6 w-6 rounded-full bg-bg-tertiary border border-border-default text-text-tertiary hover:text-text-primary hover:bg-bg-hover shadow-sm transition-colors duration-150"
           >
             <ChevronLeft className="h-3 w-3 rotate-180" />
           </button>
@@ -183,7 +183,7 @@ function Sidebar({ collapsed = false, onToggleCollapse, className }: SidebarProp
           {navSections.map((section) => (
             <div key={section.label} className="mt-4 first:mt-2">
               {!collapsed && (
-                <div className="px-3 pb-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-text-disabled select-none">
+                <div className="px-3 pb-1.5 text-[10px] font-medium uppercase tracking-[0.1em] text-text-tertiary select-none">
                   {section.label}
                 </div>
               )}

@@ -3,17 +3,17 @@ import { cn } from '@/lib/utils/cn';
 import { Loader2 } from 'lucide-react';
 
 const buttonVariants = {
-  primary: 'bg-accent-teal text-white hover:bg-accent-teal-hover hover:shadow-glow-teal-sm shadow-sm',
-  secondary: 'bg-transparent text-text-primary border border-border-default hover:bg-bg-hover hover:border-border-hover',
-  ghost: 'text-text-secondary hover:text-text-primary hover:bg-bg-hover',
-  danger: 'bg-negative text-white hover:brightness-110 shadow-sm',
-  success: 'bg-positive text-white hover:brightness-110 shadow-sm',
+  primary: 'bg-accent-teal text-white hover:bg-accent-teal-hover hover:shadow-glow-teal-sm shadow-sm active:scale-[0.97]',
+  secondary: 'bg-transparent text-text-primary border border-border-default hover:bg-bg-hover hover:border-border-hover active:scale-[0.97]',
+  ghost: 'text-text-secondary hover:text-text-primary hover:bg-bg-hover/60 active:scale-[0.97]',
+  danger: 'bg-negative text-white hover:brightness-110 shadow-sm active:scale-[0.97]',
+  success: 'bg-positive text-white hover:brightness-110 shadow-sm active:scale-[0.97]',
 } as const;
 
 const buttonSizes = {
   sm: 'h-8 px-3 text-xs rounded-md gap-1.5',
-  md: 'h-9 px-4 text-[13px] rounded-md gap-2',
-  lg: 'h-11 px-5 text-sm rounded-md gap-2',
+  md: 'h-9 px-4 text-[13px] rounded-lg gap-2',
+  lg: 'h-11 px-5 text-sm rounded-lg gap-2',
   xl: 'h-12 px-6 text-base rounded-lg gap-2.5',
 } as const;
 

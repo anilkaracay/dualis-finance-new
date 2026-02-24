@@ -42,7 +42,7 @@ export default function ProductiveLendingPage() {
     <div className="space-y-8">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-text-primary tracking-tight">Productive Lending</h1>
+        <h1 className="text-xl font-bold text-text-primary tracking-tight">Productive Lending</h1>
         <Link href="/productive/apply">
           <Button variant="primary" size="md" icon={<Plus className="h-4 w-4" />}>
             Submit Project
@@ -129,7 +129,7 @@ export default function ProductiveLendingPage() {
 
         {/* ── Pools Tab ────────────────────────────────────────────────────── */}
         <TabsContent value="pools">
-          <div className="overflow-x-auto rounded-md border border-border-default bg-bg-tertiary">
+          <div className="overflow-x-auto rounded-lg border border-border-default bg-bg-tertiary shadow-card">
             <table className="w-full">
               <thead>
                 <tr className="border-b border-border-default">
@@ -219,7 +219,7 @@ export default function ProductiveLendingPage() {
 
         {/* ── Borrows Tab ──────────────────────────────────────────────────── */}
         <TabsContent value="borrows">
-          <div className="overflow-x-auto rounded-md border border-border-default bg-bg-tertiary">
+          <div className="overflow-x-auto rounded-lg border border-border-default bg-bg-tertiary shadow-card">
             <table className="w-full">
               <thead>
                 <tr className="border-b border-border-default">

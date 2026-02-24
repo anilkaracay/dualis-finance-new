@@ -969,7 +969,7 @@ export default function BorrowPage() {
   if (!isConnected) {
     return (
       <div className="space-y-8">
-        <h1 className="text-xl font-semibold text-text-primary tracking-tight">Borrow</h1>
+        <h1 className="text-xl font-bold text-text-primary tracking-tight">Borrow</h1>
         <Card>
           <CardContent>
             <div className="flex flex-col items-center gap-4 py-16">
@@ -988,7 +988,7 @@ export default function BorrowPage() {
   return (
     <div className="space-y-8">
       {/* Header */}
-      <h1 className="text-xl font-semibold text-text-primary tracking-tight">Borrow</h1>
+      <h1 className="text-xl font-bold text-text-primary tracking-tight">Borrow</h1>
 
       {/* Active Borrow Positions */}
       <section>

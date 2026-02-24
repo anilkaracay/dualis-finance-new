@@ -51,7 +51,7 @@ function KPICard({
 
   if (loading) {
     return (
-      <div className={cn('rounded-md bg-bg-tertiary border border-border-default p-5', className)}>
+      <div className={cn('rounded-lg bg-bg-tertiary border border-border-default p-5 shadow-card', className)}>
         <Skeleton variant="rect" height={10} width="35%" />
         <Skeleton variant="rect" height={size === 'lg' ? 44 : 32} width="65%" className="mt-3" />
         <Skeleton variant="rect" height={14} width="45%" className="mt-3" />
@@ -64,12 +64,12 @@ function KPICard({
 
   return (
     <div className={cn(
-      'rounded-md bg-bg-tertiary border border-border-default p-5 transition-all duration-150 hover:border-border-medium',
+      'relative rounded-lg bg-bg-tertiary border border-border-default p-5 transition-all duration-200 hover:border-border-medium hover-lift card-highlight shadow-card',
       className
     )}>
-      <span className="text-[11px] font-semibold uppercase tracking-widest text-text-tertiary">{label}</span>
+      <span className="text-[11px] font-medium uppercase tracking-widest text-text-tertiary">{label}</span>
 
-      <div className={cn('font-mono font-medium text-text-primary mt-2', config.valueClass)}>
+      <div className={cn('font-mono font-semibold text-text-primary mt-2 tracking-tight', config.valueClass)}>
         {prefix}{formattedValue}{suffix}
       </div>
 

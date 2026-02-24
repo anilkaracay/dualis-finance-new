@@ -71,7 +71,7 @@ function DualisAreaChart({
               className={cn(
                 'px-3 py-1 text-xs font-medium rounded-sm transition-colors',
                 range === timeRange
-                  ? 'bg-accent-teal-muted text-accent-teal'
+                  ? 'bg-accent-teal-muted text-accent-teal font-semibold'
                   : 'text-text-tertiary hover:text-text-primary hover:bg-bg-hover'
               )}
             >
@@ -84,12 +84,12 @@ function DualisAreaChart({
         <RechartsAreaChart data={data} margin={{ top: 4, right: 4, left: 4, bottom: 0 }}>
           <defs>
             <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor={color} stopOpacity={0.15} />
+              <stop offset="0%" stopColor={color} stopOpacity={0.20} />
               <stop offset="100%" stopColor={color} stopOpacity={0} />
             </linearGradient>
           </defs>
           <CartesianGrid
-            strokeDasharray="3 3"
+            strokeDasharray="4 6"
             stroke="var(--chart-grid)"
             vertical={false}
           />

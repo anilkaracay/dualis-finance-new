@@ -60,7 +60,7 @@ function SparklineChart({
       {showArea && (
         <defs>
           <linearGradient id={`sparkline-grad-${width}`} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={color} stopOpacity={0.15} />
+            <stop offset="0%" stopColor={color} stopOpacity={0.20} />
             <stop offset="100%" stopColor={color} stopOpacity={0} />
           </linearGradient>
         </defs>
@@ -72,7 +72,7 @@ function SparklineChart({
         d={pathD}
         fill="none"
         stroke={color}
-        strokeWidth={1.5}
+        strokeWidth={1.75}
         strokeLinecap="round"
         strokeLinejoin="round"
         style={animated ? {

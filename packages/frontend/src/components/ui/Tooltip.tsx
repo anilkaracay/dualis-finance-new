@@ -17,8 +17,8 @@ const TooltipContent = React.forwardRef<
       ref={ref}
       sideOffset={sideOffset}
       className={cn(
-        'z-50 overflow-hidden rounded-md bg-bg-tertiary px-3 py-1.5 text-xs text-text-primary shadow-md',
-        'animate-fade-in',
+        'z-50 overflow-hidden rounded-lg bg-bg-elevated border border-border-subtle px-3 py-1.5 text-xs text-text-primary shadow-md',
+        'animate-tooltip-in',
         className
       )}
       {...props}
@@ -47,7 +47,7 @@ function Tooltip({ content, children, side = 'top', className, delayDuration = 2
         <TooltipTrigger asChild>{children}</TooltipTrigger>
         <TooltipContent side={side} className={className}>
           {content}
-          <TooltipPrimitive.Arrow className="fill-bg-tertiary" />
+          <TooltipPrimitive.Arrow className="fill-bg-elevated" />
         </TooltipContent>
       </TooltipRoot>
     </TooltipProvider>

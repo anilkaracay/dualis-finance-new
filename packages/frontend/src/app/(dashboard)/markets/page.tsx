@@ -175,7 +175,7 @@ export default function MarketsPage() {
     <div className="flex flex-col gap-6">
       {/* Header Row with filters inline */}
       <div className="flex flex-wrap items-center gap-4">
-        <h1 className="text-xl font-semibold text-text-primary tracking-tight">Markets</h1>
+        <h1 className="text-xl font-bold text-text-primary tracking-tight">Markets</h1>
         <span className="text-sm text-text-tertiary font-mono">TVL {formatTVL(totalTVL)}</span>
 
         <div className="ml-auto flex flex-wrap items-center gap-3">
@@ -226,7 +226,7 @@ export default function MarketsPage() {
       </div>
 
       {/* Markets Table */}
-      <div className="overflow-x-auto rounded-md border border-border-default bg-bg-tertiary">
+      <div className="overflow-x-auto rounded-lg border border-border-default bg-bg-tertiary shadow-card">
         <table className="w-full">
           <thead>
             <tr className="border-b border-border-default backdrop-blur">

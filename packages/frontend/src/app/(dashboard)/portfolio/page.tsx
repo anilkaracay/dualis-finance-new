@@ -214,7 +214,7 @@ function PortfolioValueChart({
   }, [data, timeRange]);
 
   return (
-    <div className="rounded-md border border-border-default bg-bg-tertiary p-5">
+    <div className="rounded-lg border border-border-default bg-bg-tertiary p-5 shadow-card">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-label">Portfolio Value</h2>
         <TimeRangeSelector value={timeRange} onChange={onTimeRangeChange} />
@@ -242,7 +242,7 @@ function AssetAllocationCard({
 }) {
   if (segments.length === 0) {
     return (
-      <div className="rounded-md border border-border-default bg-bg-tertiary p-5">
+      <div className="rounded-lg border border-border-default bg-bg-tertiary p-5 shadow-card">
         <h2 className="text-label mb-4">Asset Allocation</h2>
         <div className="flex items-center justify-center py-12">
           <p className="text-text-tertiary text-sm">No positions to display</p>
@@ -252,7 +252,7 @@ function AssetAllocationCard({
   }
 
   return (
-    <div className="rounded-md border border-border-default bg-bg-tertiary p-5">
+    <div className="rounded-lg border border-border-default bg-bg-tertiary p-5 shadow-card">
       <h2 className="text-label mb-4">Asset Allocation</h2>
       <DonutChart
         segments={segments}
@@ -269,7 +269,7 @@ function PnlBreakdownCard({ breakdown }: { breakdown: PnlBreakdown[] }) {
   const totalUnrealized = breakdown.reduce((sum, b) => sum + b.unrealizedPnl, 0);
 
   return (
-    <div className="rounded-md border border-border-default bg-bg-tertiary p-5">
+    <div className="rounded-lg border border-border-default bg-bg-tertiary p-5 shadow-card">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-label">P&L Breakdown</h2>
         <div className="flex items-center gap-3">
@@ -287,7 +287,7 @@ function PnlBreakdownCard({ breakdown }: { breakdown: PnlBreakdown[] }) {
           </div>
         </div>
       </div>
-      <div className="overflow-hidden rounded-md border border-border-default">
+      <div className="overflow-hidden rounded-lg border border-border-default shadow-card">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border-default backdrop-blur">
@@ -386,14 +386,14 @@ function PositionsTable({
 
   if (unified.length === 0) {
     return (
-      <div className="flex flex-col items-center gap-3 rounded-md border border-border-default bg-bg-tertiary py-12">
+      <div className="flex flex-col items-center gap-3 rounded-lg border border-border-default bg-bg-tertiary py-12">
         <p className="text-text-tertiary text-sm">No positions found</p>
       </div>
     );
   }
 
   return (
-    <div className="overflow-x-auto rounded-md border border-border-default bg-bg-tertiary">
+    <div className="overflow-x-auto rounded-lg border border-border-default bg-bg-tertiary shadow-card">
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-border-default backdrop-blur">
@@ -495,14 +495,14 @@ function getTxTypeLabel(type: UserTransaction['type']): string {
 function RecentTransactionsTable({ transactions }: { transactions: UserTransaction[] }) {
   if (transactions.length === 0) {
     return (
-      <div className="flex items-center justify-center rounded-md border border-border-default bg-bg-tertiary py-12">
+      <div className="flex items-center justify-center rounded-lg border border-border-default bg-bg-tertiary py-12">
         <p className="text-text-tertiary text-sm">No transactions yet</p>
       </div>
     );
   }
 
   return (
-    <div className="overflow-x-auto rounded-md border border-border-default bg-bg-tertiary">
+    <div className="overflow-x-auto rounded-lg border border-border-default bg-bg-tertiary shadow-card">
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-border-default backdrop-blur">
@@ -676,7 +676,7 @@ export default function PortfolioPage() {
     <div className="space-y-8">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-text-primary tracking-tight">Portfolio</h1>
+        <h1 className="text-xl font-bold text-text-primary tracking-tight">Portfolio</h1>
         <ExportButtons />
       </div>
 
@@ -748,7 +748,7 @@ export default function PortfolioPage() {
 
       {/* Health Factor Overview */}
       {portfolio.avgHealthFactor !== null && (
-        <section className="rounded-md border border-border-default bg-bg-tertiary p-5">
+        <section className="rounded-lg border border-border-default bg-bg-tertiary p-5 shadow-card">
           <h2 className="text-label mb-4">Health Factor</h2>
           <div className="flex flex-col items-center gap-4 sm:flex-row sm:justify-around">
             <div className="flex flex-col items-center gap-2">

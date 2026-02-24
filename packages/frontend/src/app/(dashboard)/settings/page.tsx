@@ -142,7 +142,7 @@ export default function SettingsPage() {
   return (
     <div className="space-y-6">
       {/* Page header */}
-      <h1 className="text-xl font-semibold text-text-primary tracking-tight">Settings</h1>
+      <h1 className="text-xl font-bold text-text-primary tracking-tight">Settings</h1>
 
       {/* ------------------------------------------------------------------- */}
       {/* Appearance Card                                                      */}

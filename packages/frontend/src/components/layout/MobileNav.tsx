@@ -28,7 +28,7 @@ function MobileNav({ className }: MobileNavProps) {
   return (
     <nav
       className={cn(
-        'fixed bottom-0 left-0 right-0 z-50 flex items-center justify-around h-14 bg-bg-secondary/95 backdrop-blur-md border-t border-border-default md:hidden',
+        'fixed bottom-0 left-0 right-0 z-50 flex items-center justify-around h-14 bg-bg-secondary/90 backdrop-blur-lg border-t border-border-default md:hidden',
         'pb-[env(safe-area-inset-bottom)]',
         className
       )}

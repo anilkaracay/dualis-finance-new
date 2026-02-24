@@ -178,7 +178,7 @@ const SECURITY_OPTIONS = ['SPY-2026', 'T-BILL-2026', 'AAPL-2026', 'ETH', 'wBTC']
 
 function AvailableOffersTable({ offers }: { offers: MarketplaceOffer[] }) {
   return (
-    <div className="overflow-x-auto rounded-md border border-border-default bg-bg-tertiary">
+    <div className="overflow-x-auto rounded-lg border border-border-default bg-bg-tertiary shadow-card">
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-border-default backdrop-blur">
@@ -244,14 +244,14 @@ function MyDealsTable() {
 
   if (secLendingDeals.length === 0) {
     return (
-      <div className="flex flex-col items-center gap-3 rounded-md border border-border-default bg-bg-tertiary py-12">
+      <div className="flex flex-col items-center gap-3 rounded-lg border border-border-default bg-bg-tertiary py-12">
         <p className="text-text-tertiary text-sm">No active deals</p>
       </div>
     );
   }
 
   return (
-    <div className="overflow-x-auto rounded-md border border-border-default bg-bg-tertiary">
+    <div className="overflow-x-auto rounded-lg border border-border-default bg-bg-tertiary shadow-card">
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-border-default backdrop-blur">
@@ -316,14 +316,14 @@ function MyDealsTable() {
 function MyOffersTable({ offers }: { offers: MyOffer[] }) {
   if (offers.length === 0) {
     return (
-      <div className="flex flex-col items-center gap-3 rounded-md border border-border-default bg-bg-tertiary py-12">
+      <div className="flex flex-col items-center gap-3 rounded-lg border border-border-default bg-bg-tertiary py-12">
         <p className="text-text-tertiary text-sm">No offers posted</p>
       </div>
     );
   }
 
   return (
-    <div className="overflow-x-auto rounded-md border border-border-default bg-bg-tertiary">
+    <div className="overflow-x-auto rounded-lg border border-border-default bg-bg-tertiary shadow-card">
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-border-default backdrop-blur">
@@ -527,7 +527,7 @@ export default function SecLendingPage() {
     <div className="space-y-8">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-text-primary tracking-tight">Securities Lending</h1>
+        <h1 className="text-xl font-bold text-text-primary tracking-tight">Securities Lending</h1>
         <div className="flex items-center gap-3">
           <Link href="/sec-lending/netting">
             <Button variant="secondary" size="sm" icon={<ArrowRightLeft className="h-4 w-4" />}>

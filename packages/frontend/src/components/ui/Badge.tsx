@@ -11,7 +11,7 @@ const badgeVariants = {
 } as const;
 
 const badgeSizes = {
-  sm: 'text-[10px] px-1.5 py-0.5 rounded-full',
+  sm: 'text-[10px] px-2 py-0.5 rounded-full',
   md: 'text-xs px-2.5 py-0.5 rounded-full',
 } as const;
 

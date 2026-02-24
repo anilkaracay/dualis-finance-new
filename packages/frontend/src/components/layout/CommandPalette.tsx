@@ -57,7 +57,7 @@ function CommandPalette({ open, onOpenChange, onNavigate }: CommandPaletteProps)
             className="fixed left-1/2 top-[20%] z-50 w-full max-w-[640px] -translate-x-1/2"
           >
             <Command
-              className="rounded-lg border border-border-default bg-bg-tertiary shadow-xl overflow-hidden"
+              className="rounded-xl border border-border-default bg-bg-elevated shadow-xl overflow-hidden backdrop-blur-lg"
             >
               <div className="flex items-center gap-3 border-b border-border-default px-4">
                 <Search className="h-5 w-5 text-text-tertiary shrink-0" />
@@ -74,21 +74,21 @@ function CommandPalette({ open, onOpenChange, onNavigate }: CommandPaletteProps)
                 <Command.Group heading="Quick Actions" className="px-2 py-1.5 text-xs font-semibold text-text-tertiary uppercase tracking-wider">
                   <Command.Item
                     onSelect={() => handleSelect('/borrow')}
-                    className="flex items-center gap-3 h-11 px-3 rounded-sm text-sm text-text-primary cursor-pointer data-[selected=true]:bg-bg-hover"
+                    className="flex items-center gap-3 h-11 px-3 rounded-md text-sm text-text-primary cursor-pointer data-[selected=true]:bg-bg-hover"
                   >
                     <Zap className="h-4 w-4 text-accent-teal" />
                     Deposit Assets
                   </Command.Item>
                   <Command.Item
                     onSelect={() => handleSelect('/borrow')}
-                    className="flex items-center gap-3 h-11 px-3 rounded-sm text-sm text-text-primary cursor-pointer data-[selected=true]:bg-bg-hover"
+                    className="flex items-center gap-3 h-11 px-3 rounded-md text-sm text-text-primary cursor-pointer data-[selected=true]:bg-bg-hover"
                   >
                     <Wallet className="h-4 w-4 text-accent-indigo" />
                     Borrow
                   </Command.Item>
                   <Command.Item
                     onSelect={() => handleSelect('/borrow')}
-                    className="flex items-center gap-3 h-11 px-3 rounded-sm text-sm text-text-primary cursor-pointer data-[selected=true]:bg-bg-hover"
+                    className="flex items-center gap-3 h-11 px-3 rounded-md text-sm text-text-primary cursor-pointer data-[selected=true]:bg-bg-hover"
                   >
                     <Handshake className="h-4 w-4 text-warning" />
                     Repay Loan
@@ -98,19 +98,19 @@ function CommandPalette({ open, onOpenChange, onNavigate }: CommandPaletteProps)
                 <Command.Separator className="my-1 h-px bg-border-subtle" />
 
                 <Command.Group heading="Pages" className="px-2 py-1.5 text-xs font-semibold text-text-tertiary uppercase tracking-wider">
-                  <Command.Item onSelect={() => handleSelect('/overview')} className="flex items-center gap-3 h-11 px-3 rounded-sm text-sm text-text-primary cursor-pointer data-[selected=true]:bg-bg-hover">
+                  <Command.Item onSelect={() => handleSelect('/overview')} className="flex items-center gap-3 h-11 px-3 rounded-md text-sm text-text-primary cursor-pointer data-[selected=true]:bg-bg-hover">
                     <LayoutDashboard className="h-4 w-4 text-text-tertiary" />
                     Dashboard
                   </Command.Item>
-                  <Command.Item onSelect={() => handleSelect('/markets')} className="flex items-center gap-3 h-11 px-3 rounded-sm text-sm text-text-primary cursor-pointer data-[selected=true]:bg-bg-hover">
+                  <Command.Item onSelect={() => handleSelect('/markets')} className="flex items-center gap-3 h-11 px-3 rounded-md text-sm text-text-primary cursor-pointer data-[selected=true]:bg-bg-hover">
                     <TrendingUp className="h-4 w-4 text-text-tertiary" />
                     Markets
                   </Command.Item>
-                  <Command.Item onSelect={() => handleSelect('/credit')} className="flex items-center gap-3 h-11 px-3 rounded-sm text-sm text-text-primary cursor-pointer data-[selected=true]:bg-bg-hover">
+                  <Command.Item onSelect={() => handleSelect('/credit')} className="flex items-center gap-3 h-11 px-3 rounded-md text-sm text-text-primary cursor-pointer data-[selected=true]:bg-bg-hover">
                     <Star className="h-4 w-4 text-text-tertiary" />
                     Credit Score
                   </Command.Item>
-                  <Command.Item onSelect={() => handleSelect('/settings')} className="flex items-center gap-3 h-11 px-3 rounded-sm text-sm text-text-primary cursor-pointer data-[selected=true]:bg-bg-hover">
+                  <Command.Item onSelect={() => handleSelect('/settings')} className="flex items-center gap-3 h-11 px-3 rounded-md text-sm text-text-primary cursor-pointer data-[selected=true]:bg-bg-hover">
                     <Settings className="h-4 w-4 text-text-tertiary" />
                     Settings
                   </Command.Item>

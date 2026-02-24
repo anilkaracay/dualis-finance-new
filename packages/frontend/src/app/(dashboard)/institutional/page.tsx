@@ -48,7 +48,7 @@ export default function InstitutionalPage() {
     <div className="space-y-8">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-text-primary tracking-tight">
+        <h1 className="text-xl font-bold text-text-primary tracking-tight">
           Institutional
         </h1>
         {institution?.kybStatus !== 'Verified' && (

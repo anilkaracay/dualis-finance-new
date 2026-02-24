@@ -86,7 +86,7 @@ function DonutChart({
             fill="none"
             stroke="currentColor"
             strokeWidth={thickness}
-            className="text-bg-tertiary"
+            className="text-bg-hover"
           />
           {arcs.map((arc, i) => (
             <circle

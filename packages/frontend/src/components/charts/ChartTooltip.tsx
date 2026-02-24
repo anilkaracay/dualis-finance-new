@@ -27,7 +27,7 @@ function ChartTooltip({
   return (
     <div
       className={cn(
-        'rounded-md border border-border-default bg-bg-tertiary p-3 shadow-lg',
+        'rounded-lg border border-border-default bg-bg-elevated p-3 shadow-lg backdrop-blur-md',
         className
       )}
     >

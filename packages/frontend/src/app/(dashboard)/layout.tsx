@@ -85,7 +85,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       {/* Demo mode pill — bottom-right corner */}
       {protocol.isDemo && (
-        <div className="fixed bottom-4 right-4 z-50 px-3 py-1.5 rounded-full bg-warning/10 border border-warning/20 text-[10px] text-warning font-medium">
+        <div className="fixed bottom-4 right-4 z-50 px-3 py-1.5 rounded-full bg-warning/10 border border-warning/20 text-[10px] text-warning font-medium backdrop-blur-sm">
           Demo Mode
         </div>
       )}

@@ -228,7 +228,7 @@ export default function GovernancePage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-text-primary tracking-tight">Governance</h1>
+          <h1 className="text-xl font-bold text-text-primary tracking-tight">Governance</h1>
           <p className="mt-1 text-sm text-text-tertiary">DIP Proposals — vote on protocol changes</p>
         </div>
         <Link href="/governance/create">

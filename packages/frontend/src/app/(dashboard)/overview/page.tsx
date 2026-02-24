@@ -89,7 +89,7 @@ function KPIGrid({
   const sparklineEarned = useMemo(() => generateSparkline(7, 20, 2), []);
 
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
       {/* Net Worth */}
       <KPICard
         label="Net Worth"
@@ -175,7 +175,7 @@ function SupplyPositionsTable({
 
   if (positions.length === 0) {
     return (
-      <div className="flex flex-col items-center gap-3 rounded-md border border-border-default bg-bg-tertiary py-12">
+      <div className="flex flex-col items-center gap-3 rounded-lg border border-border-default bg-bg-tertiary py-12">
         <p className="text-text-tertiary text-sm">No supply positions yet</p>
         <Link
           href="/markets"
@@ -188,22 +188,22 @@ function SupplyPositionsTable({
   }
 
   return (
-    <div className="overflow-x-auto rounded-md border border-border-default bg-bg-tertiary">
+    <div className="overflow-x-auto rounded-lg border border-border-default bg-bg-tertiary shadow-card">
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-b border-border-default backdrop-blur">
-            <th className="text-label px-4 h-10 text-left">Asset</th>
-            <th className="text-label px-4 h-10 text-left">Pool</th>
-            <th className="text-label px-4 h-10 text-right">Deposited</th>
-            <th className="text-label px-4 h-10 text-right">APY</th>
-            <th className="text-label px-4 h-10 text-right">Status</th>
+          <tr className="border-b border-border-default bg-bg-secondary/40">
+            <th className="text-label px-4 h-9 text-left">Asset</th>
+            <th className="text-label px-4 h-9 text-left">Pool</th>
+            <th className="text-label px-4 h-9 text-right">Deposited</th>
+            <th className="text-label px-4 h-9 text-right">APY</th>
+            <th className="text-label px-4 h-9 text-right">Status</th>
           </tr>
         </thead>
         <tbody>
           {positions.map((pos) => (
             <tr
               key={pos.positionId}
-              className="border-b border-border-default last:border-b-0 h-14 hover:bg-bg-hover/50 transition-colors"
+              className="border-b border-border-default last:border-b-0 h-12 hover:bg-bg-hover/40 transition-colors duration-100"
             >
               <td className="px-4">
                 <div className="flex items-center gap-2">
@@ -257,23 +257,23 @@ function BorrowPositionsTable({
 
   if (positions.length === 0) {
     return (
-      <div className="flex flex-col items-center gap-3 rounded-md border border-border-default bg-bg-tertiary py-12">
+      <div className="flex flex-col items-center gap-3 rounded-lg border border-border-default bg-bg-tertiary py-12">
         <p className="text-text-tertiary text-sm">No active borrows</p>
       </div>
     );
   }
 
   return (
-    <div className="overflow-x-auto rounded-md border border-border-default bg-bg-tertiary">
+    <div className="overflow-x-auto rounded-lg border border-border-default bg-bg-tertiary shadow-card">
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-b border-border-default backdrop-blur">
-            <th className="text-label px-4 h-10 text-left">Asset</th>
-            <th className="text-label px-4 h-10 text-left">Pool</th>
-            <th className="text-label px-4 h-10 text-right">Debt</th>
-            <th className="text-label px-4 h-10 text-center">Health Factor</th>
-            <th className="text-label px-4 h-10 text-center">Credit Tier</th>
-            <th className="text-label px-4 h-10 text-right">Status</th>
+          <tr className="border-b border-border-default bg-bg-secondary/40">
+            <th className="text-label px-4 h-9 text-left">Asset</th>
+            <th className="text-label px-4 h-9 text-left">Pool</th>
+            <th className="text-label px-4 h-9 text-right">Debt</th>
+            <th className="text-label px-4 h-9 text-center">Health Factor</th>
+            <th className="text-label px-4 h-9 text-center">Credit Tier</th>
+            <th className="text-label px-4 h-9 text-right">Status</th>
           </tr>
         </thead>
         <tbody>
@@ -281,7 +281,7 @@ function BorrowPositionsTable({
             <tr
               key={pos.positionId}
               className={cn(
-                'border-b border-border-default last:border-b-0 h-14 hover:bg-bg-hover/50 transition-colors',
+                'border-b border-border-default last:border-b-0 h-12 hover:bg-bg-hover/40 transition-colors duration-100',
                 pos.healthFactor < 1.2 && 'bg-negative/5'
               )}
             >
@@ -345,29 +345,29 @@ function SecLendingDealsTable({
 
   if (deals.length === 0) {
     return (
-      <div className="flex flex-col items-center gap-3 rounded-md border border-border-default bg-bg-tertiary py-12">
+      <div className="flex flex-col items-center gap-3 rounded-lg border border-border-default bg-bg-tertiary py-12">
         <p className="text-text-tertiary text-sm">No active deals</p>
       </div>
     );
   }
 
   return (
-    <div className="overflow-x-auto rounded-md border border-border-default bg-bg-tertiary">
+    <div className="overflow-x-auto rounded-lg border border-border-default bg-bg-tertiary shadow-card">
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-b border-border-default backdrop-blur">
-            <th className="text-label px-4 h-10 text-left">Security</th>
-            <th className="text-label px-4 h-10 text-left">Role</th>
-            <th className="text-label px-4 h-10 text-right">Fee Accrued</th>
-            <th className="text-label px-4 h-10 text-center">Status</th>
-            <th className="text-label px-4 h-10 text-right">Day</th>
+          <tr className="border-b border-border-default bg-bg-secondary/40">
+            <th className="text-label px-4 h-9 text-left">Security</th>
+            <th className="text-label px-4 h-9 text-left">Role</th>
+            <th className="text-label px-4 h-9 text-right">Fee Accrued</th>
+            <th className="text-label px-4 h-9 text-center">Status</th>
+            <th className="text-label px-4 h-9 text-right">Day</th>
           </tr>
         </thead>
         <tbody>
           {deals.map((deal) => (
             <tr
               key={deal.dealId}
-              className="border-b border-border-default last:border-b-0 h-14 hover:bg-bg-hover/50 transition-colors"
+              className="border-b border-border-default last:border-b-0 h-12 hover:bg-bg-hover/40 transition-colors duration-100"
             >
               <td className="px-4">
                 <div className="flex items-center gap-2">
@@ -457,13 +457,13 @@ function PortfolioComposition({ segments, totalValue, isLoading }: PortfolioComp
 
       {/* Summary table */}
       <div className="w-full md:w-80">
-        <div className="overflow-hidden rounded-md border border-border-default bg-bg-tertiary">
+        <div className="overflow-hidden rounded-lg border border-border-default bg-bg-tertiary shadow-card">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-border-default backdrop-blur">
-                <th className="text-label px-4 h-10 text-left">Asset</th>
-                <th className="text-label px-4 h-10 text-right">Value</th>
-                <th className="text-label px-4 h-10 text-right">%</th>
+              <tr className="border-b border-border-default bg-bg-secondary/40">
+                <th className="text-label px-4 h-9 text-left">Asset</th>
+                <th className="text-label px-4 h-9 text-right">Value</th>
+                <th className="text-label px-4 h-9 text-right">%</th>
               </tr>
             </thead>
             <tbody>
@@ -568,7 +568,7 @@ export default function OverviewPage() {
   return (
     <div className="space-y-8">
       {/* 1. Page title */}
-      <h1 className="text-xl font-semibold text-text-primary tracking-tight">Overview</h1>
+      <h1 className="text-xl font-bold text-text-primary tracking-tight">Overview</h1>
 
       {/* 2. KPI Grid */}
       <section>
@@ -592,7 +592,7 @@ export default function OverviewPage() {
               className={cn(
                 'px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px',
                 positionTab === tab.key
-                  ? 'border-accent-teal text-text-primary'
+                  ? 'border-accent-teal text-accent-teal'
                   : 'border-transparent text-text-tertiary hover:text-text-secondary'
               )}
             >
@@ -625,10 +625,10 @@ export default function OverviewPage() {
       {/* 5. Quick Access — Innovation Shortcuts */}
       <section>
         <h2 className="text-label mb-4">Explore Innovations</h2>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 mt-1">
           <Link
             href="/productive"
-            className="group flex items-center gap-3 rounded-md border border-border-default bg-bg-tertiary p-4 transition-all duration-150 hover:border-border-medium hover:shadow-sm"
+            className="group relative flex items-center gap-3 rounded-lg border border-border-default bg-bg-tertiary p-4 transition-all duration-200 hover:border-border-medium hover-lift card-highlight shadow-card"
           >
             <Factory className="h-5 w-5 text-accent-teal" />
             <div className="flex-1">
@@ -640,7 +640,7 @@ export default function OverviewPage() {
 
           <Link
             href="/institutional"
-            className="group flex items-center gap-3 rounded-md border border-border-default bg-bg-tertiary p-4 transition-all duration-150 hover:border-border-medium hover:shadow-sm"
+            className="group relative flex items-center gap-3 rounded-lg border border-border-default bg-bg-tertiary p-4 transition-all duration-200 hover:border-border-medium hover-lift card-highlight shadow-card"
           >
             <Building2 className="h-5 w-5 text-accent-teal" />
             <div className="flex-1">
@@ -652,7 +652,7 @@ export default function OverviewPage() {
 
           <Link
             href="/credit/attestations"
-            className="group flex items-center gap-3 rounded-md border border-border-default bg-bg-tertiary p-4 transition-all duration-150 hover:border-border-medium hover:shadow-sm"
+            className="group relative flex items-center gap-3 rounded-lg border border-border-default bg-bg-tertiary p-4 transition-all duration-200 hover:border-border-medium hover-lift card-highlight shadow-card"
           >
             <Fingerprint className="h-5 w-5 text-accent-teal" />
             <div className="flex-1">
@@ -664,7 +664,7 @@ export default function OverviewPage() {
 
           <Link
             href="/settings/privacy"
-            className="group flex items-center gap-3 rounded-md border border-border-default bg-bg-tertiary p-4 transition-all duration-150 hover:border-border-medium hover:shadow-sm"
+            className="group relative flex items-center gap-3 rounded-lg border border-border-default bg-bg-tertiary p-4 transition-all duration-200 hover:border-border-medium hover-lift card-highlight shadow-card"
           >
             <ShieldCheck className="h-5 w-5 text-accent-teal" />
             <div className="flex-1">

@@ -35,11 +35,11 @@ const Card = forwardRef<HTMLDivElement, CardProps>(
       <div
         ref={ref}
         className={cn(
-          'rounded-md transition-all duration-150',
+          'rounded-lg transition-all duration-200',
           cardVariants[variant],
           cardPaddings[padding],
-          hoverable && 'hover:border-border-medium hover:shadow-sm',
-          clickable && 'cursor-pointer hover:border-border-medium hover:shadow-sm active:scale-[0.99]',
+          hoverable && 'hover:border-border-medium hover:shadow-card-hover hover:-translate-y-0.5',
+          clickable && 'cursor-pointer hover:border-border-medium hover:shadow-card-hover hover:-translate-y-0.5 active:scale-[0.98] active:translate-y-0',
           className
         )}
         {...props}

@@ -50,7 +50,7 @@ const Toast = React.forwardRef<
   <ToastPrimitive.Root
     ref={ref}
     className={cn(
-      'group pointer-events-auto relative flex w-full items-start gap-3 overflow-hidden rounded-md border p-4',
+      'group pointer-events-auto relative flex w-full items-start gap-3 overflow-hidden rounded-lg border p-4 backdrop-blur-md',
       'border border-border-default shadow-lg',
       'data-[state=open]:animate-slide-up data-[state=closed]:animate-fade-in',
       'data-[swipe=cancel]:translate-x-0 data-[swipe=end]:translate-x-[var(--radix-toast-swipe-end-x)]',

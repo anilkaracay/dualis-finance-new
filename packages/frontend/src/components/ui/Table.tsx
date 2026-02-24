@@ -121,10 +121,10 @@ function Table<T>({
     }
   };
 
-  const rowHeight = compact ? 'h-10' : 'h-14';
+  const rowHeight = compact ? 'h-9' : 'h-12';
 
   return (
-    <div className={cn('overflow-auto rounded-lg border border-border-default', className)}>
+    <div className={cn('overflow-auto rounded-lg border border-border-default shadow-card', className)}>
       <table
         ref={tableRef}
         className="w-full border-collapse"
@@ -133,12 +133,12 @@ function Table<T>({
         tabIndex={onRowClick ? 0 : undefined}
       >
         <thead className="sticky top-0 z-10">
-          <tr className="bg-transparent backdrop-blur-sm bg-bg-primary/80">
+          <tr className="bg-bg-secondary/90 backdrop-blur-md">
             {columns.map((col) => (
               <th
                 key={col.key}
                 className={cn(
-                  'h-11 px-4 text-left text-xs font-medium uppercase tracking-wider text-text-tertiary',
+                  'h-10 px-4 text-left text-[11px] font-semibold uppercase tracking-wider text-text-tertiary',
                   'border-b border-border-default',
                   col.numeric && 'text-right',
                   col.sortable && 'cursor-pointer select-none hover:text-text-primary transition-colors',
@@ -193,8 +193,8 @@ function Table<T>({
                   key={key}
                   className={cn(
                     rowHeight,
-                    'border-b border-border-subtle last:border-0 transition-colors',
-                    'hover:bg-bg-hover/50',
+                    'border-b border-border-subtle last:border-0 transition-colors duration-100',
+                    'hover:bg-bg-hover/40',
                     onRowClick && 'cursor-pointer',
                     focusedRow === rowIndex && 'bg-surface-selected',
                     activeRowKey === key && 'bg-surface-selected'
@@ -208,7 +208,7 @@ function Table<T>({
                     <td
                       key={col.key}
                       className={cn(
-                        'px-4 text-sm',
+                        'px-4 text-[13px]',
                         col.numeric && 'text-right font-mono-nums',
                         col.cellClassName
                       )}

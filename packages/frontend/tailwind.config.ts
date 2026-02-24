@@ -109,8 +109,9 @@ const config: Config = {
         lg: 'var(--shadow-lg)',
         xl: '0 20px 25px rgba(0,0,0,0.35), 0 8px 10px rgba(0,0,0,0.15)',
         glow: 'var(--shadow-glow)',
-        'glow-teal': '0 0 20px rgba(45,212,191,0.20), 0 0 60px rgba(45,212,191,0.05)',
-        'glow-teal-sm': '0 0 10px rgba(45,212,191,0.15)',
+        'glow-teal': '0 0 20px rgba(0,212,170,0.20), 0 0 60px rgba(0,212,170,0.06)',
+        'glow-teal-sm': '0 0 12px rgba(0,212,170,0.15)',
+        'glow-teal-lg': '0 0 40px rgba(0,212,170,0.25), 0 0 80px rgba(0,212,170,0.08)',
         'glow-danger': '0 0 20px rgba(248,113,113,0.25)',
         'glow-gold': '0 0 20px rgba(251,191,36,0.20)',
       },
@@ -125,6 +126,8 @@ const config: Config = {
         'scale-in': 'scaleIn 0.25s cubic-bezier(0.4,0,0.2,1)',
         'glow-pulse': 'glowPulse 2s ease-in-out infinite',
         'grid-shift': 'gridShift 20s linear infinite',
+        'tooltip-in': 'tooltipFadeIn 0.15s cubic-bezier(0.16,1,0.3,1)',
+        'card-entrance': 'cardEntrance 0.3s ease-out both',
       },
       keyframes: {
         shimmer: {
@@ -160,12 +163,20 @@ const config: Config = {
           to: { opacity: '1', transform: 'scale(1)' },
         },
         glowPulse: {
-          '0%, 100%': { boxShadow: '0 0 20px rgba(0,230,184,0.10)' },
-          '50%': { boxShadow: '0 0 40px rgba(0,230,184,0.20)' },
+          '0%, 100%': { boxShadow: '0 0 20px rgba(0,212,170,0.12)' },
+          '50%': { boxShadow: '0 0 40px rgba(0,212,170,0.25)' },
         },
         gridShift: {
           '0%': { backgroundPosition: '0 0' },
           '100%': { backgroundPosition: '60px 60px' },
+        },
+        tooltipFadeIn: {
+          from: { opacity: '0', transform: 'translateY(4px) scale(0.96)' },
+          to: { opacity: '1', transform: 'translateY(0) scale(1)' },
+        },
+        cardEntrance: {
+          from: { opacity: '0', transform: 'translateY(8px)' },
+          to: { opacity: '1', transform: 'translateY(0)' },
         },
       },
       backdropBlur: {

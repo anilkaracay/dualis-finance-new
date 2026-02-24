@@ -4,47 +4,47 @@
 
 /* ─── CSS Custom Properties (Dark Mode — Default) ─── */
 :root {
-  /* Backgrounds — zinc scale, layered depth */
-  --color-bg-primary: #09090B;
-  --color-bg-secondary: #0F0F12;
-  --color-bg-tertiary: #18181B;
-  --color-bg-elevated: #1C1C21;
-  --color-bg-hover: #27272A;
-  --color-bg-active: #2D2D33;
-  --color-bg-overlay: rgba(0, 0, 0, 0.60);
+  /* Backgrounds — deep navy, layered depth */
+  --color-bg-primary: #0A0E17;
+  --color-bg-secondary: #0D1320;
+  --color-bg-tertiary: #111827;
+  --color-bg-elevated: #1A2332;
+  --color-bg-hover: #1E293B;
+  --color-bg-active: #243044;
+  --color-bg-overlay: rgba(6,10,23,0.75);
 
   /* Surfaces (mapped to bg hierarchy) */
-  --color-surface-card: #18181B;
-  --color-surface-input: #18181B;
-  --color-surface-modal: #1C1C21;
-  --color-surface-glass: rgba(9,9,11,0.85);
-  --color-surface-selected: rgba(45,212,191,0.06);
+  --color-surface-card: #111827;
+  --color-surface-input: #0D1320;
+  --color-surface-modal: #1A2332;
+  --color-surface-glass: rgba(10,14,23,0.80);
+  --color-surface-selected: rgba(0,212,170,0.08);
 
-  /* Borders — barely there */
-  --color-border-default: rgba(255,255,255,0.06);
-  --color-border-subtle: rgba(255,255,255,0.04);
-  --color-border-hover: rgba(255,255,255,0.10);
-  --color-border-medium: rgba(255,255,255,0.10);
-  --color-border-strong: rgba(255,255,255,0.16);
-  --color-border-focus: #2DD4BF;
+  /* Borders — visible blue-gray */
+  --color-border-default: #1E293B;
+  --color-border-subtle: rgba(30,41,59,0.60);
+  --color-border-hover: #334155;
+  --color-border-medium: #334155;
+  --color-border-strong: #475569;
+  --color-border-focus: #00D4AA;
   --color-border-error: #F87171;
 
-  /* Text — refined hierarchy */
+  /* Text — blue-gray hierarchy */
   --color-text-primary: #FAFAFA;
-  --color-text-secondary: #A1A1AA;
-  --color-text-tertiary: #71717A;
-  --color-text-disabled: #52525B;
-  --color-text-inverse: #09090B;
+  --color-text-secondary: #94A3B8;
+  --color-text-tertiary: #64748B;
+  --color-text-disabled: #475569;
+  --color-text-inverse: #0A0E17;
 
-  /* Accent — teal, used sparingly */
-  --color-accent-teal: #2DD4BF;
-  --color-accent-teal-hover: #14B8A6;
-  --color-accent-teal-muted: rgba(45,212,191,0.12);
-  --color-accent-teal-glow: rgba(45,212,191,0.10);
-  --color-accent-teal-subtle: rgba(45,212,191,0.06);
-  --color-accent-indigo: #7C6FF7;
-  --color-accent-indigo-hover: #9B8FFF;
-  --color-accent-indigo-muted: rgba(124,111,247,0.12);
+  /* Accent — teal, brighter and more saturated */
+  --color-accent-teal: #00D4AA;
+  --color-accent-teal-hover: #00B894;
+  --color-accent-teal-muted: rgba(0,212,170,0.12);
+  --color-accent-teal-glow: rgba(0,212,170,0.15);
+  --color-accent-teal-subtle: rgba(0,212,170,0.08);
+  --color-accent-indigo: #818CF8;
+  --color-accent-indigo-hover: #A5B4FC;
+  --color-accent-indigo-muted: rgba(129,140,248,0.12);
   --color-accent-gold: #FBBF24;
   --color-accent-blue: #60A5FA;
 
@@ -63,39 +63,39 @@
   --color-tier-gold: #FBBF24;
   --color-tier-silver: #B8C4D4;
   --color-tier-bronze: #D4956A;
-  --color-tier-unrated: #71717A;
+  --color-tier-unrated: #64748B;
 
-  /* Shadows — subtle */
-  --shadow-card: none;
-  --shadow-card-hover: 0 1px 2px rgba(0,0,0,0.3);
-  --shadow-elevated: 0 8px 24px rgba(0,0,0,0.5);
+  /* Shadows — enhanced depth */
+  --shadow-card: 0 1px 3px rgba(0,0,0,0.3), 0 1px 2px rgba(0,0,0,0.2);
+  --shadow-card-hover: 0 4px 12px rgba(0,0,0,0.4), 0 0 0 1px rgba(0,212,170,0.05);
+  --shadow-elevated: 0 12px 40px rgba(0,0,0,0.5), 0 0 0 1px rgba(30,41,59,0.5);
   --shadow-sm: 0 1px 2px rgba(0,0,0,0.3);
   --shadow-md: 0 4px 12px rgba(0,0,0,0.4);
   --shadow-lg: 0 8px 24px rgba(0,0,0,0.5);
-  --shadow-glow: 0 0 20px rgba(45,212,191,0.1);
+  --shadow-glow: 0 0 30px rgba(0,212,170,0.12), 0 0 60px rgba(0,212,170,0.04);
 
   /* Glass */
-  --glass-bg: rgba(9,9,11,0.85);
+  --glass-bg: rgba(10,14,23,0.80);
   --glass-blur: 20px;
-  --glass-border: 1px solid rgba(255,255,255,0.06);
-  --color-glass: rgba(255,255,255,0.02);
-  --color-glass-hover: rgba(255,255,255,0.04);
-  --color-glass-active: rgba(255,255,255,0.06);
+  --glass-border: 1px solid rgba(30,41,59,0.80);
+  --color-glass: rgba(148,163,184,0.03);
+  --color-glass-hover: rgba(148,163,184,0.06);
+  --color-glass-active: rgba(148,163,184,0.08);
 
   /* Skeleton */
-  --skeleton-base: rgba(255,255,255,0.04);
-  --skeleton-shine: rgba(255,255,255,0.08);
+  --skeleton-base: rgba(30,41,59,0.40);
+  --skeleton-shine: rgba(30,41,59,0.60);
 
   /* Chart */
-  --chart-grid: rgba(255,255,255,0.04);
-  --chart-axis-text: #71717A;
-  --chart-axis-line: rgba(255,255,255,0.06);
-  --chart-tooltip-bg: #1C1C21;
+  --chart-grid: rgba(30,41,59,0.50);
+  --chart-axis-text: #64748B;
+  --chart-axis-line: rgba(30,41,59,0.60);
+  --chart-tooltip-bg: #1A2332;
   --chart-tooltip-text: #FAFAFA;
 
   /* Scrollbar */
-  --scrollbar-thumb: rgba(255,255,255,0.08);
-  --scrollbar-thumb-hover: rgba(255,255,255,0.14);
+  --scrollbar-thumb: rgba(100,116,139,0.25);
+  --scrollbar-thumb-hover: rgba(100,116,139,0.40);
 
   /* Typography — Plus Jakarta Sans as primary */
   --font-sans: var(--font-jakarta, 'Plus Jakarta Sans'), -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -124,6 +124,9 @@
   --sidebar-width: 240px;
   --sidebar-collapsed: 64px;
   --topbar-height: 56px;
+
+  /* Card highlight (glassmorphism top-edge) */
+  --card-highlight: linear-gradient(to right, rgba(0,212,170,0.08), rgba(129,140,248,0.08));
 
   color-scheme: dark;
 }
@@ -165,9 +168,9 @@
   /* Accent — darker for light bg */
   --color-accent-teal: #0D9488;
   --color-accent-teal-hover: #0F766E;
-  --color-accent-teal-muted: rgba(13,148,136,0.08);
-  --color-accent-teal-glow: rgba(13,148,136,0.08);
-  --color-accent-teal-subtle: rgba(13,148,136,0.04);
+  --color-accent-teal-muted: rgba(0,212,170,0.06);
+  --color-accent-teal-glow: rgba(0,212,170,0.06);
+  --color-accent-teal-subtle: rgba(0,212,170,0.04);
   --color-accent-indigo: #6C63F0;
   --color-accent-indigo-hover: #5B52E0;
   --color-accent-indigo-muted: rgba(108,99,240,0.08);
@@ -290,20 +293,20 @@ html.theme-transitioning *::after {
 
 /* ─── Gradient Utilities ─── */
 .bg-gradient-card {
-  background: linear-gradient(135deg, rgba(0,230,184,0.02) 0%, rgba(124,111,247,0.02) 100%);
+  background: linear-gradient(135deg, rgba(0,212,170,0.03) 0%, rgba(129,140,248,0.03) 100%);
 }
 
 .bg-gradient-hero {
   background:
-    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(0,230,184,0.08), transparent),
-    radial-gradient(ellipse 60% 40% at 80% 50%, rgba(124,111,247,0.05), transparent),
+    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(0,212,170,0.10), transparent),
+    radial-gradient(ellipse 60% 40% at 80% 50%, rgba(129,140,248,0.06), transparent),
     var(--color-bg-primary);
 }
 
 .bg-gradient-landing-section {
   background:
-    radial-gradient(ellipse 60% 30% at 20% 80%, rgba(0,230,184,0.04), transparent),
-    radial-gradient(ellipse 40% 30% at 80% 20%, rgba(124,111,247,0.03), transparent);
+    radial-gradient(ellipse 60% 30% at 20% 80%, rgba(0,212,170,0.04), transparent),
+    radial-gradient(ellipse 40% 30% at 80% 20%, rgba(129,140,248,0.03), transparent);
 }
 
 /* Grid mesh for landing hero */
@@ -316,11 +319,52 @@ html.theme-transitioning *::after {
 
 /* Glow effects */
 .border-glow-teal {
-  box-shadow: 0 0 0 1px var(--color-accent-teal-glow), 0 0 20px rgba(0,230,184,0.04);
+  box-shadow: 0 0 0 1px var(--color-accent-teal-glow), 0 0 24px rgba(0,212,170,0.06);
 }
 
 .border-glow-gold {
   box-shadow: 0 0 0 1px rgba(255,176,32,0.10), 0 0 15px rgba(255,176,32,0.05);
+}
+
+/* ─── Card Top-Edge Highlight (glassmorphism) ─── */
+.card-highlight {
+  position: relative;
+}
+.card-highlight::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: var(--card-highlight);
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+/* ─── Hover Lift ─── */
+.hover-lift {
+  transition: transform 200ms ease, box-shadow 200ms ease, border-color 200ms ease;
+}
+.hover-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-card-hover);
+}
+
+/* ─── Active Indicator Bar (Sidebar) ─── */
+.active-indicator {
+  position: relative;
+}
+.active-indicator::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 20px;
+  border-radius: 0 3px 3px 0;
+  background: var(--color-accent-teal);
 }
 
 /* ─── Scrollbar ─── */
@@ -393,6 +437,26 @@ html.theme-transitioning *::after {
 /* ─── Fill-mode for staggered animations ─── */
 .animate-fill-both {
   animation-fill-mode: both;
+}
+
+/* ─── Tooltip Fade-In ─── */
+@keyframes tooltipFadeIn {
+  from { opacity: 0; transform: translateY(4px) scale(0.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.animate-tooltip-in {
+  animation: tooltipFadeIn 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ─── Card Entrance ─── */
+@keyframes cardEntrance {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-card-entrance {
+  animation: cardEntrance 0.3s ease-out both;
 }
 
 /* ─── Reduced Motion ─── */
