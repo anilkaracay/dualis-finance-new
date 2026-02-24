@@ -145,6 +145,8 @@ export interface PoolHistoryPoint {
 export interface DepositResponse {
   poolContractId: string;
   positionContractId: string;
+  sharesReceived?: string;
+  amountDeposited?: string;
 }
 
 /** Withdraw response */

@@ -106,6 +106,24 @@ export const RATE_MODELS: Record<string, InterestRateModelConfig> = {
     jumpMultiplier: 0.18,
     reserveFactor: 0.10,
   },
+  'SPY-2026': {
+    type: 'VariableRate',
+    baseRate: 0.02,
+    multiplier: 0.05,
+    kink: 0.75,
+    jumpMultiplier: 0.18,
+    reserveFactor: 0.10,
+  },
+
+  // === T-BILL-2026 (Alias for T-BILL) ===
+  'T-BILL-2026': {
+    type: 'VariableRate',
+    baseRate: 0.04,
+    multiplier: 0.03,
+    kink: 0.90,
+    jumpMultiplier: 0.15,
+    reserveFactor: 0.05,
+  },
 };
 
 const USDC_FALLBACK: InterestRateModelConfig = {

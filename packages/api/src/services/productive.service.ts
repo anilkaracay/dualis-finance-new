@@ -277,7 +277,7 @@ const MOCK_BORROWS: ProductiveBorrow[] = [
     borrowId: 'pborrow-004',
     borrowerParty: 'party::alice::1',
     projectId: 'proj-001',
-    poolId: 'tbill-short',
+    poolId: 'tbill-2026',
     loanAmount: '2000000.00',
     outstandingDebt: '1200000.00',
     interestRate: 0.048,

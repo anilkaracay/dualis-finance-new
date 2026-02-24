@@ -136,18 +136,30 @@ export const useProtocolStore = create<ProtocolState & ProtocolActions>()((set) 
 
   fetchPools: () => {
     set({ isLoading: true, error: null });
-    // Simulate API call
-    setTimeout(() => {
-      set({ pools: MOCK_POOLS, isLoading: false, isDemo: true });
-    }, 500);
+    // Try API first, fall back to mock
+    import('@/lib/api/client')
+      .then(({ apiClient }) => apiClient.get<{ data: PoolListItem[] }>('/pools'))
+      .then((response) => {
+        const body = response.data;
+        const pools = Array.isArray(body) ? body : body?.data;
+        if (Array.isArray(pools) && pools.length > 0) {
+          set({ pools: pools.map(mapPoolListItemToPoolData), isLoading: false, isDemo: false });
+        } else {
+          set({ pools: MOCK_POOLS, isLoading: false, isDemo: true });
+        }
+      })
+      .catch(() => {
+        set({ pools: MOCK_POOLS, isLoading: false, isDemo: true });
+      });
   },
 
   fetchFromAPI: async () => {
     set({ isLoading: true, error: null });
     try {
       const { apiClient } = await import('@/lib/api/client');
-      const response = await apiClient.get<PoolListItem[]>('/pools');
-      const pools = response.data;
+      const response = await apiClient.get<{ data: PoolListItem[] }>('/pools');
+      const body = response.data;
+      const pools = Array.isArray(body) ? body : body?.data;
       if (Array.isArray(pools) && pools.length > 0) {
         set({
           pools: pools.map(mapPoolListItemToPoolData),

@@ -26,9 +26,9 @@ const POOL_RATE_MODELS: Record<string, InterestRateModelConfig> = {
   'usdc-main': getRateModel('USDC'),
   'wbtc-main': getRateModel('wBTC'),
   'eth-main': getRateModel('ETH'),
-  'cc-receivable': getRateModel('CC-REC'),
-  'tbill-short': getRateModel('T-BILL'),
-  'spy-equity': getRateModel('SPY'),
+  'cc-main': getRateModel('CC'),
+  'tbill-2026': getRateModel('T-BILL'),
+  'spy-2026': getRateModel('SPY'),
 };
 
 // ─── Pool State (mutable to support accrual simulation) ─────────────────────
@@ -84,40 +84,40 @@ const POOL_STATES: PoolState[] = [
     contractId: 'canton::pool::eth-main::003',
   },
   {
-    poolId: 'cc-receivable',
-    asset: { symbol: 'CC-REC', type: 'TokenizedReceivable', priceUSD: 1.0 },
+    poolId: 'cc-main',
+    asset: { symbol: 'CC', type: 'CryptoCurrency', priceUSD: 2.30 },
     totalSupply: 89_000_000,
-    totalBorrow: 67_400_000,
-    totalReserves: 1_780_000,
+    totalBorrow: 34_200_000,
+    totalReserves: 890_000,
     borrowIndex: 1.0,
     supplyIndex: 1.0,
     lastAccrualTs: Math.floor(Date.now() / 1000) - 300,
     isActive: true,
-    contractId: 'canton::pool::cc-receivable::004',
+    contractId: 'canton::pool::cc-main::004',
   },
   {
-    poolId: 'tbill-short',
-    asset: { symbol: 'T-BILL', type: 'TokenizedTreasury', priceUSD: 1.0 },
+    poolId: 'tbill-2026',
+    asset: { symbol: 'T-BILL-2026', type: 'TokenizedTreasury', priceUSD: 99.87 },
     totalSupply: 320_000_000,
-    totalBorrow: 198_400_000,
-    totalReserves: 6_400_000,
+    totalBorrow: 245_000_000,
+    totalReserves: 3_200_000,
     borrowIndex: 1.0,
     supplyIndex: 1.0,
     lastAccrualTs: Math.floor(Date.now() / 1000) - 300,
     isActive: true,
-    contractId: 'canton::pool::tbill-short::005',
+    contractId: 'canton::pool::tbill-2026::005',
   },
   {
-    poolId: 'spy-equity',
-    asset: { symbol: 'SPY', type: 'TokenizedEquity', priceUSD: 478.5 },
-    totalSupply: 326_000,
-    totalBorrow: 142_800,
-    totalReserves: 4_890,
+    poolId: 'spy-2026',
+    asset: { symbol: 'SPY-2026', type: 'TokenizedEquity', priceUSD: 512.45 },
+    totalSupply: 156_000_000,
+    totalBorrow: 89_400_000,
+    totalReserves: 1_560_000,
     borrowIndex: 1.0,
     supplyIndex: 1.0,
     lastAccrualTs: Math.floor(Date.now() / 1000) - 300,
     isActive: true,
-    contractId: 'canton::pool::spy-equity::006',
+    contractId: 'canton::pool::spy-2026::006',
   },
 ];
 
@@ -303,16 +303,29 @@ export function getPoolHistory(poolId: string, period: string): PoolHistoryPoint
 export function deposit(
   poolId: string,
   _partyId: string,
-  _amount: string,
+  amount: string,
 ): { data: DepositResponse; transaction: TransactionMeta } {
-  log.info({ poolId, _partyId, _amount }, 'Processing deposit');
+  log.info({ poolId, _partyId, amount }, 'Processing deposit');
   const pool = POOL_STATES.find((p) => p.poolId === poolId);
   if (!pool) throw new Error(`Pool ${poolId} not found`);
+
+  // Accrue interest before modifying state
+  accruePoolInterest(pool);
+
+  const amountNum = parseFloat(amount);
+  if (isNaN(amountNum) || amountNum <= 0) throw new Error('Invalid deposit amount');
+
+  // Update pool supply state
+  pool.totalSupply += amountNum;
+
+  const shares = amountNum / (pool.supplyIndex || 1);
 
   return {
     data: {
       poolContractId: pool.contractId,
       positionContractId: `canton::position::${poolId}-${randomUUID().slice(0, 8)}`,
+      sharesReceived: shares.toFixed(6),
+      amountDeposited: amountNum.toFixed(6),
     },
     transaction: buildTransactionMeta(),
   };
@@ -327,10 +340,22 @@ export function withdraw(
   const pool = POOL_STATES.find((p) => p.poolId === poolId);
   if (!pool) throw new Error(`Pool ${poolId} not found`);
 
+  // Accrue interest before modifying state
+  accruePoolInterest(pool);
+
   const sharesNum = parseFloat(shares);
+  if (isNaN(sharesNum) || sharesNum <= 0) throw new Error('Invalid withdrawal amount');
+
+  const withdrawnAmount = sharesNum * (pool.supplyIndex || 1);
+  const available = pool.totalSupply - pool.totalBorrow;
+  if (withdrawnAmount > available) throw new Error('Insufficient liquidity for withdrawal');
+
+  // Update pool supply state
+  pool.totalSupply -= withdrawnAmount;
+
   return {
     data: {
-      withdrawnAmount: (sharesNum * (pool.supplyIndex || 1.0023)).toFixed(6),
+      withdrawnAmount: withdrawnAmount.toFixed(6),
       remainingShares: 0,
     },
     transaction: buildTransactionMeta(),

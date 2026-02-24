@@ -20,6 +20,7 @@ import {
 } from '@dualis/shared';
 import { randomUUID } from 'node:crypto';
 import * as compositeCreditService from './compositeCredit.service.js';
+import * as poolService from './pool.service.js';
 
 const log = createChildLogger('borrow-service');
 
@@ -37,8 +38,11 @@ const COLLATERAL_PRICES: Record<string, number> = {
   ETH: 3_420,
   wBTC: 62_450,
   'T-BILL': 1.0,
+  'T-BILL-2026': 99.87,
+  CC: 2.30,
   'CC-REC': 1.0,
   SPY: 478.5,
+  'SPY-2026': 512.45,
   'SOLAR-ASSET': 1.0,
   'WIND-ASSET': 1.0,
   'INFRA-ASSET': 1.0,
@@ -51,9 +55,9 @@ const POOL_ASSETS: Record<string, string> = {
   'usdc-main': 'USDC',
   'wbtc-main': 'wBTC',
   'eth-main': 'ETH',
-  'cc-receivable': 'CC-REC',
-  'tbill-short': 'T-BILL',
-  'spy-equity': 'SPY',
+  'cc-main': 'CC',
+  'tbill-2026': 'T-BILL-2026',
+  'spy-2026': 'SPY-2026',
 };
 
 const MOCK_POSITIONS: BorrowPositionItem[] = [
@@ -105,8 +109,8 @@ const MOCK_POSITIONS: BorrowPositionItem[] = [
   },
   {
     positionId: 'borrow-pos-003',
-    lendingPoolId: 'tbill-short',
-    borrowedAsset: { symbol: 'T-BILL', type: 'TokenizedTreasury', priceUSD: 1.0 },
+    lendingPoolId: 'tbill-2026',
+    borrowedAsset: { symbol: 'T-BILL-2026', type: 'TokenizedTreasury', priceUSD: 99.87 },
     borrowedAmountPrincipal: 200_000,
     currentDebt: 201_890,
     interestAccrued: 1_890,
@@ -199,9 +203,13 @@ export function requestBorrow(
     throw new Error(`HEALTH_FACTOR_TOO_LOW: Projected HF: ${previewHF.value.toFixed(2)} (min: 1.20)`);
   }
 
-  // 7. Calculate tier-adjusted borrow APY
+  // 7. Calculate tier-adjusted borrow APY using real pool utilization
   const model = getRateModel(poolAsset);
-  const utilization = 0.72; // would come from pool state in production
+  let utilization = 0.72;
+  try {
+    const poolDetail = poolService.getPoolDetail(params.lendingPoolId);
+    utilization = poolDetail.utilization;
+  } catch { /* use default */ }
   const borrowAPY = calculatePoolAPY(model, utilization, 'borrow', rateDiscount);
 
   log.debug(

@@ -115,6 +115,26 @@ export const COLLATERAL_PARAMS: Record<string, CollateralParamsConfig> = {
     isBorrowEnabled: true,
     collateralTier: 'crypto',
   },
+  'T-BILL-2026': {
+    loanToValue: 0.85,
+    liquidationThreshold: 0.90,
+    liquidationPenalty: 0.03,
+    borrowCap: 200_000_000,
+    supplyCap: 500_000_000,
+    isCollateralEnabled: true,
+    isBorrowEnabled: true,
+    collateralTier: 'rwa',
+  },
+  'SPY-2026': {
+    loanToValue: 0.65,
+    liquidationThreshold: 0.75,
+    liquidationPenalty: 0.06,
+    borrowCap: 50_000_000,
+    supplyCap: 100_000_000,
+    isCollateralEnabled: true,
+    isBorrowEnabled: true,
+    collateralTier: 'crypto',
+  },
 };
 
 /**
