@@ -25,6 +25,7 @@ import { AreaChart, type TimeRange } from '@/components/charts/AreaChart';
 import { InterestRateChart } from '@/components/charts/InterestRateChart';
 import { useProtocolStore } from '@/stores/useProtocolStore';
 import { useWalletStore } from '@/stores/useWalletStore';
+import { useDeposit, useWithdraw } from '@/hooks/api';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -138,6 +139,11 @@ export default function PoolDetailPage() {
   const [withdrawAmount, setWithdrawAmount] = useState('');
   const [chartTab, setChartTab] = useState<ChartTab>('supplyAPY');
   const [timeRange, setTimeRange] = useState<TimeRange>('30d');
+  const [depositSuccess, setDepositSuccess] = useState(false);
+  const [withdrawSuccess, setWithdrawSuccess] = useState(false);
+
+  const depositMutation = useDeposit();
+  const withdrawMutation = useWithdraw();
 
   useEffect(() => {
     fetchPools();
@@ -191,6 +197,26 @@ export default function PoolDetailPage() {
   const handleTimeRangeChange = useCallback((range: TimeRange) => {
     setTimeRange(range);
   }, []);
+
+  const handleDeposit = useCallback(async () => {
+    if (!poolId || estimatedShares <= 0) return;
+    try {
+      await depositMutation.execute(poolId, { amount: depositAmount });
+      setDepositSuccess(true);
+    } catch {
+      // error state is captured by depositMutation.error
+    }
+  }, [poolId, depositAmount, estimatedShares, depositMutation]);
+
+  const handleWithdraw = useCallback(async () => {
+    if (!poolId || !withdrawAmount) return;
+    try {
+      await withdrawMutation.execute(poolId, { shares: withdrawAmount });
+      setWithdrawSuccess(true);
+    } catch {
+      // error state is captured by withdrawMutation.error
+    }
+  }, [poolId, withdrawAmount, withdrawMutation]);
 
   // ─── Loading State ────────────────────────────────────────────────────────
 
@@ -350,43 +376,67 @@ export default function PoolDetailPage() {
                         </DialogDescription>
                       </DialogHeader>
 
-                      <div className="flex flex-col gap-4">
-                        <Input
-                          label="Amount"
-                          type="number"
-                          placeholder="0.00"
-                          value={depositAmount}
-                          onChange={(e) => setDepositAmount(e.target.value)}
-                          iconRight={
-                            <button
-                              onClick={() => setDepositAmount('10000')}
-                              className="text-xs font-medium text-accent-teal hover:text-accent-teal-hover"
-                            >
-                              Max
-                            </button>
-                          }
-                        />
-
-                        <div className="flex items-center justify-between rounded-md bg-bg-tertiary px-3 py-2 text-sm">
-                          <span className="text-text-tertiary">You will receive</span>
-                          <span className="font-mono tabular-nums text-text-primary">
-                            ~{estimatedShares.toLocaleString('en-US', { maximumFractionDigits: 2 })} shares
-                          </span>
+                      {depositSuccess ? (
+                        <div className="flex flex-col items-center gap-4 py-8">
+                          <div className="h-12 w-12 rounded-full bg-positive/20 flex items-center justify-center">
+                            <svg className="h-6 w-6 text-positive" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                            </svg>
+                          </div>
+                          <p className="text-text-primary font-semibold">Deposit submitted!</p>
+                          <p className="text-text-secondary text-sm">
+                            Deposited {depositAmount} {pool.symbol}
+                          </p>
+                          <DialogClose asChild>
+                            <Button variant="secondary" size="sm" onClick={() => { setDepositAmount(''); setDepositSuccess(false); depositMutation.reset(); }}>Close</Button>
+                          </DialogClose>
                         </div>
-                      </div>
+                      ) : (
+                        <>
+                          <div className="flex flex-col gap-4">
+                            <Input
+                              label="Amount"
+                              type="number"
+                              placeholder="0.00"
+                              value={depositAmount}
+                              onChange={(e) => setDepositAmount(e.target.value)}
+                              iconRight={
+                                <button
+                                  onClick={() => setDepositAmount('10000')}
+                                  className="text-xs font-medium text-accent-teal hover:text-accent-teal-hover"
+                                >
+                                  Max
+                                </button>
+                              }
+                            />
 
-                      <DialogFooter>
-                        <DialogClose asChild>
-                          <Button variant="ghost" size="sm">Cancel</Button>
-                        </DialogClose>
-                        <Button
-                          variant="primary"
-                          size="sm"
-                          disabled={estimatedShares <= 0}
-                        >
-                          Confirm Deposit
-                        </Button>
-                      </DialogFooter>
+                            <div className="flex items-center justify-between rounded-md bg-bg-tertiary px-3 py-2 text-sm">
+                              <span className="text-text-tertiary">You will receive</span>
+                              <span className="font-mono tabular-nums text-text-primary">
+                                ~{estimatedShares.toLocaleString('en-US', { maximumFractionDigits: 2 })} shares
+                              </span>
+                            </div>
+
+                            {depositMutation.error && (
+                              <p className="text-sm text-negative">{depositMutation.error}</p>
+                            )}
+                          </div>
+
+                          <DialogFooter>
+                            <DialogClose asChild>
+                              <Button variant="ghost" size="sm">Cancel</Button>
+                            </DialogClose>
+                            <Button
+                              variant="primary"
+                              size="sm"
+                              disabled={estimatedShares <= 0 || depositMutation.isLoading}
+                              onClick={handleDeposit}
+                            >
+                              {depositMutation.isLoading ? 'Processing...' : 'Confirm Deposit'}
+                            </Button>
+                          </DialogFooter>
+                        </>
+                      )}
                     </DialogContent>
                   </Dialog>
 
@@ -409,39 +459,67 @@ export default function PoolDetailPage() {
                         </DialogDescription>
                       </DialogHeader>
 
-                      <div className="flex flex-col gap-4">
-                        <Input
-                          label="Amount"
-                          type="number"
-                          placeholder="0.00"
-                          value={withdrawAmount}
-                          onChange={(e) => setWithdrawAmount(e.target.value)}
-                          iconRight={
-                            <button
-                              onClick={() => setWithdrawAmount('0')}
-                              className="text-xs font-medium text-accent-teal hover:text-accent-teal-hover"
-                            >
-                              Max
-                            </button>
-                          }
-                        />
-
-                        <div className="flex items-center justify-between rounded-md bg-bg-tertiary px-3 py-2 text-sm">
-                          <span className="text-text-tertiary">Available to withdraw</span>
-                          <span className="font-mono tabular-nums text-text-primary">
-                            0.00 {pool.symbol}
-                          </span>
+                      {withdrawSuccess ? (
+                        <div className="flex flex-col items-center gap-4 py-8">
+                          <div className="h-12 w-12 rounded-full bg-positive/20 flex items-center justify-center">
+                            <svg className="h-6 w-6 text-positive" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                            </svg>
+                          </div>
+                          <p className="text-text-primary font-semibold">Withdrawal submitted!</p>
+                          <p className="text-text-secondary text-sm">
+                            Withdrawing {withdrawAmount} shares of {pool.symbol}
+                          </p>
+                          <DialogClose asChild>
+                            <Button variant="secondary" size="sm" onClick={() => { setWithdrawAmount(''); setWithdrawSuccess(false); withdrawMutation.reset(); }}>Close</Button>
+                          </DialogClose>
                         </div>
-                      </div>
+                      ) : (
+                        <>
+                          <div className="flex flex-col gap-4">
+                            <Input
+                              label="Amount"
+                              type="number"
+                              placeholder="0.00"
+                              value={withdrawAmount}
+                              onChange={(e) => setWithdrawAmount(e.target.value)}
+                              iconRight={
+                                <button
+                                  onClick={() => setWithdrawAmount('0')}
+                                  className="text-xs font-medium text-accent-teal hover:text-accent-teal-hover"
+                                >
+                                  Max
+                                </button>
+                              }
+                            />
 
-                      <DialogFooter>
-                        <DialogClose asChild>
-                          <Button variant="ghost" size="sm">Cancel</Button>
-                        </DialogClose>
-                        <Button variant="primary" size="sm" disabled>
-                          Confirm Withdraw
-                        </Button>
-                      </DialogFooter>
+                            <div className="flex items-center justify-between rounded-md bg-bg-tertiary px-3 py-2 text-sm">
+                              <span className="text-text-tertiary">Available to withdraw</span>
+                              <span className="font-mono tabular-nums text-text-primary">
+                                0.00 {pool.symbol}
+                              </span>
+                            </div>
+
+                            {withdrawMutation.error && (
+                              <p className="text-sm text-negative">{withdrawMutation.error}</p>
+                            )}
+                          </div>
+
+                          <DialogFooter>
+                            <DialogClose asChild>
+                              <Button variant="ghost" size="sm">Cancel</Button>
+                            </DialogClose>
+                            <Button
+                              variant="primary"
+                              size="sm"
+                              disabled={!withdrawAmount || parseFloat(withdrawAmount) <= 0 || withdrawMutation.isLoading}
+                              onClick={handleWithdraw}
+                            >
+                              {withdrawMutation.isLoading ? 'Processing...' : 'Confirm Withdraw'}
+                            </Button>
+                          </DialogFooter>
+                        </>
+                      )}
                     </DialogContent>
                   </Dialog>
                 </div>

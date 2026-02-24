@@ -23,6 +23,7 @@ import { usePositionStore } from '@/stores/usePositionStore';
 import { useProtocolStore } from '@/stores/useProtocolStore';
 import { useWalletStore } from '@/stores/useWalletStore';
 import type { CreditTier } from '@dualis/shared';
+import { useRepay, useAddCollateral, useBorrow } from '@/hooks/api';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -108,6 +109,7 @@ function RepayDialog({
 }) {
   const [repayAmount, setRepayAmount] = useState('');
   const [submitted, setSubmitted] = useState(false);
+  const repayMutation = useRepay();
 
   const repayValue = parseFloat(repayAmount) || 0;
   const repayPercent = position.currentDebt > 0 ? repayValue / position.currentDebt : 0;
@@ -117,19 +119,25 @@ function RepayDialog({
     setRepayAmount(position.currentDebt.toString());
   }, [position.currentDebt]);
 
-  const handleConfirm = useCallback(() => {
-    setSubmitted(true);
-  }, []);
+  const handleConfirm = useCallback(async () => {
+    try {
+      await repayMutation.execute(position.positionId, { amount: repayAmount });
+      setSubmitted(true);
+    } catch {
+      // error captured by repayMutation.error
+    }
+  }, [position.positionId, repayAmount, repayMutation]);
 
   const handleOpenChange = useCallback(
     (value: boolean) => {
       if (!value) {
         setRepayAmount('');
         setSubmitted(false);
+        repayMutation.reset();
       }
       onOpenChange(value);
     },
-    [onOpenChange]
+    [onOpenChange, repayMutation]
   );
 
   return (
@@ -195,6 +203,10 @@ function RepayDialog({
                   </span>
                 </div>
               </div>
+
+              {repayMutation.error && (
+                <p className="text-sm text-negative">{repayMutation.error}</p>
+              )}
             </div>
 
             <DialogFooter>
@@ -204,9 +216,9 @@ function RepayDialog({
               <Button
                 variant="primary"
                 onClick={handleConfirm}
-                disabled={repayValue <= 0 || repayValue > position.currentDebt}
+                disabled={repayValue <= 0 || repayValue > position.currentDebt || repayMutation.isLoading}
               >
-                Confirm Repay
+                {repayMutation.isLoading ? 'Processing...' : 'Confirm Repay'}
               </Button>
             </DialogFooter>
           </>
@@ -232,6 +244,7 @@ function AddCollateralDialog({
   const [selectedAsset, setSelectedAsset] = useState<string>(COLLATERAL_ASSETS[0]);
   const [amount, setAmount] = useState('');
   const [submitted, setSubmitted] = useState(false);
+  const addCollateralMutation = useAddCollateral();
 
   const amountValue = parseFloat(amount) || 0;
   const priceUSD = COLLATERAL_PRICES[selectedAsset] ?? 1;
@@ -243,9 +256,16 @@ function AddCollateralDialog({
       ? (newTotalCollateral / (position.currentDebt * 1.25)) * position.healthFactor
       : position.healthFactor;
 
-  const handleConfirm = useCallback(() => {
-    setSubmitted(true);
-  }, []);
+  const handleConfirm = useCallback(async () => {
+    try {
+      await addCollateralMutation.execute(position.positionId, {
+        asset: { symbol: selectedAsset, amount },
+      });
+      setSubmitted(true);
+    } catch {
+      // error captured by addCollateralMutation.error
+    }
+  }, [position.positionId, selectedAsset, amount, addCollateralMutation]);
 
   const handleOpenChange = useCallback(
     (value: boolean) => {
@@ -253,10 +273,11 @@ function AddCollateralDialog({
         setSelectedAsset(COLLATERAL_ASSETS[0]);
         setAmount('');
         setSubmitted(false);
+        addCollateralMutation.reset();
       }
       onOpenChange(value);
     },
-    [onOpenChange]
+    [onOpenChange, addCollateralMutation]
   );
 
   return (
@@ -330,6 +351,10 @@ function AddCollateralDialog({
                   </div>
                 </div>
               )}
+
+              {addCollateralMutation.error && (
+                <p className="text-sm text-negative">{addCollateralMutation.error}</p>
+              )}
             </div>
 
             <DialogFooter>
@@ -339,9 +364,9 @@ function AddCollateralDialog({
               <Button
                 variant="primary"
                 onClick={handleConfirm}
-                disabled={amountValue <= 0}
+                disabled={amountValue <= 0 || addCollateralMutation.isLoading}
               >
-                Add Collateral
+                {addCollateralMutation.isLoading ? 'Processing...' : 'Add Collateral'}
               </Button>
             </DialogFooter>
           </>
@@ -499,6 +524,7 @@ function ActiveBorrowPositions({
 
 function NewBorrowSection({ pools }: { pools: PoolData[] }) {
   const { creditTier } = useWalletStore();
+  const borrowMutation = useBorrow();
 
   const [selectedPoolId, setSelectedPoolId] = useState('');
   const [borrowAmount, setBorrowAmount] = useState('');
@@ -811,15 +837,31 @@ function NewBorrowSection({ pools }: { pools: PoolData[] }) {
             </div>
 
             {/* Review Button */}
+            {borrowMutation.error && (
+              <p className="text-sm text-negative">{borrowMutation.error}</p>
+            )}
             <div className="pt-2">
               <Button
                 variant="primary"
                 size="lg"
                 className="w-full sm:w-auto"
-                disabled={!selectedPoolId || borrowValue <= 0 || collateralValueUSD <= 0}
-                onClick={() => setShowSuccess(true)}
+                disabled={!selectedPoolId || borrowValue <= 0 || collateralValueUSD <= 0 || borrowMutation.isLoading}
+                onClick={async () => {
+                  try {
+                    await borrowMutation.execute({
+                      lendingPoolId: selectedPoolId,
+                      borrowAmount: borrowAmount,
+                      collateralAssets: collateralEntries
+                        .filter((e) => parseFloat(e.amount) > 0)
+                        .map((e) => ({ symbol: e.asset, amount: e.amount })),
+                    });
+                    setShowSuccess(true);
+                  } catch {
+                    // error captured by borrowMutation.error
+                  }
+                }}
               >
-                Review Borrow
+                {borrowMutation.isLoading ? 'Processing...' : 'Review Borrow'}
               </Button>
             </div>
           </div>
