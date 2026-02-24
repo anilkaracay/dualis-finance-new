@@ -34,9 +34,6 @@ template InterestAccrualTrigger
   where
     signatory operator
 
-    key (operator, triggerId) : (Party, Text)
-    maintainer key._1
-
     -- | Execute a single accrual run
     -- In production, the DAML trigger framework calls this automatically.
     -- Here, the operator invokes it manually or via a backend cron.

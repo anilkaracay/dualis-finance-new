@@ -1,5 +1,13 @@
 import { z } from 'zod';
 
+/** Parse string "true"/"false" to boolean (unlike z.coerce.boolean which uses Boolean()). */
+const booleanString = z
+  .union([z.boolean(), z.string()])
+  .transform((val) => {
+    if (typeof val === 'boolean') return val;
+    return val === 'true' || val === '1';
+  });
+
 const envSchema = z.object({
   // Server
   PORT: z.coerce.number().default(4000),
@@ -10,7 +18,7 @@ const envSchema = z.object({
   CANTON_ENV: z.enum(['sandbox', 'devnet', 'mainnet']).default('sandbox'),
   CANTON_JSON_API_URL: z.string().url().default('http://localhost:7575'),
   CANTON_GRPC_URL: z.string().default('localhost:6865'),
-  CANTON_MOCK: z.coerce.boolean().default(true),
+  CANTON_MOCK: booleanString.default(true),
   CANTON_JWT_TOKEN: z.string().optional(),
   CANTON_TLS_CERT_PATH: z.string().optional(),
   CANTON_OPERATOR_PARTY: z.string().default('party::operator'),
@@ -44,23 +52,23 @@ const envSchema = z.object({
   BRUTE_FORCE_LOCKOUT_SEC: z.coerce.number().default(900),
   BAN_THRESHOLD: z.coerce.number().default(3),
   BAN_DURATION_SECONDS: z.coerce.number().default(900),
-  CSRF_ENABLED: z.coerce.boolean().default(false),
+  CSRF_ENABLED: booleanString.default(false),
 
   // Oracle
   ORACLE_UPDATE_INTERVAL_MS: z.coerce.number().default(30000),
   COINGECKO_API_KEY: z.string().optional(),
   COINGECKO_BASE_URL: z.string().default('https://api.coingecko.com/api/v3'),
   BINANCE_WS_URL: z.string().default('wss://stream.binance.com:9443/ws'),
-  BINANCE_WS_ENABLED: z.coerce.boolean().default(false),
+  BINANCE_WS_ENABLED: booleanString.default(false),
   ORACLE_CIRCUIT_BREAKER_THRESHOLD: z.coerce.number().default(0.10),
   ORACLE_TWAP_WINDOW_MS: z.coerce.number().default(300000),
-  ORACLE_CANTON_SYNC_ENABLED: z.coerce.boolean().default(false),
+  ORACLE_CANTON_SYNC_ENABLED: booleanString.default(false),
   ORACLE_MIN_SOURCES: z.coerce.number().default(1),
 
   // Features
-  FEATURE_FLASH_LOANS: z.coerce.boolean().default(true),
-  FEATURE_SEC_LENDING: z.coerce.boolean().default(true),
-  FEATURE_GOVERNANCE: z.coerce.boolean().default(true),
+  FEATURE_FLASH_LOANS: booleanString.default(true),
+  FEATURE_SEC_LENDING: booleanString.default(true),
+  FEATURE_GOVERNANCE: booleanString.default(true),
 
   // Sentry
   SENTRY_DSN: z.string().optional(),
@@ -72,7 +80,7 @@ const envSchema = z.object({
   RESEND_API_KEY: z.string().optional(),
   RESEND_FROM_ADDRESS: z.string().default('notifications@dualis.finance'),
   RESEND_FROM_NAME: z.string().default('Dualis Finance'),
-  RESEND_DRY_RUN: z.coerce.boolean().default(false),
+  RESEND_DRY_RUN: booleanString.default(false),
   NOTIFICATION_HF_SCAN_INTERVAL_MS: z.coerce.number().default(60000),
   NOTIFICATION_EMAIL_RATE_LIMIT: z.coerce.number().default(10),
   NOTIFICATION_WEBHOOK_TIMEOUT_MS: z.coerce.number().default(10000),
@@ -86,12 +94,12 @@ const envSchema = z.object({
   SUMSUB_BASE_URL: z.string().default('https://api.sumsub.com'),
   SUMSUB_WEBHOOK_SECRET: z.string().optional(),
   SUMSUB_KYC_LEVEL_NAME: z.string().default('basic-kyc-level'),
-  SUMSUB_MOCK: z.coerce.boolean().default(true),
+  SUMSUB_MOCK: booleanString.default(true),
 
   // AML — Chainalysis (MP21)
   CHAINALYSIS_API_KEY: z.string().optional(),
   CHAINALYSIS_BASE_URL: z.string().default('https://api.chainalysis.com/api/kyt/v2'),
-  CHAINALYSIS_MOCK: z.coerce.boolean().default(true),
+  CHAINALYSIS_MOCK: booleanString.default(true),
 
   // Compliance (MP21)
   COMPLIANCE_AUTO_APPROVE_THRESHOLD: z.coerce.number().default(25),

@@ -1,4 +1,4 @@
-sdk-version: 2.10.3
+sdk-version: 3.4.11
 name: dualis-finance
 version: 2.0.0
 source: .
@@ -16,4 +16,4 @@ dependencies:
   - daml-stdlib
   - daml-script
 build-options:
-  - --target=1.15
+  - --target=2.1

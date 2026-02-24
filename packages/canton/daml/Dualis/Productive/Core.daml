@@ -56,8 +56,6 @@ template ProductiveProject
     createdAt : Text
   where
     signatory operator, owner
-    key (operator, projectId) : (Party, Text)
-    maintainer key._1
 
     -- Update project status
     choice UpdateProjectStatus : ContractId ProductiveProject
@@ -91,8 +89,6 @@ template ProductiveLendingPool
     esgBonus : Decimal
   where
     signatory operator
-    key (operator, poolId) : (Party, Text)
-    maintainer key._1
 
 -- Template: ProductiveBorrow
 template ProductiveBorrow
@@ -113,8 +109,6 @@ template ProductiveBorrow
     createdAt : Text
   where
     signatory operator, borrower
-    key (operator, borrowId) : (Party, Text)
-    maintainer key._1
 
     -- Process a cashflow repayment
     choice CashflowRepayment : ContractId ProductiveBorrow

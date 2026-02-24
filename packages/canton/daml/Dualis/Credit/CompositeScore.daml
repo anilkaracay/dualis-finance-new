@@ -58,8 +58,6 @@ template CompositeCredit
     lastCalculated : Text
   where
     signatory operator, owner
-    key (operator, owner) : (Party, Party)
-    maintainer key._1
 
     -- Recalculate composite score from all 3 breakdowns
     choice RecalculateComposite : ContractId CompositeCredit

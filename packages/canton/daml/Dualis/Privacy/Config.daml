@@ -29,8 +29,6 @@ template PrivacyConfig
     updatedAt : Text
   where
     signatory operator, user
-    key (operator, user) : (Party, Party)
-    maintainer key._1
 
     -- User sets their privacy level
     choice SetPrivacyLevel : ContractId PrivacyConfig

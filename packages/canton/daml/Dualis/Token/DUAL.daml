@@ -47,9 +47,6 @@ template DUALToken
   where
     signatory operator
 
-    key operator : Party
-    maintainer key
-
     -- | Mint new tokens (only during initial distribution)
     choice MintTokens : ContractId DUALToken
       with
@@ -120,9 +117,6 @@ template StakingPosition
     votingPower : Decimal          -- Governance voting weight
   where
     signatory operator, staker
-
-    key (operator, positionId) : (Party, Text)
-    maintainer key._1
 
     -- | Stake additional DUAL
     choice AddStake : ContractId StakingPosition
@@ -215,9 +209,6 @@ template TokenVesting
     isRevoked : Bool
   where
     signatory operator, beneficiary
-
-    key (operator, vestingId) : (Party, Text)
-    maintainer key._1
 
     -- | Claim vested tokens
     choice ClaimVested : ContractId TokenVesting

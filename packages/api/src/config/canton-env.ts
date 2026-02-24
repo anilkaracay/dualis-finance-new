@@ -92,16 +92,20 @@ const SANDBOX_CONFIG: CantonConfig = {
 
 const DEVNET_CONFIG: CantonConfig = {
   environment: 'devnet',
-  jsonApiUrl: 'https://devnet.dualis.finance:7575',
-  grpcUrl: 'devnet.dualis.finance:6865',
+  jsonApiUrl: 'http://localhost:7575',
+  grpcUrl: 'localhost:5001',
   useMockData: false,
-  requireAuth: true,
-  useTls: true,
+  requireAuth: false,
+  useTls: false,
   parties: {
-    operator: 'party::operator::devnet',
-    oracle: 'party::oracle::devnet',
-    liquidator: 'party::liquidator::devnet',
-    treasury: 'party::treasury::devnet',
+    operator:
+      'cantara-finance-validator-dev::12204bcabe5f617d26d082a442b560d61e60e57ad845260b01c98657285eeeb2e7ef',
+    oracle:
+      'cantara-finance-validator-dev::12204bcabe5f617d26d082a442b560d61e60e57ad845260b01c98657285eeeb2e7ef',
+    liquidator:
+      'cantara-finance-validator-dev::12204bcabe5f617d26d082a442b560d61e60e57ad845260b01c98657285eeeb2e7ef',
+    treasury:
+      'cantara-finance-validator-dev::12204bcabe5f617d26d082a442b560d61e60e57ad845260b01c98657285eeeb2e7ef',
   },
   maxRetries: 5,
   retryBaseDelayMs: 500,
@@ -173,6 +177,18 @@ export function getCantonConfig(): CantonConfig {
       process.env.CANTON_MOCK !== undefined
         ? process.env.CANTON_MOCK === 'true'
         : base.useMockData,
+
+    // Auth: require if JWT token is provided, otherwise use preset default
+    requireAuth:
+      process.env.CANTON_JWT_TOKEN !== undefined
+        ? process.env.CANTON_JWT_TOKEN !== ''
+        : base.requireAuth,
+
+    // TLS: enable if cert path is provided, otherwise use preset default
+    useTls:
+      process.env.CANTON_TLS_CERT_PATH !== undefined
+        ? process.env.CANTON_TLS_CERT_PATH !== ''
+        : base.useTls,
   };
 
   // Conditionally set optional properties to avoid exactOptionalPropertyTypes issues

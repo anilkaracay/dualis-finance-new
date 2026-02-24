@@ -20,9 +20,6 @@ template DualTokenBalance
     observer owner
     ensure amount >= 0.0
 
-    key (protocolOperator, owner) : (Party, Party)
-    maintainer key._1
-
     -- | Transfer DUAL to another holder
     choice Transfer : (ContractId DualTokenBalance, ContractId DualTokenBalance)
       with
@@ -62,8 +59,6 @@ template DualMintFactory
     protocolOperator : Party
   where
     signatory protocolOperator
-    key protocolOperator : Party
-    maintainer key
 
     -- | Mint DUAL tokens to a recipient (non-consuming)
     nonconsuming choice Mint : ContractId DualTokenBalance
@@ -94,5 +89,3 @@ template BalanceSnapshot
   where
     signatory protocolOperator
     observer owner
-    key (protocolOperator, proposalId, owner) : (Party, Text, Party)
-    maintainer key._1

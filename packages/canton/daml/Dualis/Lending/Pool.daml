@@ -34,9 +34,6 @@ template LendingPool
   where
     signatory operator
 
-    key (operator, poolId) : (Party, PoolId)
-    maintainer key._1
-
     -- ─── Accrual ─────────────────────────────────────────────────────
 
     -- | Accrue interest and update pool indices
@@ -193,9 +190,6 @@ template SupplyPosition
     isActive : Bool
   where
     signatory operator, depositor
-
-    key (operator, positionId) : (Party, PositionId)
-    maintainer key._1
 
     -- | Withdraw from this supply position (full or partial)
     choice Withdraw : Optional (ContractId SupplyPosition)

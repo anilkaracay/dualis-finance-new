@@ -20,8 +20,6 @@ template VoteDelegation
   where
     signatory protocolOperator, delegator
     observer delegatee
-    key (protocolOperator, delegator) : (Party, Party)
-    maintainer key._1
 
     -- | Revoke delegation (delegator only)
     choice Undelegate : ()

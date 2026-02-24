@@ -1,15 +1,61 @@
 import axios, { type AxiosInstance } from 'axios';
 import pRetry from 'p-retry';
 import { env } from '../config/env.js';
+import { cantonConfig } from '../config/canton-env.js';
 import { createChildLogger } from '../config/logger.js';
 import type {
   CantonContract,
   ExerciseResult,
   CreateResult,
-  CantonQueryFilter,
 } from './types.js';
 
 const log = createChildLogger('canton-client');
+
+// ---------------------------------------------------------------------------
+// Canton JSON API v2 response types
+// ---------------------------------------------------------------------------
+
+interface JsCreatedEvent {
+  offset: number;
+  nodeId: number;
+  contractId: string;
+  templateId: string;
+  contractKey: unknown;
+  createArgument: Record<string, unknown>;
+  createdEventBlob: string;
+  interfaceViews: unknown[];
+  witnessParties: string[];
+  signatories: string[];
+  observers: string[];
+  createdAt: string;
+  packageName: string;
+  representativePackageId: string;
+  acsDelta: boolean;
+}
+
+interface JsActiveContract {
+  createdEvent: JsCreatedEvent;
+  synchronizerId: string;
+  reassignmentCounter: number;
+}
+
+interface ActiveContractEntry {
+  workflowId: string;
+  contractEntry: {
+    JsActiveContract: JsActiveContract;
+  };
+}
+
+interface SubmitAndWaitResponse {
+  updateId: string;
+  completionOffset: number;
+  transaction?: {
+    events: Array<{
+      CreatedEvent?: JsCreatedEvent;
+      ExercisedEvent?: Record<string, unknown>;
+    }>;
+  };
+}
 
 // ---------------------------------------------------------------------------
 // Mock data generators
@@ -78,7 +124,7 @@ function mockPool(
 ): CantonContract<Record<string, unknown>> {
   return {
     contractId: `#canton-mock-${poolId}`,
-    templateId: 'Dualis.LendingPool:LendingPool',
+    templateId: 'Dualis.Lending.Pool:LendingPool',
     payload: {
       poolId,
       protocolOperator: 'party::operator::0',
@@ -104,7 +150,7 @@ function mockPriceFeed(
 ): CantonContract<Record<string, unknown>> {
   return {
     contractId: `#canton-mock-price-${asset.toLowerCase()}`,
-    templateId: 'Dualis.Oracle:PriceFeed',
+    templateId: 'Dualis.Oracle.PriceFeed:PriceFeed',
     payload: {
       feedId: `${asset.toLowerCase()}-usd`,
       protocolOperator: 'party::operator::0',
@@ -295,6 +341,43 @@ function mockPrivacyConfig(
 }
 
 // ---------------------------------------------------------------------------
+// Helpers: transform JSON API v2 responses into our CantonContract format
+// ---------------------------------------------------------------------------
+
+function parseActiveContractsResponse<T>(
+  data: ActiveContractEntry[],
+  templateFilter?: string,
+): CantonContract<T>[] {
+  const results: CantonContract<T>[] = [];
+
+  for (const entry of data) {
+    const ac = entry.contractEntry?.JsActiveContract;
+    if (!ac) continue;
+
+    const ev = ac.createdEvent;
+    if (!ev) continue;
+
+    // If a template filter is given, match by module:template (ignoring package hash prefix)
+    if (templateFilter) {
+      const evTemplate = ev.templateId.includes(':')
+        ? ev.templateId.substring(ev.templateId.indexOf(':') + 1)
+        : ev.templateId;
+      if (evTemplate !== templateFilter) continue;
+    }
+
+    results.push({
+      contractId: ev.contractId,
+      templateId: ev.templateId,
+      payload: ev.createArgument as T,
+      signatories: ev.signatories ?? [],
+      observers: ev.observers ?? [],
+    });
+  }
+
+  return results;
+}
+
+// ---------------------------------------------------------------------------
 // CantonClient
 // ---------------------------------------------------------------------------
 
@@ -302,9 +385,15 @@ export class CantonClient {
   private static instance: CantonClient | null = null;
   private readonly http: AxiosInstance;
   private readonly isMock: boolean;
+  private readonly party: string;
+  private readonly userId: string;
+  private latestOffset: number = 0;
 
   private constructor() {
     this.isMock = env.CANTON_MOCK;
+    const config = cantonConfig();
+    this.party = config.parties.operator;
+    this.userId = 'ledger-api-user';
 
     this.http = axios.create({
       baseURL: env.CANTON_JSON_API_URL,
@@ -346,7 +435,25 @@ export class CantonClient {
   }
 
   /**
+   * Fetch the latest ledger offset from the participant.
+   * Used as activeAtOffset for active-contracts queries.
+   */
+  private async getLatestOffset(): Promise<number> {
+    if (this.latestOffset > 0) return this.latestOffset;
+    try {
+      const response = await this.http.get<{ offset: number }>('/v2/state/ledger-end');
+      this.latestOffset = response.data.offset;
+      return this.latestOffset;
+    } catch {
+      // Fallback: use a high offset value that the participant will accept
+      return 999999999;
+    }
+  }
+
+  /**
    * Query active contracts by template ID and optional filter.
+   *
+   * Uses Canton JSON API v2 endpoint: POST /v2/state/active-contracts
    */
   async queryContracts<T>(templateId: string, query?: Record<string, unknown>): Promise<CantonContract<T>[]> {
     if (this.isMock) {
@@ -356,12 +463,33 @@ export class CantonClient {
 
     return pRetry(
       async () => {
-        const filter: CantonQueryFilter = { templateId, ...(query ? { query } : {}) };
-        const response = await this.http.post<{ result: CantonContract<T>[] }>(
-          '/v2/queries',
-          filter,
+        const offset = await this.getLatestOffset();
+
+        const response = await this.http.post<ActiveContractEntry[]>(
+          '/v2/state/active-contracts',
+          {
+            filter: {
+              filtersByParty: {
+                [this.party]: {
+                  templateFilters: [{ templateId: `${templateId}` }],
+                },
+              },
+            },
+            activeAtOffset: offset,
+          },
         );
-        return response.data.result;
+
+        const contracts = parseActiveContractsResponse<T>(response.data, templateId);
+
+        // Apply client-side query filter if provided
+        if (query) {
+          return contracts.filter((c) => {
+            const payload = c.payload as Record<string, unknown>;
+            return Object.entries(query).every(([k, v]) => payload[k] === v);
+          });
+        }
+
+        return contracts;
       },
       {
         retries: 3,
@@ -379,6 +507,8 @@ export class CantonClient {
 
   /**
    * Query a single contract by its key.
+   * Since contract keys are removed in LF 2.x, we query all contracts
+   * of the template and filter client-side.
    */
   async queryContractByKey<T>(templateId: string, key: Record<string, unknown>): Promise<CantonContract<T> | null> {
     if (this.isMock) {
@@ -386,30 +516,14 @@ export class CantonClient {
       return mocks[0] ?? null;
     }
 
-    return pRetry(
-      async () => {
-        const response = await this.http.post<{ result: CantonContract<T> | null }>(
-          '/v2/fetch',
-          { templateId, key },
-        );
-        return response.data.result;
-      },
-      {
-        retries: 3,
-        minTimeout: 500,
-        factor: 2,
-        onFailedAttempt: (err) => {
-          log.warn(
-            { attempt: err.attemptNumber, retriesLeft: err.retriesLeft, templateId },
-            'Canton fetch retry',
-          );
-        },
-      },
-    );
+    const contracts = await this.queryContracts<T>(templateId, key);
+    return contracts[0] ?? null;
   }
 
   /**
    * Exercise a choice on an existing contract.
+   *
+   * Uses Canton JSON API v2 endpoint: POST /v2/commands/submit-and-wait
    */
   async exerciseChoice(
     templateId: string,
@@ -424,11 +538,34 @@ export class CantonClient {
 
     return pRetry(
       async () => {
-        const response = await this.http.post<ExerciseResult>(
-          '/v2/exercise',
-          { templateId, contractId, choice, argument },
+        const response = await this.http.post<SubmitAndWaitResponse>(
+          '/v2/commands/submit-and-wait',
+          {
+            commandId: `exercise-${choice}-${Date.now()}`,
+            actAs: [this.party],
+            userId: this.userId,
+            commands: [
+              {
+                ExerciseCommand: {
+                  templateId,
+                  contractId,
+                  choice,
+                  choiceArgument: argument,
+                },
+              },
+            ],
+          },
         );
-        return response.data;
+
+        // Update cached offset
+        if (response.data.completionOffset) {
+          this.latestOffset = response.data.completionOffset;
+        }
+
+        return {
+          exerciseResult: response.data,
+          events: response.data.transaction?.events ?? [],
+        };
       },
       {
         retries: 3,
@@ -446,6 +583,8 @@ export class CantonClient {
 
   /**
    * Create a new contract on the ledger.
+   *
+   * Uses Canton JSON API v2 endpoint: POST /v2/commands/submit-and-wait
    */
   async createContract<T>(templateId: string, payload: T): Promise<CreateResult> {
     if (this.isMock) {
@@ -458,11 +597,37 @@ export class CantonClient {
 
     return pRetry(
       async () => {
-        const response = await this.http.post<CreateResult>(
-          '/v2/create',
-          { templateId, payload },
+        const response = await this.http.post<SubmitAndWaitResponse>(
+          '/v2/commands/submit-and-wait',
+          {
+            commandId: `create-${Date.now()}`,
+            actAs: [this.party],
+            userId: this.userId,
+            commands: [
+              {
+                CreateCommand: {
+                  templateId,
+                  createArguments: payload,
+                },
+              },
+            ],
+          },
         );
-        return response.data;
+
+        // Update cached offset
+        if (response.data.completionOffset) {
+          this.latestOffset = response.data.completionOffset;
+        }
+
+        // Extract contractId from the created event
+        const createdEvent = response.data.transaction?.events?.find(
+          (e) => e.CreatedEvent,
+        )?.CreatedEvent;
+
+        return {
+          contractId: createdEvent?.contractId ?? `created-${response.data.updateId}`,
+          templateId,
+        };
       },
       {
         retries: 3,
@@ -482,7 +647,6 @@ export class CantonClient {
   // Credit Attestation convenience methods
   // -------------------------------------------------------------------------
 
-  /** Create a new attestation bundle for a given owner. */
   async createAttestationBundle(owner: string): Promise<CreateResult> {
     return this.createContract('Dualis.Credit.Attestation:CreditAttestationBundle', {
       owner,
@@ -491,7 +655,6 @@ export class CantonClient {
     });
   }
 
-  /** Add an attestation to an existing attestation bundle. */
   async addAttestation(bundleId: string, attestation: Record<string, unknown>): Promise<ExerciseResult> {
     return this.exerciseChoice(
       'Dualis.Credit.Attestation:CreditAttestationBundle',
@@ -501,7 +664,6 @@ export class CantonClient {
     );
   }
 
-  /** Prune expired attestations from a bundle. */
   async pruneExpiredAttestations(bundleId: string): Promise<ExerciseResult> {
     return this.exerciseChoice(
       'Dualis.Credit.Attestation:CreditAttestationBundle',
@@ -515,7 +677,6 @@ export class CantonClient {
   // Composite Score convenience methods
   // -------------------------------------------------------------------------
 
-  /** Create a new composite credit contract for a given owner. */
   async createCompositeCredit(owner: string): Promise<CreateResult> {
     return this.createContract('Dualis.Credit.CompositeScore:CompositeCredit', {
       owner,
@@ -527,7 +688,6 @@ export class CantonClient {
     });
   }
 
-  /** Recalculate a composite credit score. */
   async recalculateComposite(
     creditId: string,
     breakdowns: { onChain: Record<string, unknown>; offChain: Record<string, unknown>; ecosystem: Record<string, unknown> },
@@ -549,7 +709,6 @@ export class CantonClient {
   // Productive convenience methods
   // -------------------------------------------------------------------------
 
-  /** Create a new productive project. */
   async createProductiveProject(data: Record<string, unknown>): Promise<CreateResult> {
     return this.createContract('Dualis.Productive.Core:ProductiveProject', {
       ...data,
@@ -559,7 +718,6 @@ export class CantonClient {
     });
   }
 
-  /** Update a productive project's status. */
   async updateProjectStatus(projectId: string, status: string): Promise<ExerciseResult> {
     return this.exerciseChoice(
       'Dualis.Productive.Core:ProductiveProject',
@@ -569,7 +727,6 @@ export class CantonClient {
     );
   }
 
-  /** Create a new productive borrow. */
   async createProductiveBorrow(data: Record<string, unknown>): Promise<CreateResult> {
     return this.createContract('Dualis.Productive.Core:ProductiveBorrow', {
       ...data,
@@ -580,7 +737,6 @@ export class CantonClient {
     });
   }
 
-  /** Record a cashflow repayment on a productive borrow. */
   async processCashflowRepayment(borrowId: string, entry: Record<string, unknown>): Promise<ExerciseResult> {
     return this.exerciseChoice(
       'Dualis.Productive.Core:ProductiveBorrow',
@@ -590,7 +746,6 @@ export class CantonClient {
     );
   }
 
-  /** Check the health of a productive borrow against project metrics. */
   async checkProjectHealth(borrowId: string, actual: number, expected: number): Promise<ExerciseResult> {
     return this.exerciseChoice(
       'Dualis.Productive.Core:ProductiveBorrow',
@@ -604,7 +759,6 @@ export class CantonClient {
   // Advanced SecLending convenience methods
   // -------------------------------------------------------------------------
 
-  /** Create a new fractional lending offer. */
   async createFractionalOffer(data: Record<string, unknown>): Promise<CreateResult> {
     return this.createContract('Dualis.SecLending.Advanced:FractionalOffer', {
       ...data,
@@ -613,7 +767,6 @@ export class CantonClient {
     });
   }
 
-  /** Accept a fraction of a fractional lending offer. */
   async acceptFraction(offerId: string, borrower: string, amount: number): Promise<ExerciseResult> {
     return this.exerciseChoice(
       'Dualis.SecLending.Advanced:FractionalOffer',
@@ -623,7 +776,6 @@ export class CantonClient {
     );
   }
 
-  /** Propose a netting agreement between two parties. */
   async proposeNetting(partyA: string, partyB: string, dealIds: string[]): Promise<CreateResult> {
     return this.createContract('Dualis.SecLending.Advanced:NettingAgreement', {
       partyA,
@@ -634,7 +786,6 @@ export class CantonClient {
     });
   }
 
-  /** Execute netting on an existing netting agreement. */
   async executeNetting(nettingId: string): Promise<ExerciseResult> {
     return this.exerciseChoice(
       'Dualis.SecLending.Advanced:NettingAgreement',
@@ -644,7 +795,6 @@ export class CantonClient {
     );
   }
 
-  /** Process a corporate action on a handler. */
   async processCorporateAction(handlerId: string): Promise<ExerciseResult> {
     return this.exerciseChoice(
       'Dualis.SecLending.Advanced:CorporateActionHandler',
@@ -658,7 +808,6 @@ export class CantonClient {
   // Institutional convenience methods
   // -------------------------------------------------------------------------
 
-  /** Create a verified institution record. */
   async createVerifiedInstitution(data: Record<string, unknown>): Promise<CreateResult> {
     return this.createContract('Dualis.Institutional.Core:VerifiedInstitution', {
       ...data,
@@ -668,7 +817,6 @@ export class CantonClient {
     });
   }
 
-  /** Add a sub-account to a verified institution. */
   async addSubAccount(institutionId: string, subAccount: string): Promise<ExerciseResult> {
     return this.exerciseChoice(
       'Dualis.Institutional.Core:VerifiedInstitution',
@@ -678,7 +826,6 @@ export class CantonClient {
     );
   }
 
-  /** Renew KYB for a verified institution. */
   async renewKYB(institutionId: string, newExpiry: string): Promise<ExerciseResult> {
     return this.exerciseChoice(
       'Dualis.Institutional.Core:VerifiedInstitution',
@@ -692,7 +839,6 @@ export class CantonClient {
   // Privacy convenience methods
   // -------------------------------------------------------------------------
 
-  /** Create a privacy config for a user. */
   async createPrivacyConfig(user: string): Promise<CreateResult> {
     return this.createContract('Dualis.Privacy.Config:PrivacyConfig', {
       user,
@@ -702,7 +848,6 @@ export class CantonClient {
     });
   }
 
-  /** Set the privacy level on a privacy config. */
   async setPrivacyLevel(configId: string, level: string): Promise<ExerciseResult> {
     return this.exerciseChoice(
       'Dualis.Privacy.Config:PrivacyConfig',
@@ -712,7 +857,6 @@ export class CantonClient {
     );
   }
 
-  /** Add a disclosure rule to a privacy config. */
   async addDisclosure(configId: string, rule: Record<string, unknown>): Promise<ExerciseResult> {
     return this.exerciseChoice(
       'Dualis.Privacy.Config:PrivacyConfig',
@@ -722,7 +866,6 @@ export class CantonClient {
     );
   }
 
-  /** Remove a disclosure rule from a privacy config. */
   async removeDisclosure(configId: string, party: string): Promise<ExerciseResult> {
     return this.exerciseChoice(
       'Dualis.Privacy.Config:PrivacyConfig',
@@ -732,7 +875,6 @@ export class CantonClient {
     );
   }
 
-  /** Check if a requester has access for a given scope. Returns true in mock mode. */
   async checkAccess(configId: string, requester: string, scope: string): Promise<boolean> {
     if (this.isMock) {
       log.debug({ configId, requester, scope }, 'Mock check access');

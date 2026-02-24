@@ -20,8 +20,6 @@ template VoteRecord
     castTime         : Time
   where
     signatory protocolOperator, voter
-    key (protocolOperator, proposalId, voter) : (Party, Text, Party)
-    maintainer key._1
 
     -- | Change vote direction
     choice ChangeVote : ContractId VoteRecord

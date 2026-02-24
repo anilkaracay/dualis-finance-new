@@ -34,9 +34,6 @@ template LiquidationTrigger
   where
     signatory operator
 
-    key (operator, triggerData.positionId) : (Party, PositionId)
-    maintainer key._1
-
     -- | A liquidator can execute this liquidation
     choice ExecuteLiquidation : ContractId LiquidationResult
       with
@@ -114,9 +111,6 @@ template LiquidationResult
   where
     signatory operator, liquidator
 
-    key (operator, resultId) : (Party, Text)
-    maintainer key._1
-
     -- | Operator can archive old liquidation results
     choice ArchiveLiquidationResult : ()
       controller operator
@@ -139,9 +133,6 @@ template FlashLiquidation
     createdAt : Timestamp
   where
     signatory operator, liquidator
-
-    key (operator, flashId) : (Party, Text)
-    maintainer key._1
 
     -- | Execute the flash liquidation
     choice ExecuteFlashLiquidation : ContractId FlashLiquidation
@@ -182,9 +173,6 @@ template BatchLiquidation
     lastUpdated : Timestamp
   where
     signatory operator
-
-    key (operator, batchId) : (Party, Text)
-    maintainer key._1
 
     -- | Process next position in the batch
     choice ProcessBatchItem : ContractId BatchLiquidation

@@ -43,9 +43,6 @@ template StalenessChecker
   where
     signatory operator
 
-    key (operator, checkerId) : (Party, Text)
-    maintainer key._1
-
     -- | Run a staleness check
     choice RunStalenessCheck : ContractId StalenessChecker
       with

@@ -11,14 +11,14 @@ import type { CantonCommand } from './types.js';
 // ---------------------------------------------------------------------------
 
 const TEMPLATES = {
-  lendingPool: 'Dualis.LendingPool:LendingPool',
-  borrowPosition: 'Dualis.LendingPool:BorrowPosition',
-  collateralPosition: 'Dualis.LendingPool:CollateralPosition',
-  secLendingOffer: 'Dualis.SecLending:SecLendingOffer',
-  secLendingDeal: 'Dualis.SecLending:SecLendingDeal',
-  governance: 'Dualis.Governance:Proposal',
-  flashLoan: 'Dualis.FlashLoan:FlashLoan',
-  protocolConfig: 'Dualis.Protocol:ProtocolConfig',
+  lendingPool: 'Dualis.Lending.Pool:LendingPool',
+  borrowPosition: 'Dualis.Lending.Borrow:BorrowPosition',
+  collateralPosition: 'Dualis.Lending.Collateral:CollateralVault',
+  secLendingOffer: 'Dualis.SecLending.Advanced:FractionalOffer',
+  secLendingDeal: 'Dualis.SecLending.Advanced:NettingAgreement',
+  governance: 'Dualis.Governance.Proposal:Proposal',
+  flashLoan: 'Dualis.Liquidation.Engine:FlashLiquidation',
+  protocolConfig: 'Dualis.Core.Config:ProtocolConfig',
   creditAttestationBundle: 'Dualis.Credit.Attestation:CreditAttestationBundle',
   compositeCredit: 'Dualis.Credit.CompositeScore:CompositeCredit',
   productiveProject: 'Dualis.Productive.Core:ProductiveProject',

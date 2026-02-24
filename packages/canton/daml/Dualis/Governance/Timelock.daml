@@ -21,8 +21,6 @@ template TimelockExecution
     state             : Text          -- "PENDING" | "EXECUTED" | "VETOED" | "EXPIRED"
   where
     signatory protocolOperator
-    key (protocolOperator, proposalId) : (Party, Text)
-    maintainer key._1
 
     -- | Execute the timelocked action
     choice Execute : ContractId TimelockExecution

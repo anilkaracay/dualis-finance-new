@@ -36,9 +36,6 @@ template PriceFeed
   where
     signatory operator
 
-    key (operator, asset) : (Party, AssetSymbol)
-    maintainer key._1
-
     -- ─── Price Updates ──────────────────────────────────────────────
 
     -- | Submit a new price from a single source
@@ -136,9 +133,6 @@ template PriceOracle
     lastAggregation : Timestamp
   where
     signatory operator
-
-    key (operator, oracleId) : (Party, Text)
-    maintainer key._1
 
     -- | Add a new supported asset
     choice AddSupportedAsset : ContractId PriceOracle

@@ -57,8 +57,6 @@ template Proposal
   where
     signatory protocolOperator, proposalData.proposer
     observer voters
-    key (protocolOperator, proposalData.proposalId) : (Party, Text)
-    maintainer key._1
 
     -- | Record a vote on this proposal
     choice AddVote : ContractId Proposal

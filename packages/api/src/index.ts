@@ -107,6 +107,7 @@ import { shutdownOracle } from './jobs/oracleUpdate.job.js';
 
 // Canton bootstrap
 import { initializeCanton } from './canton/startup.js';
+import { loadFromCanton as loadPoolsFromCanton } from './services/poolRegistry.js';
 
 // Sentry error tracking
 import { initSentry, closeSentry } from './middleware/sentry.js';
@@ -416,6 +417,16 @@ async function main(): Promise<void> {
         },
         'Canton integration initialized',
       );
+
+      // When not in mock mode, load pool data from Canton ledger
+      if (!env.CANTON_MOCK) {
+        try {
+          const poolCount = await loadPoolsFromCanton();
+          logger.info({ poolCount }, 'Pool registry loaded from Canton ledger');
+        } catch (poolErr) {
+          logger.warn({ err: poolErr }, 'Failed to load pools from Canton — using fallback mock data');
+        }
+      }
     } catch (cantonErr) {
       logger.warn({ err: cantonErr }, 'Canton bootstrap failed — running in degraded mode');
     }

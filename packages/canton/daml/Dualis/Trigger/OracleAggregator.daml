@@ -45,9 +45,6 @@ template OracleAggregator
   where
     signatory operator
 
-    key (operator, aggregatorId) : (Party, Text)
-    maintainer key._1
-
     -- | Run an aggregation cycle
     choice RunAggregation : ContractId OracleAggregator
       with

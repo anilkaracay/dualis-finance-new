@@ -6,6 +6,9 @@
  * pool is created via the admin API the registry is updated and all
  * operations (deposit, withdraw, borrow, repay, add-collateral, interest
  * accrual) immediately work for the new pool — no hardcoded maps to update.
+ *
+ * When CANTON_MOCK=false, pools are loaded from the Canton ledger on startup
+ * via loadFromCanton(). When CANTON_MOCK=true, hardcoded INITIAL_POOLS are used.
  */
 
 import {
@@ -13,6 +16,7 @@ import {
   type InterestRateModelConfig,
 } from '@dualis/shared';
 import { createChildLogger } from '../config/logger.js';
+import { env } from '../config/env.js';
 
 const log = createChildLogger('pool-registry');
 
@@ -34,7 +38,7 @@ export interface PoolState {
 }
 
 // ---------------------------------------------------------------------------
-// Initial seed pools
+// Initial seed pools (used when CANTON_MOCK=true)
 // ---------------------------------------------------------------------------
 
 const now = () => Math.floor(Date.now() / 1000);
@@ -115,14 +119,108 @@ const INITIAL_POOLS: PoolState[] = [
 ];
 
 // ---------------------------------------------------------------------------
+// Canton LendingPool → PoolState mapping
+// ---------------------------------------------------------------------------
+
+/** Map Canton DAML instrumentType to our internal type string. */
+function mapInstrumentType(instrumentType: string): string {
+  const typeMap: Record<string, string> = {
+    Stablecoin: 'Stablecoin',
+    CryptoCurrency: 'CryptoCurrency',
+    TokenizedTreasury: 'TokenizedTreasury',
+    TokenizedEquity: 'TokenizedEquity',
+    TokenizedReceivable: 'TokenizedReceivable',
+  };
+  return typeMap[instrumentType] ?? instrumentType;
+}
+
+/** Convert a Canton LendingPool contract payload to a PoolState. */
+function cantonPoolToState(
+  contractId: string,
+  payload: Record<string, unknown>,
+): PoolState {
+  const asset = payload.asset as Record<string, unknown> | undefined;
+  const accrual = payload.accrual as Record<string, unknown> | undefined;
+  const symbol = (asset?.symbol as string) ?? 'UNKNOWN';
+  const instrumentType = (asset?.instrumentType as string) ?? 'CryptoCurrency';
+  const priceUSD = parseFloat((asset?.priceUSD as string) ?? '1');
+
+  return {
+    poolId: (payload.poolId as string) ?? 'unknown',
+    asset: {
+      symbol,
+      type: mapInstrumentType(instrumentType),
+      priceUSD,
+    },
+    totalSupply: parseFloat((payload.totalSupply as string) ?? '0'),
+    totalBorrow: parseFloat((payload.totalBorrow as string) ?? '0'),
+    totalReserves: parseFloat((payload.totalReserves as string) ?? '0'),
+    borrowIndex: parseFloat((accrual?.borrowIndex as string) ?? '1'),
+    supplyIndex: parseFloat((accrual?.supplyIndex as string) ?? '1'),
+    lastAccrualTs: (accrual?.lastAccrualTs as number) ?? now(),
+    isActive: (payload.isActive as boolean) ?? true,
+    contractId,
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Registry (mutable in-memory store)
 // ---------------------------------------------------------------------------
 
 const pools: Map<string, PoolState> = new Map();
 
-// Seed initial pools
-for (const p of INITIAL_POOLS) {
-  pools.set(p.poolId, p);
+// Seed initial pools (CANTON_MOCK=true mode). When CANTON_MOCK=false,
+// loadFromCanton() will be called at startup and these will be replaced.
+if (env.CANTON_MOCK) {
+  for (const p of INITIAL_POOLS) {
+    pools.set(p.poolId, p);
+  }
+  log.info({ count: INITIAL_POOLS.length }, 'Pool registry initialized with mock data');
+}
+
+// ---------------------------------------------------------------------------
+// Canton loader
+// ---------------------------------------------------------------------------
+
+let _cantonLoaded = false;
+
+/**
+ * Load pools from the Canton ledger. Replaces any existing pool data.
+ * Called once at API startup when CANTON_MOCK=false.
+ */
+export async function loadFromCanton(): Promise<number> {
+  if (_cantonLoaded) return pools.size;
+
+  // Dynamic import to avoid circular deps at module load time
+  const { getAllPools: cantonGetAllPools } = await import('../canton/queries.js');
+
+  try {
+    const contracts = await cantonGetAllPools();
+    log.info({ found: contracts.length }, 'Loaded LendingPool contracts from Canton');
+
+    // Clear any pre-seeded mock pools
+    pools.clear();
+
+    for (const c of contracts) {
+      const poolState = cantonPoolToState(c.contractId, c.payload as unknown as Record<string, unknown>);
+      pools.set(poolState.poolId, poolState);
+      log.debug(
+        { poolId: poolState.poolId, asset: poolState.asset.symbol, supply: poolState.totalSupply },
+        'Registered Canton pool',
+      );
+    }
+
+    _cantonLoaded = true;
+    log.info({ count: pools.size }, 'Pool registry loaded from Canton ledger');
+    return pools.size;
+  } catch (err) {
+    log.error({ err }, 'Failed to load pools from Canton, falling back to mock data');
+    // Fall back to initial pools so API still works
+    for (const p of INITIAL_POOLS) {
+      if (!pools.has(p.poolId)) pools.set(p.poolId, p);
+    }
+    return pools.size;
+  }
 }
 
 // ---------------------------------------------------------------------------

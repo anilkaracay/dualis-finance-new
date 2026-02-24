@@ -36,8 +36,6 @@ template CreditAttestationBundle
     lastVerified : Text
   where
     signatory operator, owner
-    key (operator, owner) : (Party, Party)
-    maintainer key._1
 
     -- Owner can add a new attestation
     choice AddAttestation : ContractId CreditAttestationBundle

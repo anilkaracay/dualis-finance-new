@@ -55,9 +55,6 @@ template BorrowPosition
   where
     signatory operator, borrower
 
-    key (operator, positionId) : (Party, PositionId)
-    maintainer key._1
-
     -- ─── Repayment ───────────────────────────────────────────────────
 
     -- | Repay part or all of the borrow

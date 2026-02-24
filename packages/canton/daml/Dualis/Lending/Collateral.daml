@@ -40,9 +40,6 @@ template CollateralVault
   where
     signatory operator, owner
 
-    key (operator, vaultId) : (Party, Text)
-    maintainer key._1
-
     -- ─── Deposit Collateral ─────────────────────────────────────────
 
     -- | Add a new collateral asset to the vault

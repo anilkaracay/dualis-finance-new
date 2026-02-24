@@ -1,0 +1,243 @@
+# ─── Dualis Finance — Devnet Deployment ───
+# Runs ALONGSIDE the Canton validator docker-compose.
+# Canton services: /opt/first/splice-node/docker-compose/validator/compose.yaml
+# This file: Dualis app services only.
+#
+# Usage:
+#   docker compose -f docker-compose.devnet.yml --env-file .env.devnet up -d --build
+#
+# IMPORTANT:
+#   - Canton PostgreSQL uses port 5432 — Dualis uses 5433
+#   - API + Workers join Canton's Docker network to reach participant:7575
+#   - Canton's network is "splice-validator_splice_validator" (external)
+
+services:
+  # ── PostgreSQL (Dualis app DB — NOT Canton's) ─────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: dualis-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-dualis}
+      POSTGRES_USER: ${POSTGRES_USER:-dualis}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-dualis_secure_password}
+    ports:
+      - "5433:5432"
+    volumes:
+      - dualis_postgres_data:/var/lib/postgresql/data
+    shm_size: 256mb
+    command: >
+      postgres
+      -c shared_buffers=128MB
+      -c effective_cache_size=512MB
+      -c work_mem=4MB
+      -c maintenance_work_mem=64MB
+      -c max_connections=100
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-dualis}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 2g
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+    networks:
+      - dualis-internal
+
+  # ── Redis ─────────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7.2-alpine
+    container_name: dualis-redis
+    command: >
+      redis-server
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+      --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - dualis_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+    networks:
+      - dualis-internal
+
+  # ── API (Fastify backend) ─────────────────────────────────────────────────
+  api:
+    build:
+      context: .
+      dockerfile: packages/api/Dockerfile
+    container_name: dualis-api
+    ports:
+      - "3001:3001"
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      HOST: 0.0.0.0
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      # Canton — via Docker network (container DNS name)
+      CANTON_ENV: devnet
+      CANTON_JSON_API_URL: http://splice-validator-participant-1:7575
+      CANTON_GRPC_URL: splice-validator-participant-1:5001
+      CANTON_MOCK: "false"
+      CANTON_JWT_TOKEN: ""
+      CANTON_TLS_CERT_PATH: ""
+      CANTON_OPERATOR_PARTY: ${CANTON_OPERATOR_PARTY:-cantara-finance-validator-dev::12204bcabe5f617d26d082a442b560d61e60e57ad845260b01c98657285eeeb2e7ef}
+      CANTON_ORACLE_PARTY: ${CANTON_ORACLE_PARTY:-cantara-finance-validator-dev::12204bcabe5f617d26d082a442b560d61e60e57ad845260b01c98657285eeeb2e7ef}
+      CANTON_LIQUIDATOR_PARTY: ${CANTON_LIQUIDATOR_PARTY:-cantara-finance-validator-dev::12204bcabe5f617d26d082a442b560d61e60e57ad845260b01c98657285eeeb2e7ef}
+      CANTON_TREASURY_PARTY: ${CANTON_TREASURY_PARTY:-cantara-finance-validator-dev::12204bcabe5f617d26d082a442b560d61e60e57ad845260b01c98657285eeeb2e7ef}
+      # Database — postgres container via internal network
+      DATABASE_URL: postgresql://${POSTGRES_USER:-dualis}:${POSTGRES_PASSWORD:-dualis_secure_password}@dualis-postgres:5432/${POSTGRES_DB:-dualis}
+      DB_POOL_MIN: 2
+      DB_POOL_MAX: 20
+      # Redis — via internal network
+      REDIS_URL: redis://dualis-redis:6379
+      # Auth
+      JWT_SECRET: ${JWT_SECRET:-CHANGE_ME}
+      JWT_ACCESS_EXPIRES_IN: ${JWT_ACCESS_EXPIRES_IN:-15m}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-CHANGE_ME}
+      JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN:-7d}
+      BCRYPT_ROUNDS: 12
+      # CORS
+      CORS_ORIGIN: ${CORS_ORIGIN:-https://dualis.finance}
+      FRONTEND_URL: ${FRONTEND_URL:-https://dualis.finance}
+      # Rate limiting
+      RATE_LIMIT_MAX: 120
+      RATE_LIMIT_WINDOW_MS: 60000
+      # Oracle
+      ORACLE_UPDATE_INTERVAL_MS: 30000
+      ORACLE_CANTON_SYNC_ENABLED: "true"
+      ORACLE_MIN_SOURCES: 1
+      # Features
+      FEATURE_FLASH_LOANS: "true"
+      FEATURE_SEC_LENDING: "true"
+      FEATURE_GOVERNANCE: "true"
+      # KYC mock
+      SUMSUB_MOCK: "true"
+      CHAINALYSIS_MOCK: "true"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3001/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+          cpus: '1.0'
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+    networks:
+      - dualis-internal
+      - canton-network
+
+  # NOTE: Workers (BullMQ) run inside the API process (index.ts starts them).
+  # No separate workers container needed.
+
+  # ── Frontend (Next.js) ────────────────────────────────────────────────────
+  frontend:
+    build:
+      context: .
+      dockerfile: packages/frontend/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: https://api.dualis.finance/v1
+        NEXT_PUBLIC_WS_URL: wss://api.dualis.finance/v1/ws
+        NEXT_PUBLIC_APP_URL: https://dualis.finance
+    container_name: dualis-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      HOSTNAME: 0.0.0.0
+      PORT: 3000
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3000 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+          cpus: '0.5'
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+    networks:
+      - dualis-internal
+
+  # ── Nginx (reverse proxy + SSL) ──────────────────────────────────────────
+  nginx:
+    image: nginx:1.25-alpine
+    container_name: dualis-nginx
+    ports:
+      - "443:443"
+    volumes:
+      - ./deploy/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./deploy/nginx/conf.d:/etc/nginx/conf.d:ro
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+      - /var/www/certbot:/var/www/certbot:ro
+    depends_on:
+      frontend:
+        condition: service_healthy
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 128m
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+    networks:
+      - dualis-internal
+
+volumes:
+  dualis_postgres_data:
+  dualis_redis_data:
+
+networks:
+  dualis-internal:
+    driver: bridge
+  canton-network:
+    external: true
+    name: splice-validator_splice_validator

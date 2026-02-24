@@ -28,13 +28,13 @@ import type { CantonContract } from './types.js';
 // ---------------------------------------------------------------------------
 
 const TEMPLATES = {
-  lendingPool: 'Dualis.LendingPool:LendingPool',
-  borrowPosition: 'Dualis.LendingPool:BorrowPosition',
-  creditProfile: 'Dualis.Credit:CreditProfile',
-  secLendingOffer: 'Dualis.SecLending:SecLendingOffer',
-  secLendingDeal: 'Dualis.SecLending:SecLendingDeal',
-  priceFeed: 'Dualis.Oracle:PriceFeed',
-  protocolConfig: 'Dualis.Protocol:ProtocolConfig',
+  lendingPool: 'Dualis.Lending.Pool:LendingPool',
+  borrowPosition: 'Dualis.Lending.Borrow:BorrowPosition',
+  creditProfile: 'Dualis.Credit.CompositeScore:CompositeCredit', // No CreditProfile template; use CompositeCredit
+  secLendingOffer: 'Dualis.SecLending.Advanced:FractionalOffer',
+  secLendingDeal: 'Dualis.SecLending.Advanced:NettingAgreement',
+  priceFeed: 'Dualis.Oracle.PriceFeed:PriceFeed',
+  protocolConfig: 'Dualis.Core.Config:ProtocolConfig',
   creditAttestationBundle: 'Dualis.Credit.Attestation:CreditAttestationBundle',
   compositeCredit: 'Dualis.Credit.CompositeScore:CompositeCredit',
   productiveProject: 'Dualis.Productive.Core:ProductiveProject',

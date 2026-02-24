@@ -31,8 +31,6 @@ template VerifiedInstitution
     expiresAt : Optional Text
   where
     signatory operator, institution
-    key (operator, institution) : (Party, Party)
-    maintainer key._1
 
     -- Add a sub-account
     choice AddSubAccount : ContractId VerifiedInstitution
@@ -66,8 +64,6 @@ template InstitutionalPool
     reserveRatio : Decimal
   where
     signatory operator, institution
-    key (operator, poolId) : (Party, Text)
-    maintainer key._1
 
 -- Template: BulkOperation
 template BulkOperation
@@ -81,5 +77,3 @@ template BulkOperation
     submittedAt : Text
   where
     signatory operator, institution
-    key (operator, opId) : (Party, Text)
-    maintainer key._1

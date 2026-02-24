@@ -81,7 +81,12 @@ export async function adminPoolRoutes(fastify: FastifyInstance): Promise<void> {
         throw new AppError('VALIDATION_ERROR', 'Pool ID already exists', 400);
       }
 
-      const pool = poolService.createPool(parsed.data);
+      const { assetType, priceUSD, ...rest } = parsed.data;
+      const pool = poolService.createPool({
+        ...rest,
+        ...(assetType !== undefined && { assetType }),
+        ...(priceUSD !== undefined && { priceUSD }),
+      });
       if (!pool) {
         throw new AppError('INTERNAL_ERROR', 'Failed to create pool', 500);
       }

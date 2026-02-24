@@ -31,8 +31,6 @@ template GovernanceConfig
     config           : GovConfig
   where
     signatory protocolOperator
-    key protocolOperator : Party
-    maintainer key
 
     -- | Read governance configuration (non-consuming)
     nonconsuming choice GetGovConfig : GovConfig

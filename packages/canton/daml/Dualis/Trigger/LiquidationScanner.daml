@@ -45,9 +45,6 @@ template LiquidationScanner
   where
     signatory operator
 
-    key (operator, scannerId) : (Party, Text)
-    maintainer key._1
-
     -- | Execute a scan cycle
     choice RunScan : ContractId LiquidationScanner
       with

@@ -130,12 +130,12 @@ testMintAndTransfer = script do
   bob <- allocateParty "Bob"
 
   -- Create mint factory
-  submit operator do
+  factoryCid <- submit operator do
     createCmd DualMintFactory with protocolOperator = operator
 
   -- Mint to Alice
   aliceCid <- submit operator do
-    exerciseByKeyCmd @DualMintFactory operator Mint with
+    exerciseCmd factoryCid Mint with
       recipient = alice
       mintAmount = 1000.0
       reason = "Initial distribution"
@@ -161,11 +161,11 @@ testBurnTokens = script do
   operator <- allocateParty "Operator"
   alice <- allocateParty "Alice"
 
-  submit operator do
+  factoryCid2 <- submit operator do
     createCmd DualMintFactory with protocolOperator = operator
 
   aliceCid <- submit operator do
-    exerciseByKeyCmd @DualMintFactory operator Mint with
+    exerciseCmd factoryCid2 Mint with
       recipient = alice
       mintAmount = 500.0
       reason = "Test"

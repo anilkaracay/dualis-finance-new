@@ -73,9 +73,6 @@ template ProtocolConfig
   where
     signatory operator
 
-    key operator : Party
-    maintainer key
-
     -- Update global protocol parameters
     choice UpdateProtocolParams : ContractId ProtocolConfig
       with
