@@ -18,7 +18,7 @@ services:
   redis:
     image: redis:7.2-alpine
     ports:
-      - "6379:6379"
+      - "6380:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -31,15 +31,17 @@ services:
       dockerfile: packages/api/Dockerfile
     ports:
       - "4000:4000"
+    env_file:
+      - .env
     environment:
       PORT: 4000
       NODE_ENV: production
       DATABASE_URL: postgresql://dualis:dualis_dev_password@postgres:5432/dualis
       REDIS_URL: redis://redis:6379
-      CANTON_MOCK: "true"
       JWT_SECRET: dev-secret-change-in-production
       LOG_LEVEL: info
-      CORS_ORIGIN: http://localhost:3000
+      CORS_ORIGIN: "http://localhost:3000,http://84.32.223.16:3000"
+      # CANTON_MOCK is set via .env file (env_file above) for devnet/sandbox switching
     depends_on:
       postgres:
         condition: service_healthy

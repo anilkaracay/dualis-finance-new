@@ -8,6 +8,8 @@ import type {
   OffChainAttestation,
 } from '@dualis/shared';
 import { TIER_BENEFITS } from '@dualis/shared';
+import { env } from '../config/env.js';
+import * as cantonQueries from '../canton/queries.js';
 import * as attestationService from './attestation.service.js';
 
 const log = createChildLogger('composite-credit-service');
@@ -155,12 +157,93 @@ export function calculateCompositeScore(partyId: string): CompositeScore {
   return result;
 }
 
+export async function getCompositeScoreFromCanton(partyId: string): Promise<CompositeScore | null> {
+  if (env.CANTON_MOCK) return null;
+
+  try {
+    const contract = await cantonQueries.getCompositeScore(partyId);
+    if (!contract) return null;
+
+    const p = contract.payload as unknown as Record<string, unknown>;
+    const score = Number(p.compositeScore ?? 0);
+    const tier = deriveTier(score);
+    const benefits = TIER_BENEFITS[tier];
+    const nextTier = getNextTier(score, tier);
+
+    const onChain = p.onChainBreakdown as Record<string, unknown> | undefined;
+    const offChain = p.offChainBreakdown as Record<string, unknown> | undefined;
+    const ecosystem = p.ecosystemBreakdown as Record<string, unknown> | undefined;
+
+    const onChainDetail: OnChainBreakdown = {
+      loanCompletion: Number(onChain?.repaymentHistory ?? 0),
+      repaymentSpeed: Number(onChain?.collateralRatio ?? 0),
+      collateralHealth: Number(onChain?.protocolUsage ?? 0),
+      protocolHistory: 0,
+      secLendingRecord: 0,
+      total: Number(onChain?.repaymentHistory ?? 0) + Number(onChain?.collateralRatio ?? 0) + Number(onChain?.protocolUsage ?? 0),
+    };
+
+    const offChainDetail: OffChainBreakdown = {
+      creditBureauScore: Number(offChain?.creditBureau ?? 0),
+      incomeVerification: Number(offChain?.incomeVerification ?? 0),
+      businessVerification: 0,
+      kycCompletion: 0,
+      total: Number(offChain?.creditBureau ?? 0) + Number(offChain?.incomeVerification ?? 0),
+    };
+
+    const ecosystemDetail: EcosystemBreakdown = {
+      tifaPerformance: Number(ecosystem?.stakingScore ?? 0),
+      crossProtocolRefs: Number(ecosystem?.governanceParticipation ?? 0),
+      governanceStaking: 0,
+      total: Number(ecosystem?.stakingScore ?? 0) + Number(ecosystem?.governanceParticipation ?? 0),
+    };
+
+    const result: CompositeScore = {
+      partyId,
+      compositeScore: score,
+      tier,
+      layers: {
+        onChain: { score: onChainDetail.total, max: 400 },
+        offChain: { score: offChainDetail.total, max: 350 },
+        ecosystem: { score: ecosystemDetail.total, max: 250 },
+      },
+      onChainDetail,
+      offChainDetail,
+      ecosystemDetail,
+      nextTier,
+      benefits,
+      lastCalculated: (p.calculationTime as string) ?? new Date().toISOString(),
+    };
+
+    scoreCache.set(partyId, result);
+    return result;
+  } catch (err) {
+    log.warn({ partyId, err }, 'Failed to read CompositeScore from Canton');
+    return null;
+  }
+}
+
 export function getCompositeScore(partyId: string): CompositeScore {
   log.debug({ partyId }, 'Getting composite score');
 
   const cached = scoreCache.get(partyId);
   if (cached) return cached;
 
+  // Note: Canton query is async; callers that need Canton data should call
+  // getCompositeScoreAsync() instead. This sync version uses mock calculation.
+  return calculateCompositeScore(partyId);
+}
+
+/** Async version that queries Canton when CANTON_MOCK=false. */
+export async function getCompositeScoreAsync(partyId: string): Promise<CompositeScore> {
+  const cached = scoreCache.get(partyId);
+  if (cached) return cached;
+
+  // Try Canton first
+  const cantonResult = await getCompositeScoreFromCanton(partyId);
+  if (cantonResult) return cantonResult;
+
+  // Fall back to mock calculation
   return calculateCompositeScore(partyId);
 }
 

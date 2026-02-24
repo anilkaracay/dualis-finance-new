@@ -29,7 +29,9 @@ import type { CantonContract } from './types.js';
 
 const TEMPLATES = {
   lendingPool: 'Dualis.Lending.Pool:LendingPool',
+  supplyPosition: 'Dualis.Lending.Pool:SupplyPosition',
   borrowPosition: 'Dualis.Lending.Borrow:BorrowPosition',
+  collateralVault: 'Dualis.Lending.Collateral:CollateralVault',
   creditProfile: 'Dualis.Credit.CompositeScore:CompositeCredit', // No CreditProfile template; use CompositeCredit
   secLendingOffer: 'Dualis.SecLending.Advanced:FractionalOffer',
   secLendingDeal: 'Dualis.SecLending.Advanced:NettingAgreement',
@@ -61,10 +63,26 @@ export async function getPoolByKey(poolId: string): Promise<CantonContract<Lendi
 }
 
 // ---------------------------------------------------------------------------
+// Supply position queries
+// ---------------------------------------------------------------------------
+
+/** Fetch all supply positions for a given depositor. */
+export async function getSupplyPositions(depositor: string): Promise<CantonContract<Record<string, unknown>>[]> {
+  const client = CantonClient.getInstance();
+  return client.queryContracts<Record<string, unknown>>(TEMPLATES.supplyPosition, { depositor });
+}
+
+/** Fetch all supply positions for a given pool. */
+export async function getSupplyPositionsByPool(poolId: string): Promise<CantonContract<Record<string, unknown>>[]> {
+  const client = CantonClient.getInstance();
+  return client.queryContracts<Record<string, unknown>>(TEMPLATES.supplyPosition, { poolId });
+}
+
+// ---------------------------------------------------------------------------
 // Borrow / position queries
 // ---------------------------------------------------------------------------
 
-/** Fetch all positions for a given user. */
+/** Fetch all borrow positions for a given borrower. */
 export async function getUserPositions(partyId: string): Promise<CantonContract<BorrowPosition>[]> {
   const client = CantonClient.getInstance();
   return client.queryContracts<BorrowPosition>(TEMPLATES.borrowPosition, { borrower: partyId });
@@ -73,8 +91,18 @@ export async function getUserPositions(partyId: string): Promise<CantonContract<
 /** Fetch all active borrow positions (optionally filtered by pool). */
 export async function getActiveBorrows(poolId?: string): Promise<CantonContract<BorrowPosition>[]> {
   const client = CantonClient.getInstance();
-  const query = poolId ? { lendingPoolId: poolId } : undefined;
+  const query = poolId ? { poolId } : undefined;
   return client.queryContracts<BorrowPosition>(TEMPLATES.borrowPosition, query);
+}
+
+// ---------------------------------------------------------------------------
+// Collateral vault queries
+// ---------------------------------------------------------------------------
+
+/** Fetch all collateral vaults for a given owner. */
+export async function getCollateralVaults(owner: string): Promise<CantonContract<Record<string, unknown>>[]> {
+  const client = CantonClient.getInstance();
+  return client.queryContracts<Record<string, unknown>>(TEMPLATES.collateralVault, { owner });
 }
 
 // ---------------------------------------------------------------------------

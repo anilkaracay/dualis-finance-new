@@ -74,12 +74,12 @@ function generateCreditHistory(period: string): CreditHistoryPoint[] {
   return points;
 }
 
-export function getScore(partyId: string): CreditScoreResponse {
+export async function getScore(partyId: string): Promise<CreditScoreResponse> {
   log.debug({ partyId }, 'Getting credit score');
 
   // Enrich with composite score data when available
   try {
-    const composite = compositeCreditService.getCompositeScore(partyId);
+    const composite = await compositeCreditService.getCompositeScoreAsync(partyId);
     return {
       ...MOCK_SCORE,
       rawScore: composite.compositeScore,
@@ -104,9 +104,9 @@ export function getScore(partyId: string): CreditScoreResponse {
   }
 }
 
-export function getCompositeScoreForParty(partyId: string): CompositeScore {
+export async function getCompositeScoreForParty(partyId: string): Promise<CompositeScore> {
   log.debug({ partyId }, 'Getting composite score via credit service');
-  return compositeCreditService.getCompositeScore(partyId);
+  return compositeCreditService.getCompositeScoreAsync(partyId);
 }
 
 export function getHistory(

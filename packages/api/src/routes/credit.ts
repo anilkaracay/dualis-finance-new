@@ -17,7 +17,7 @@ export async function creditRoutes(fastify: FastifyInstance): Promise<void> {
     { preHandler: [authMiddleware] },
     async (request, reply) => {
       const partyId = (request as FastifyRequest & { partyId: string }).partyId;
-      const score = creditService.getScore(partyId);
+      const score = await creditService.getScore(partyId);
 
       const response: ApiResponse<CreditScoreResponse> = {
         data: score,
@@ -70,7 +70,7 @@ export async function creditRoutes(fastify: FastifyInstance): Promise<void> {
     { preHandler: [authMiddleware] },
     async (request, reply) => {
       const partyId = (request as FastifyRequest & { partyId: string }).partyId;
-      const score = creditService.getScore(partyId);
+      const score = await creditService.getScore(partyId);
 
       const tierBenefits = TIER_BENEFITS[score.creditTier] ?? TIER_BENEFITS['Unrated'];
 

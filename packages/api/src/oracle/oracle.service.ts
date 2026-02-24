@@ -225,6 +225,12 @@ export async function runOracleCycle(): Promise<void> {
       log.warn({ err: message }, 'Canton sync failed');
     });
 
+    // Step 8.5: Update pool registry prices so pools reflect oracle prices
+    const { updateAssetPriceBySymbol } = await import('../services/poolRegistry.js');
+    for (const [asset, price] of aggregated) {
+      updateAssetPriceBySymbol(asset, price.medianPrice);
+    }
+
     // Step 9: Broadcast to WebSocket subscribers
     for (const [asset, price] of aggregated) {
       const prev = latestPrices.get(asset);

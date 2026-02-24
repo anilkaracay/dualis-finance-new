@@ -37,74 +37,179 @@ const TEMPLATES = {
 // Lending commands
 // ---------------------------------------------------------------------------
 
-/** Build a deposit command for a lending pool. */
+// ---------------------------------------------------------------------------
+// Supply Position template
+// ---------------------------------------------------------------------------
+const SUPPLY_POSITION_TEMPLATE = 'Dualis.Lending.Pool:SupplyPosition';
+
+/**
+ * Build a Deposit command for a LendingPool.
+ * DAML choice: Deposit(depositor: Party, amount: Decimal, depositTime: Timestamp)
+ * Returns: (ContractId LendingPool, ContractId SupplyPosition)
+ */
 export function buildDepositCommand(
   poolContractId: string,
   depositor: string,
   amount: string,
+  depositTime?: string,
 ): CantonCommand {
   return {
     templateId: TEMPLATES.lendingPool,
     choice: 'Deposit',
     contractId: poolContractId,
-    argument: { depositor, amount },
+    argument: {
+      depositor,
+      amount,
+      depositTime: depositTime ?? new Date().toISOString(),
+    },
   };
 }
 
-/** Build a withdraw command for a lending pool. */
+/**
+ * Build a ProcessWithdraw command for a LendingPool (operator-controlled).
+ * DAML choice: ProcessWithdraw(withdrawAmount: Decimal)
+ * Returns: ContractId LendingPool
+ */
+export function buildProcessWithdrawCommand(
+  poolContractId: string,
+  withdrawAmount: string,
+): CantonCommand {
+  return {
+    templateId: TEMPLATES.lendingPool,
+    choice: 'ProcessWithdraw',
+    contractId: poolContractId,
+    argument: { withdrawAmount },
+  };
+}
+
+/**
+ * Build a Withdraw command for a SupplyPosition (depositor-controlled).
+ * DAML choice: Withdraw(currentSupplyIndex: Decimal, withdrawAmount: Decimal, withdrawTime: Timestamp)
+ * Returns: Optional (ContractId SupplyPosition)
+ */
 export function buildWithdrawCommand(
-  poolContractId: string,
-  depositor: string,
-  shares: string,
+  positionContractId: string,
+  currentSupplyIndex: string,
+  withdrawAmount: string,
+  withdrawTime?: string,
 ): CantonCommand {
   return {
-    templateId: TEMPLATES.lendingPool,
+    templateId: SUPPLY_POSITION_TEMPLATE,
     choice: 'Withdraw',
-    contractId: poolContractId,
-    argument: { depositor, shares },
+    contractId: positionContractId,
+    argument: {
+      currentSupplyIndex,
+      withdrawAmount,
+      withdrawTime: withdrawTime ?? new Date().toISOString(),
+    },
   };
 }
 
-/** Build a borrow command. */
-export function buildBorrowCommand(
+/**
+ * Build a RecordBorrow command for a LendingPool (operator-controlled).
+ * DAML choice: RecordBorrow(borrowAmount: Decimal)
+ * Returns: ContractId LendingPool
+ */
+export function buildRecordBorrowCommand(
   poolContractId: string,
-  borrower: string,
-  amount: string,
-  collateralAssets: Array<{ symbol: string; amount: string }>,
+  borrowAmount: string,
 ): CantonCommand {
   return {
     templateId: TEMPLATES.lendingPool,
-    choice: 'Borrow',
+    choice: 'RecordBorrow',
     contractId: poolContractId,
-    argument: { borrower, amount, collateralAssets },
+    argument: { borrowAmount },
   };
 }
 
-/** Build a repay command for a borrow position. */
+/**
+ * Build a RecordRepay command for a LendingPool (operator-controlled).
+ * DAML choice: RecordRepay(repayAmount: Decimal)
+ * Returns: ContractId LendingPool
+ */
+export function buildRecordRepayCommand(
+  poolContractId: string,
+  repayAmount: string,
+): CantonCommand {
+  return {
+    templateId: TEMPLATES.lendingPool,
+    choice: 'RecordRepay',
+    contractId: poolContractId,
+    argument: { repayAmount },
+  };
+}
+
+/**
+ * Build a Repay command for a BorrowPosition (borrower-controlled).
+ * DAML choice: Repay(repayAmount: Decimal, currentBorrowIndex: Decimal, repayTime: Timestamp)
+ * Returns: Optional (ContractId BorrowPosition)
+ */
 export function buildRepayCommand(
   borrowPositionContractId: string,
-  borrower: string,
-  amount: string,
+  repayAmount: string,
+  currentBorrowIndex: string,
+  repayTime?: string,
 ): CantonCommand {
   return {
     templateId: TEMPLATES.borrowPosition,
     choice: 'Repay',
     contractId: borrowPositionContractId,
-    argument: { borrower, amount },
+    argument: {
+      repayAmount,
+      currentBorrowIndex,
+      repayTime: repayTime ?? new Date().toISOString(),
+    },
   };
 }
 
-/** Build an add-collateral command for a collateral position. */
+/**
+ * Build an AddCollateral command for a BorrowPosition (borrower-controlled).
+ * DAML choice: AddCollateral(newCollateralRef: CollateralRef, updateTime: Timestamp)
+ * Returns: ContractId BorrowPosition
+ */
 export function buildAddCollateralCommand(
-  collateralPositionContractId: string,
-  borrower: string,
-  asset: { symbol: string; amount: string },
+  borrowPositionContractId: string,
+  newCollateralRef: { vaultId: string; symbol: string; amount: string; valueUSD: string },
+  updateTime?: string,
+): CantonCommand {
+  return {
+    templateId: TEMPLATES.borrowPosition,
+    choice: 'AddCollateral',
+    contractId: borrowPositionContractId,
+    argument: {
+      newCollateralRef,
+      updateTime: updateTime ?? new Date().toISOString(),
+    },
+  };
+}
+
+/**
+ * Build a DepositCollateral command for a CollateralVault (owner-controlled).
+ * DAML choice: DepositCollateral(entry: CollateralEntry, depositTime: Timestamp)
+ * Returns: ContractId CollateralVault
+ */
+export function buildDepositCollateralCommand(
+  vaultContractId: string,
+  entry: {
+    symbol: string;
+    amount: string;
+    priceUSD: string;
+    collateralTier: string;
+    loanToValue: string;
+    liquidationThreshold: string;
+    liquidationPenalty: string;
+    depositTime: string;
+  },
+  depositTime?: string,
 ): CantonCommand {
   return {
     templateId: TEMPLATES.collateralPosition,
-    choice: 'AddCollateral',
-    contractId: collateralPositionContractId,
-    argument: { borrower, asset },
+    choice: 'DepositCollateral',
+    contractId: vaultContractId,
+    argument: {
+      entry,
+      depositTime: depositTime ?? new Date().toISOString(),
+    },
   };
 }
 

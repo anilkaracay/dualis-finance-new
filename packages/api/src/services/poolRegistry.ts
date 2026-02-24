@@ -338,12 +338,24 @@ export function setPoolActive(poolId: string, active: boolean): boolean {
   return true;
 }
 
-/** Update asset price (oracle feed). */
+/** Update asset price by pool ID (oracle feed). */
 export function updateAssetPrice(poolId: string, newPrice: number): boolean {
   const pool = pools.get(poolId);
   if (!pool) return false;
   pool.asset.priceUSD = newPrice;
   return true;
+}
+
+/** Update asset price by symbol across all pools that hold this asset. */
+export function updateAssetPriceBySymbol(symbol: string, newPrice: number): number {
+  let updated = 0;
+  for (const pool of pools.values()) {
+    if (pool.asset.symbol === symbol) {
+      pool.asset.priceUSD = newPrice;
+      updated++;
+    }
+  }
+  return updated;
 }
 
 /** Total pool count. */

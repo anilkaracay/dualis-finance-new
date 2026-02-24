@@ -78,14 +78,24 @@ export async function borrowRoutes(fastify: FastifyInstance): Promise<void> {
       }
 
       const partyId = (request as FastifyRequest & { partyId: string }).partyId;
-      const result = borrowService.requestBorrow(partyId, parsed.data);
 
-      const response: ApiResponse<BorrowResponse> = {
-        data: result.data,
-        transaction: result.transaction,
-      };
-
-      return reply.status(201).send(response);
+      try {
+        const result = await borrowService.requestBorrow(partyId, parsed.data);
+        const response: ApiResponse<BorrowResponse> = {
+          data: result.data,
+          transaction: result.transaction,
+        };
+        return reply.status(201).send(response);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        if (msg.includes('INSUFFICIENT_COLLATERAL')) {
+          throw new AppError('INSUFFICIENT_COLLATERAL', msg, 400);
+        }
+        if (msg.includes('HEALTH_FACTOR_TOO_LOW')) {
+          throw new AppError('HEALTH_FACTOR_TOO_LOW', msg, 400);
+        }
+        throw new AppError('CANTON_ERROR', msg, 500);
+      }
     }
   );
 
@@ -95,7 +105,7 @@ export async function borrowRoutes(fastify: FastifyInstance): Promise<void> {
     { preHandler: [authMiddleware] },
     async (request, reply) => {
       const partyId = (request as FastifyRequest & { partyId: string }).partyId;
-      const positions = borrowService.getPositions(partyId);
+      const positions = await borrowService.getPositions(partyId);
 
       const response: ApiResponse<BorrowPositionItem[]> = {
         data: positions,
@@ -119,14 +129,18 @@ export async function borrowRoutes(fastify: FastifyInstance): Promise<void> {
       const partyId = (request as FastifyRequest & { partyId: string }).partyId;
 
       try {
-        const result = borrowService.repay(partyId, positionId, parsed.data.amount);
+        const result = await borrowService.repay(partyId, positionId, parsed.data.amount);
         const response: ApiResponse<RepayResponse> = {
           data: result.data,
           transaction: result.transaction,
         };
         return reply.status(200).send(response);
-      } catch {
-        throw new AppError('POSITION_NOT_FOUND', `Position ${positionId} not found`, 404);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        if (msg.includes('not found')) {
+          throw new AppError('POSITION_NOT_FOUND', `Position ${positionId} not found`, 404);
+        }
+        throw new AppError('CANTON_ERROR', msg, 500);
       }
     }
   );
@@ -145,14 +159,18 @@ export async function borrowRoutes(fastify: FastifyInstance): Promise<void> {
       const partyId = (request as FastifyRequest & { partyId: string }).partyId;
 
       try {
-        const result = borrowService.addCollateral(partyId, positionId, parsed.data.asset);
+        const result = await borrowService.addCollateral(partyId, positionId, parsed.data.asset);
         const response: ApiResponse<AddCollateralResponse> = {
           data: result.data,
           transaction: result.transaction,
         };
         return reply.status(200).send(response);
-      } catch {
-        throw new AppError('POSITION_NOT_FOUND', `Position ${positionId} not found`, 404);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        if (msg.includes('not found')) {
+          throw new AppError('POSITION_NOT_FOUND', `Position ${positionId} not found`, 404);
+        }
+        throw new AppError('CANTON_ERROR', msg, 500);
       }
     }
   );

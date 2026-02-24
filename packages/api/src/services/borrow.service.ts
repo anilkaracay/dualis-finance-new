@@ -18,6 +18,9 @@ import {
   type HealthFactorResult,
 } from '@dualis/shared';
 import { randomUUID } from 'node:crypto';
+import { env } from '../config/env.js';
+import { CantonClient } from '../canton/client.js';
+import * as cantonQueries from '../canton/queries.js';
 import * as compositeCreditService from './compositeCredit.service.js';
 import * as poolService from './pool.service.js';
 import * as registry from './poolRegistry.js';
@@ -134,10 +137,10 @@ function buildCollateralInputs(
   });
 }
 
-export function requestBorrow(
+export async function requestBorrow(
   partyId: string,
   params: BorrowRequest,
-): { data: BorrowResponse; transaction: TransactionMeta } {
+): Promise<{ data: BorrowResponse; transaction: TransactionMeta }> {
   log.info({ partyId, params }, 'Processing borrow request');
 
   // 1. Get composite credit score for tier-based adjustments
@@ -198,6 +201,90 @@ export function requestBorrow(
     'Borrow approved with tier-adjusted rate',
   );
 
+  // ---------- Canton mode: exercise RecordBorrow on LendingPool ----------
+  if (!env.CANTON_MOCK) {
+    const client = CantonClient.getInstance();
+    const pool = registry.getPool(params.lendingPoolId);
+    if (!pool) throw new Error(`Pool ${params.lendingPoolId} not found`);
+
+    // RecordBorrow updates totalBorrow on the LendingPool contract
+    const result = await client.exerciseChoice(
+      'Dualis.Lending.Pool:LendingPool',
+      pool.contractId,
+      'RecordBorrow',
+      { borrowAmount: params.borrowAmount },
+    );
+
+    // Update local pool contract ID
+    const events = result.events ?? [];
+    for (const event of events) {
+      const created = (event as Record<string, unknown>).CreatedEvent as Record<string, unknown> | undefined;
+      if (!created) continue;
+      const tid = (created.templateId as string) ?? '';
+      if (tid.includes('LendingPool')) {
+        pool.contractId = (created.contractId as string) ?? pool.contractId;
+      }
+    }
+    pool.totalBorrow += borrowAmount;
+
+    // Create a BorrowPosition contract on-ledger
+    const borrowPosResult = await client.createContract(
+      'Dualis.Lending.Borrow:BorrowPosition',
+      {
+        operator: partyId, // Operator party for the position
+        borrower: partyId,
+        positionId: `borrow-pos-${randomUUID().slice(0, 8)}`,
+        poolId: params.lendingPoolId,
+        borrowedAsset: {
+          symbol: poolAsset,
+          instrumentType: pool.asset.type,
+          priceUSD: String(borrowPrice),
+        },
+        borrowedAmountPrincipal: params.borrowAmount,
+        borrowIndexAtEntry: String(pool.borrowIndex),
+        collateralRefs: params.collateralAssets.map(a => ({
+          vaultId: `vault-${randomUUID().slice(0, 8)}`,
+          symbol: a.symbol,
+          amount: a.amount,
+          valueUSD: String(parseFloat(a.amount) * getAssetPrice(a.symbol)),
+        })),
+        creditTier: tier,
+        tierParams: {
+          maxLTV: String(tierMaxLTV),
+          rateDiscount: String(rateDiscount),
+        },
+        lastHealthFactor: {
+          value: String(previewHF.value),
+          collateralValueUSD: String(previewHF.collateralValueUSD),
+          borrowValueUSD: String(previewHF.borrowValueUSD),
+          weightedLTV: String(previewHF.weightedLTV),
+        },
+        borrowTimestamp: new Date().toISOString(),
+        lastUpdateTimestamp: new Date().toISOString(),
+        isActive: true,
+        isLiquidatable: false,
+      },
+    );
+
+    return {
+      data: {
+        borrowPositionId: borrowPosResult.contractId,
+        collateralPositionId: `collateral-pos-${randomUUID().slice(0, 8)}`,
+        borrowedAmount: params.borrowAmount,
+        healthFactor: {
+          value: previewHF.value,
+          collateralValueUSD: previewHF.collateralValueUSD,
+          borrowValueUSD: previewHF.borrowValueUSD,
+          weightedLTV: previewHF.weightedLTV,
+        },
+        creditTier: tier,
+        borrowAPY: Number(borrowAPY.toFixed(4)),
+      },
+      transaction: buildTransactionMeta(),
+    };
+  }
+
+  // ---------- Mock mode ----------
   return {
     data: {
       borrowPositionId: `borrow-pos-${randomUUID().slice(0, 8)}`,
@@ -216,20 +303,142 @@ export function requestBorrow(
   };
 }
 
-export function getPositions(
+export async function getPositions(
   partyId: string,
-): BorrowPositionItem[] {
+): Promise<BorrowPositionItem[]> {
   log.debug({ partyId }, 'Getting borrow positions');
+
+  // ---------- Canton mode: query real BorrowPosition contracts ----------
+  if (!env.CANTON_MOCK) {
+    try {
+      const contracts = await cantonQueries.getUserPositions(partyId);
+
+      return contracts.map((c) => {
+        const p = c.payload as unknown as Record<string, unknown>;
+        const asset = p.borrowedAsset as Record<string, unknown> | undefined;
+        const hf = p.lastHealthFactor as Record<string, unknown> | undefined;
+        const collRefs = (p.collateralRefs as Array<Record<string, unknown>>) ?? [];
+
+        return {
+          positionId: (p.positionId as string) ?? c.contractId,
+          lendingPoolId: (p.poolId as string) ?? '',
+          borrowedAsset: {
+            symbol: (asset?.symbol as string) ?? 'UNKNOWN',
+            type: (asset?.instrumentType as string) ?? 'CryptoCurrency',
+            priceUSD: parseFloat((asset?.priceUSD as string) ?? '1'),
+          },
+          borrowedAmountPrincipal: parseFloat((p.borrowedAmountPrincipal as string) ?? '0'),
+          currentDebt: parseFloat((p.borrowedAmountPrincipal as string) ?? '0'), // Will be updated by index
+          interestAccrued: 0,
+          healthFactor: {
+            value: parseFloat((hf?.value as string) ?? '1'),
+            collateralValueUSD: parseFloat((hf?.collateralValueUSD as string) ?? '0'),
+            weightedCollateralValueUSD: parseFloat((hf?.collateralValueUSD as string) ?? '0'),
+            borrowValueUSD: parseFloat((hf?.borrowValueUSD as string) ?? '0'),
+            weightedLTV: parseFloat((hf?.weightedLTV as string) ?? '0'),
+          },
+          creditTier: (p.creditTier as CreditTier) ?? 'Unrated',
+          isLiquidatable: (p.isLiquidatable as boolean) ?? false,
+          collateral: collRefs.map(ref => ({
+            symbol: (ref.symbol as string) ?? '',
+            amount: (ref.amount as string) ?? '0',
+            valueUSD: parseFloat((ref.valueUSD as string) ?? '0'),
+          })),
+          borrowTimestamp: (p.borrowTimestamp as string) ?? new Date().toISOString(),
+          contractId: c.contractId,
+        };
+      });
+    } catch (err) {
+      log.warn({ partyId, err }, 'Failed to query Canton borrow positions, falling back to mock');
+      // Don't silently fall back when CANTON_MOCK=false — throw instead
+      throw new Error('Failed to query borrow positions from Canton ledger');
+    }
+  }
+
+  // ---------- Mock mode ----------
   return MOCK_POSITIONS;
 }
 
-export function repay(
+export async function repay(
   partyId: string,
   positionId: string,
   amount: string,
-): { data: RepayResponse; transaction: TransactionMeta } {
+): Promise<{ data: RepayResponse; transaction: TransactionMeta }> {
   log.info({ partyId, positionId, amount }, 'Processing repayment');
 
+  // ---------- Canton mode ----------
+  if (!env.CANTON_MOCK) {
+    const client = CantonClient.getInstance();
+
+    // Find the BorrowPosition contract by querying user positions
+    const positions = await cantonQueries.getUserPositions(partyId);
+    const posContract = positions.find(c => {
+      const p = c.payload as unknown as Record<string, unknown>;
+      return (p.positionId as string) === positionId || c.contractId === positionId;
+    });
+
+    if (!posContract) {
+      throw new Error(`Position ${positionId} not found`);
+    }
+
+    const payload = posContract.payload as unknown as Record<string, unknown>;
+    const poolId = (payload.poolId as string) ?? '';
+    const pool = registry.getPool(poolId);
+    const currentBorrowIndex = pool ? String(pool.borrowIndex) : '1.0';
+
+    // Exercise Repay on BorrowPosition
+    await client.exerciseChoice(
+      'Dualis.Lending.Borrow:BorrowPosition',
+      posContract.contractId,
+      'Repay',
+      {
+        repayAmount: amount,
+        currentBorrowIndex,
+        repayTime: new Date().toISOString(),
+      },
+    );
+
+    // Also exercise RecordRepay on the LendingPool to update totalBorrow
+    if (pool) {
+      const poolResult = await client.exerciseChoice(
+        'Dualis.Lending.Pool:LendingPool',
+        pool.contractId,
+        'RecordRepay',
+        { repayAmount: amount },
+      );
+
+      // Update local pool contract ID
+      const events = poolResult.events ?? [];
+      for (const event of events) {
+        const created = (event as Record<string, unknown>).CreatedEvent as Record<string, unknown> | undefined;
+        if (!created) continue;
+        const tid = (created.templateId as string) ?? '';
+        if (tid.includes('LendingPool')) {
+          pool.contractId = (created.contractId as string) ?? pool.contractId;
+        }
+      }
+      pool.totalBorrow = Math.max(0, pool.totalBorrow - parseFloat(amount));
+    }
+
+    const principal = parseFloat((payload.borrowedAmountPrincipal as string) ?? '0');
+    const repayAmount = parseFloat(amount);
+    const remaining = Math.max(0, principal - repayAmount);
+    const collateralValueUSD = parseFloat(
+      ((payload.lastHealthFactor as Record<string, unknown>)?.collateralValueUSD as string) ?? '0',
+    );
+
+    return {
+      data: {
+        remainingDebt: Number(remaining.toFixed(2)),
+        newHealthFactor: remaining === 0 ? Infinity : Number(
+          (collateralValueUSD / remaining).toFixed(2),
+        ),
+      },
+      transaction: buildTransactionMeta(),
+    };
+  }
+
+  // ---------- Mock mode ----------
   const position = MOCK_POSITIONS.find((p) => p.positionId === positionId);
   if (!position) {
     throw new Error(`Position ${positionId} not found`);
@@ -249,13 +458,64 @@ export function repay(
   };
 }
 
-export function addCollateral(
+export async function addCollateral(
   partyId: string,
   positionId: string,
   asset: { symbol: string; amount: string },
-): { data: AddCollateralResponse; transaction: TransactionMeta } {
+): Promise<{ data: AddCollateralResponse; transaction: TransactionMeta }> {
   log.info({ partyId, positionId, asset }, 'Adding collateral');
 
+  // ---------- Canton mode ----------
+  if (!env.CANTON_MOCK) {
+    const client = CantonClient.getInstance();
+
+    // Find the BorrowPosition contract
+    const positions = await cantonQueries.getUserPositions(partyId);
+    const posContract = positions.find(c => {
+      const p = c.payload as unknown as Record<string, unknown>;
+      return (p.positionId as string) === positionId || c.contractId === positionId;
+    });
+
+    if (!posContract) {
+      throw new Error(`Position ${positionId} not found`);
+    }
+
+    const addedValueUSD = parseFloat(asset.amount) * getAssetPrice(asset.symbol);
+
+    // Exercise AddCollateral on BorrowPosition
+    await client.exerciseChoice(
+      'Dualis.Lending.Borrow:BorrowPosition',
+      posContract.contractId,
+      'AddCollateral',
+      {
+        newCollateralRef: {
+          vaultId: `vault-${randomUUID().slice(0, 8)}`,
+          symbol: asset.symbol,
+          amount: asset.amount,
+          valueUSD: String(addedValueUSD),
+        },
+        updateTime: new Date().toISOString(),
+      },
+    );
+
+    const payload = posContract.payload as unknown as Record<string, unknown>;
+    const hf = payload.lastHealthFactor as Record<string, unknown> | undefined;
+    const currentCollateralValue = parseFloat((hf?.collateralValueUSD as string) ?? '0');
+    const currentDebt = parseFloat((payload.borrowedAmountPrincipal as string) ?? '0');
+    const newCollateralValue = currentCollateralValue + addedValueUSD;
+
+    return {
+      data: {
+        newCollateralValueUSD: Number(newCollateralValue.toFixed(2)),
+        newHealthFactor: currentDebt === 0 ? Infinity : Number(
+          (newCollateralValue / currentDebt).toFixed(2),
+        ),
+      },
+      transaction: buildTransactionMeta(),
+    };
+  }
+
+  // ---------- Mock mode ----------
   const position = MOCK_POSITIONS.find((p) => p.positionId === positionId);
   if (!position) {
     throw new Error(`Position ${positionId} not found`);

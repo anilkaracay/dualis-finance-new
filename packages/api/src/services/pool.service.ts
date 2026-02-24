@@ -16,6 +16,8 @@ import {
   getCollateralParams,
 } from '@dualis/shared';
 import { randomUUID } from 'node:crypto';
+import { env } from '../config/env.js';
+import { CantonClient } from '../canton/client.js';
 import * as registry from './poolRegistry.js';
 
 const log = createChildLogger('pool-service');
@@ -203,12 +205,12 @@ export function getPoolHistory(poolId: string, period: string): PoolHistoryPoint
   return generateHistoryPoints(poolId, period);
 }
 
-export function deposit(
+export async function deposit(
   poolId: string,
-  _partyId: string,
+  partyId: string,
   amount: string,
-): { data: DepositResponse; transaction: TransactionMeta } {
-  log.info({ poolId, _partyId, amount }, 'Processing deposit');
+): Promise<{ data: DepositResponse; transaction: TransactionMeta }> {
+  log.info({ poolId, partyId, amount }, 'Processing deposit');
   const pool = registry.getPool(poolId);
   if (!pool) throw new Error(`Pool ${poolId} not found`);
 
@@ -218,9 +220,54 @@ export function deposit(
   const amountNum = parseFloat(amount);
   if (isNaN(amountNum) || amountNum <= 0) throw new Error('Invalid deposit amount');
 
-  // Update pool supply state
-  pool.totalSupply += amountNum;
+  // ---------- Canton mode: exercise Deposit choice on LendingPool ----------
+  if (!env.CANTON_MOCK) {
+    const client = CantonClient.getInstance();
+    const result = await client.exerciseChoice(
+      'Dualis.Lending.Pool:LendingPool',
+      pool.contractId,
+      'Deposit',
+      {
+        depositor: partyId,
+        amount: amount,
+        depositTime: new Date().toISOString(),
+      },
+    );
 
+    // Extract created contract IDs from the response events
+    let newPoolContractId = pool.contractId;
+    let positionContractId = '';
+    const events = result.events ?? [];
+    for (const event of events) {
+      const created = (event as Record<string, unknown>).CreatedEvent as Record<string, unknown> | undefined;
+      if (!created) continue;
+      const tid = (created.templateId as string) ?? '';
+      if (tid.includes('SupplyPosition')) {
+        positionContractId = (created.contractId as string) ?? '';
+      } else if (tid.includes('LendingPool')) {
+        newPoolContractId = (created.contractId as string) ?? '';
+      }
+    }
+
+    // Update pool contract ID (Deposit archives old pool, creates new one)
+    pool.contractId = newPoolContractId;
+    pool.totalSupply += amountNum;
+
+    const shares = amountNum / (pool.supplyIndex || 1);
+
+    return {
+      data: {
+        poolContractId: newPoolContractId,
+        positionContractId: positionContractId || `canton::position::${poolId}-${randomUUID().slice(0, 8)}`,
+        sharesReceived: shares.toFixed(6),
+        amountDeposited: amountNum.toFixed(6),
+      },
+      transaction: buildTransactionMeta(),
+    };
+  }
+
+  // ---------- Mock mode: in-memory state update ----------
+  pool.totalSupply += amountNum;
   const shares = amountNum / (pool.supplyIndex || 1);
 
   return {
@@ -234,12 +281,12 @@ export function deposit(
   };
 }
 
-export function withdraw(
+export async function withdraw(
   poolId: string,
-  _partyId: string,
+  partyId: string,
   shares: string,
-): { data: WithdrawResponse; transaction: TransactionMeta } {
-  log.info({ poolId, _partyId, shares }, 'Processing withdrawal');
+): Promise<{ data: WithdrawResponse; transaction: TransactionMeta }> {
+  log.info({ poolId, partyId, shares }, 'Processing withdrawal');
   const pool = registry.getPool(poolId);
   if (!pool) throw new Error(`Pool ${poolId} not found`);
 
@@ -253,7 +300,41 @@ export function withdraw(
   const available = pool.totalSupply - pool.totalBorrow;
   if (withdrawnAmount > available) throw new Error('Insufficient liquidity for withdrawal');
 
-  // Update pool supply state
+  // ---------- Canton mode: exercise ProcessWithdraw on LendingPool ----------
+  if (!env.CANTON_MOCK) {
+    const client = CantonClient.getInstance();
+
+    // ProcessWithdraw updates the pool's totalSupply on-ledger
+    const result = await client.exerciseChoice(
+      'Dualis.Lending.Pool:LendingPool',
+      pool.contractId,
+      'ProcessWithdraw',
+      { withdrawAmount: withdrawnAmount.toString() },
+    );
+
+    // Update local pool contract ID (choice archives old pool, creates new one)
+    const events = result.events ?? [];
+    for (const event of events) {
+      const created = (event as Record<string, unknown>).CreatedEvent as Record<string, unknown> | undefined;
+      if (!created) continue;
+      const tid = (created.templateId as string) ?? '';
+      if (tid.includes('LendingPool')) {
+        pool.contractId = (created.contractId as string) ?? pool.contractId;
+      }
+    }
+
+    pool.totalSupply -= withdrawnAmount;
+
+    return {
+      data: {
+        withdrawnAmount: withdrawnAmount.toFixed(6),
+        remainingShares: 0,
+      },
+      transaction: buildTransactionMeta(),
+    };
+  }
+
+  // ---------- Mock mode: in-memory state update ----------
   pool.totalSupply -= withdrawnAmount;
 
   return {
