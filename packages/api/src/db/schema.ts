@@ -116,7 +116,7 @@ export const secLendingHistory = pgTable('sec_lending_history', {
 export const governanceProposals = pgTable('governance_proposals', {
   id: varchar('id', { length: 32 }).primaryKey(),              // 'DIP-1', 'DIP-2', ...
   proposalNumber: integer('proposal_number').notNull().unique(),
-  proposerId: varchar('proposer_id', { length: 256 }).notNull(),
+  proposerId: varchar('proposer_id', { length: 256 }).notNull().references(() => users.userId),
   proposerAddress: varchar('proposer_address', { length: 256 }).notNull(),
   title: text('title').notNull(),
   description: text('description').notNull(),
@@ -155,8 +155,8 @@ export const governanceProposals = pgTable('governance_proposals', {
 // ---------------------------------------------------------------------------
 export const governanceVotes = pgTable('governance_votes', {
   id: varchar('id', { length: 64 }).primaryKey(),
-  proposalId: varchar('proposal_id', { length: 32 }).notNull(),
-  voterId: varchar('voter_id', { length: 256 }).notNull(),
+  proposalId: varchar('proposal_id', { length: 32 }).notNull().references(() => governanceProposals.id, { onDelete: 'cascade' }),
+  voterId: varchar('voter_id', { length: 256 }).notNull().references(() => users.userId),
   voterAddress: varchar('voter_address', { length: 256 }).notNull(),
   direction: varchar('direction', { length: 16 }).notNull(),   // VoteDirection enum
   weight: decimal('weight', { precision: 28, scale: 8 }).notNull(),
@@ -176,9 +176,9 @@ export const governanceVotes = pgTable('governance_votes', {
 // ---------------------------------------------------------------------------
 export const governanceDelegations = pgTable('governance_delegations', {
   id: varchar('id', { length: 64 }).primaryKey(),
-  delegatorId: varchar('delegator_id', { length: 256 }).notNull(),
+  delegatorId: varchar('delegator_id', { length: 256 }).notNull().references(() => users.userId),
   delegatorAddress: varchar('delegator_address', { length: 256 }).notNull(),
-  delegateeId: varchar('delegatee_id', { length: 256 }).notNull(),
+  delegateeId: varchar('delegatee_id', { length: 256 }).notNull().references(() => users.userId),
   delegateeAddress: varchar('delegatee_address', { length: 256 }).notNull(),
   amount: decimal('amount', { precision: 28, scale: 8 }).notNull(),
   isActive: boolean('is_active').default(true),
@@ -196,8 +196,8 @@ export const governanceDelegations = pgTable('governance_delegations', {
 // ---------------------------------------------------------------------------
 export const governanceTokenSnapshots = pgTable('governance_token_snapshots', {
   id: varchar('id', { length: 64 }).primaryKey(),
-  proposalId: varchar('proposal_id', { length: 32 }).notNull(),
-  userId: varchar('user_id', { length: 256 }).notNull(),
+  proposalId: varchar('proposal_id', { length: 32 }).notNull().references(() => governanceProposals.id, { onDelete: 'cascade' }),
+  userId: varchar('user_id', { length: 256 }).notNull().references(() => users.userId),
   userAddress: varchar('user_address', { length: 256 }).notNull(),
   balance: decimal('balance', { precision: 28, scale: 8 }).notNull(),
   delegatedTo: varchar('delegated_to', { length: 256 }),
@@ -214,7 +214,7 @@ export const governanceTokenSnapshots = pgTable('governance_token_snapshots', {
 // ---------------------------------------------------------------------------
 export const governanceExecutionQueue = pgTable('governance_execution_queue', {
   id: varchar('id', { length: 64 }).primaryKey(),
-  proposalId: varchar('proposal_id', { length: 32 }).notNull().unique(),
+  proposalId: varchar('proposal_id', { length: 32 }).notNull().unique().references(() => governanceProposals.id, { onDelete: 'cascade' }),
   actionType: varchar('action_type', { length: 64 }).notNull(),
   actionPayload: jsonb('action_payload').$type<Record<string, unknown>>().notNull(),
   timelockEndsAt: timestamp('timelock_ends_at', { withTimezone: true }).notNull(),
@@ -376,7 +376,7 @@ export const productiveBorrows = pgTable('productive_borrows', {
   id: serial('id').primaryKey(),
   borrowId: varchar('borrow_id', { length: 256 }).notNull().unique(),
   borrowerParty: varchar('borrower_party', { length: 256 }).notNull(),
-  projectId: varchar('project_id', { length: 256 }).notNull(),
+  projectId: varchar('project_id', { length: 256 }).notNull().references(() => productiveProjects.projectId, { onDelete: 'restrict' }),
   poolId: varchar('pool_id', { length: 128 }).notNull(),
   loanAmount: decimal('loan_amount', { precision: 38, scale: 18 }).notNull(),
   outstandingDebt: decimal('outstanding_debt', { precision: 38, scale: 18 }).notNull(),
@@ -393,7 +393,7 @@ export const productiveBorrows = pgTable('productive_borrows', {
 // ---------------------------------------------------------------------------
 export const productiveCashflows = pgTable('productive_cashflows', {
   id: serial('id').primaryKey(),
-  borrowId: varchar('borrow_id', { length: 256 }).notNull(),
+  borrowId: varchar('borrow_id', { length: 256 }).notNull().references(() => productiveBorrows.borrowId, { onDelete: 'cascade' }),
   expectedDate: timestamp('expected_date', { withTimezone: true }).notNull(),
   expectedAmount: decimal('expected_amount', { precision: 38, scale: 18 }).notNull(),
   actualAmount: decimal('actual_amount', { precision: 38, scale: 18 }),
@@ -406,7 +406,7 @@ export const productiveCashflows = pgTable('productive_cashflows', {
 // ---------------------------------------------------------------------------
 export const iotReadings = pgTable('iot_readings', {
   id: serial('id').primaryKey(),
-  projectId: varchar('project_id', { length: 256 }).notNull(),
+  projectId: varchar('project_id', { length: 256 }).notNull().references(() => productiveProjects.projectId, { onDelete: 'cascade' }),
   metricType: varchar('metric_type', { length: 64 }).notNull(),
   value: real('value').notNull(),
   unit: varchar('unit', { length: 32 }).notNull(),
@@ -487,7 +487,7 @@ export const verifiedInstitutions = pgTable('verified_institutions', {
 export const institutionalApiKeys = pgTable('institutional_api_keys', {
   id: serial('id').primaryKey(),
   keyId: varchar('key_id', { length: 256 }).notNull().unique(),
-  institutionParty: varchar('institution_party', { length: 256 }).notNull(),
+  institutionParty: varchar('institution_party', { length: 256 }).notNull().references(() => verifiedInstitutions.institutionParty, { onDelete: 'cascade' }),
   name: varchar('name', { length: 128 }).notNull(),
   keyHash: varchar('key_hash', { length: 256 }).notNull().unique(),
   keyPrefix: varchar('key_prefix', { length: 16 }).notNull(),
@@ -573,7 +573,7 @@ export const users = pgTable('users', {
 export const sessions = pgTable('sessions', {
   id: serial('id').primaryKey(),
   sessionId: varchar('session_id', { length: 256 }).notNull().unique(),
-  userId: varchar('user_id', { length: 256 }).notNull(),
+  userId: varchar('user_id', { length: 256 }).notNull().references(() => users.userId, { onDelete: 'cascade' }),
   refreshTokenHash: varchar('refresh_token_hash', { length: 256 }).notNull(),
   ipAddress: varchar('ip_address', { length: 64 }),
   userAgent: text('user_agent'),
@@ -603,7 +603,7 @@ export const loginEvents = pgTable('login_events', {
 // ---------------------------------------------------------------------------
 export const emailVerificationTokens = pgTable('email_verification_tokens', {
   id: serial('id').primaryKey(),
-  userId: varchar('user_id', { length: 256 }).notNull(),
+  userId: varchar('user_id', { length: 256 }).notNull().references(() => users.userId, { onDelete: 'cascade' }),
   tokenHash: varchar('token_hash', { length: 256 }).notNull().unique(),
   expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
   usedAt: timestamp('used_at', { withTimezone: true }),
@@ -615,7 +615,7 @@ export const emailVerificationTokens = pgTable('email_verification_tokens', {
 // ---------------------------------------------------------------------------
 export const passwordResetTokens = pgTable('password_reset_tokens', {
   id: serial('id').primaryKey(),
-  userId: varchar('user_id', { length: 256 }).notNull(),
+  userId: varchar('user_id', { length: 256 }).notNull().references(() => users.userId, { onDelete: 'cascade' }),
   tokenHash: varchar('token_hash', { length: 256 }).notNull().unique(),
   expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
   usedAt: timestamp('used_at', { withTimezone: true }),
@@ -639,7 +639,7 @@ export const walletNonces = pgTable('wallet_nonces', {
 // ---------------------------------------------------------------------------
 export const retailProfiles = pgTable('retail_profiles', {
   id: serial('id').primaryKey(),
-  userId: varchar('user_id', { length: 256 }).notNull().unique(),
+  userId: varchar('user_id', { length: 256 }).notNull().unique().references(() => users.userId, { onDelete: 'cascade' }),
   firstName: varchar('first_name', { length: 256 }),
   lastName: varchar('last_name', { length: 256 }),
   country: varchar('country', { length: 8 }),
@@ -655,7 +655,7 @@ export const retailProfiles = pgTable('retail_profiles', {
 export const institutions = pgTable('institutions', {
   id: serial('id').primaryKey(),
   institutionId: varchar('institution_id', { length: 256 }).notNull().unique(),
-  userId: varchar('user_id', { length: 256 }).notNull(),
+  userId: varchar('user_id', { length: 256 }).notNull().references(() => users.userId, { onDelete: 'restrict' }),
   companyName: varchar('company_name', { length: 256 }).notNull(),
   companyLegalName: varchar('company_legal_name', { length: 256 }),
   registrationNumber: varchar('registration_number', { length: 128 }),
@@ -694,7 +694,7 @@ export const institutions = pgTable('institutions', {
 export const complianceDocuments = pgTable('compliance_documents', {
   id: serial('id').primaryKey(),
   documentId: varchar('document_id', { length: 256 }).notNull().unique(),
-  institutionId: varchar('institution_id', { length: 256 }).notNull(),
+  institutionId: varchar('institution_id', { length: 256 }).notNull().references(() => institutions.institutionId, { onDelete: 'restrict' }),
   documentType: varchar('document_type', { length: 64 }).notNull(),
   fileName: varchar('file_name', { length: 256 }).notNull(),
   mimeType: varchar('mime_type', { length: 128 }).notNull(),
@@ -740,7 +740,7 @@ export const oracleAlerts = pgTable('oracle_alerts', {
 export const walletConnections = pgTable('wallet_connections', {
   id: serial('id').primaryKey(),
   connectionId: varchar('connection_id', { length: 256 }).notNull().unique(),
-  userId: varchar('user_id', { length: 256 }).notNull(),
+  userId: varchar('user_id', { length: 256 }).notNull().references(() => users.userId, { onDelete: 'cascade' }),
   walletAddress: varchar('wallet_address', { length: 256 }).notNull(),
   walletType: varchar('wallet_type', { length: 32 }).notNull(),
   custodyMode: varchar('custody_mode', { length: 32 }).notNull().default('self-custody'),
@@ -758,7 +758,7 @@ export const walletConnections = pgTable('wallet_connections', {
 export const partyMappings = pgTable('party_mappings', {
   id: serial('id').primaryKey(),
   mappingId: varchar('mapping_id', { length: 256 }).notNull().unique(),
-  userId: varchar('user_id', { length: 256 }).notNull(),
+  userId: varchar('user_id', { length: 256 }).notNull().references(() => users.userId, { onDelete: 'cascade' }),
   partyId: varchar('party_id', { length: 256 }).notNull(),
   walletConnectionId: varchar('wallet_connection_id', { length: 256 }),
   custodyMode: varchar('custody_mode', { length: 32 }).notNull(),
@@ -773,7 +773,7 @@ export const partyMappings = pgTable('party_mappings', {
 // ---------------------------------------------------------------------------
 export const walletPreferences = pgTable('wallet_preferences', {
   id: serial('id').primaryKey(),
-  userId: varchar('user_id', { length: 256 }).notNull().unique(),
+  userId: varchar('user_id', { length: 256 }).notNull().unique().references(() => users.userId, { onDelete: 'cascade' }),
   defaultWalletConnectionId: varchar('default_wallet_connection_id', { length: 256 }),
   signingThreshold: decimal('signing_threshold', { precision: 38, scale: 18 }).default('1000').notNull(),
   routingMode: varchar('routing_mode', { length: 32 }).notNull().default('auto'),
@@ -788,7 +788,7 @@ export const walletPreferences = pgTable('wallet_preferences', {
 export const custodialParties = pgTable('custodial_parties', {
   id: serial('id').primaryKey(),
   custodialPartyId: varchar('custodial_party_id', { length: 256 }).notNull().unique(),
-  userId: varchar('user_id', { length: 256 }).notNull(),
+  userId: varchar('user_id', { length: 256 }).notNull().references(() => users.userId, { onDelete: 'cascade' }),
   partyId: varchar('party_id', { length: 256 }).notNull(),
   encryptedKeyRef: varchar('encrypted_key_ref', { length: 512 }),
   status: varchar('status', { length: 32 }).notNull().default('active'),
@@ -802,7 +802,7 @@ export const custodialParties = pgTable('custodial_parties', {
 export const transactionLogs = pgTable('transaction_logs', {
   id: serial('id').primaryKey(),
   transactionLogId: varchar('transaction_log_id', { length: 256 }).notNull().unique(),
-  userId: varchar('user_id', { length: 256 }).notNull(),
+  userId: varchar('user_id', { length: 256 }).notNull().references(() => users.userId, { onDelete: 'cascade' }),
   partyId: varchar('party_id', { length: 256 }).notNull(),
   walletConnectionId: varchar('wallet_connection_id', { length: 256 }),
   txHash: varchar('tx_hash', { length: 512 }),
@@ -934,8 +934,8 @@ export const webhookEndpoints = pgTable('webhook_endpoints', {
 // ---------------------------------------------------------------------------
 export const webhookDeliveryLog = pgTable('webhook_delivery_log', {
   id: varchar('id', { length: 64 }).primaryKey(),
-  webhookEndpointId: varchar('webhook_endpoint_id', { length: 64 }).notNull(),
-  notificationId: varchar('notification_id', { length: 64 }).notNull(),
+  webhookEndpointId: varchar('webhook_endpoint_id', { length: 64 }).notNull().references(() => webhookEndpoints.id, { onDelete: 'cascade' }),
+  notificationId: varchar('notification_id', { length: 64 }).notNull().references(() => notifications.id, { onDelete: 'cascade' }),
   httpStatus: integer('http_status'),
   responseBody: text('response_body'),
   attempt: integer('attempt').notNull().default(1),
@@ -952,7 +952,7 @@ export const webhookDeliveryLog = pgTable('webhook_delivery_log', {
 // ---------------------------------------------------------------------------
 export const emailDeliveryLog = pgTable('email_delivery_log', {
   id: varchar('id', { length: 64 }).primaryKey(),
-  notificationId: varchar('notification_id', { length: 64 }).notNull(),
+  notificationId: varchar('notification_id', { length: 64 }).notNull().references(() => notifications.id, { onDelete: 'cascade' }),
   partyId: varchar('party_id', { length: 256 }).notNull(),
   toAddress: varchar('to_address', { length: 320 }).notNull(),
   templateId: varchar('template_id', { length: 64 }).notNull(),
@@ -975,7 +975,7 @@ export const emailDeliveryLog = pgTable('email_delivery_log', {
 export const kycVerifications = pgTable('kyc_verifications', {
   id: serial('id').primaryKey(),
   verificationId: varchar('verification_id', { length: 256 }).notNull().unique(),
-  userId: varchar('user_id', { length: 256 }).notNull(),
+  userId: varchar('user_id', { length: 256 }).notNull().references(() => users.userId, { onDelete: 'restrict' }),
   provider: varchar('provider', { length: 32 }).notNull().default('sumsub'),
   externalApplicantId: varchar('external_applicant_id', { length: 256 }),
   status: varchar('status', { length: 32 }).notNull().default('not_started'),
@@ -1003,7 +1003,7 @@ export const kycVerifications = pgTable('kyc_verifications', {
 export const amlScreenings = pgTable('aml_screenings', {
   id: serial('id').primaryKey(),
   screeningId: varchar('screening_id', { length: 256 }).notNull().unique(),
-  userId: varchar('user_id', { length: 256 }).notNull(),
+  userId: varchar('user_id', { length: 256 }).notNull().references(() => users.userId, { onDelete: 'restrict' }),
   screeningType: varchar('screening_type', { length: 32 }).notNull(),
   provider: varchar('provider', { length: 32 }).notNull().default('chainalysis'),
   externalId: varchar('external_id', { length: 256 }),
@@ -1032,7 +1032,7 @@ export const amlScreenings = pgTable('aml_screenings', {
 export const riskAssessments = pgTable('risk_assessments', {
   id: serial('id').primaryKey(),
   assessmentId: varchar('assessment_id', { length: 256 }).notNull().unique(),
-  userId: varchar('user_id', { length: 256 }).notNull(),
+  userId: varchar('user_id', { length: 256 }).notNull().references(() => users.userId, { onDelete: 'restrict' }),
   kycScore: real('kyc_score').notNull(),
   amlScore: real('aml_score').notNull(),
   pepScore: real('pep_score').notNull(),
@@ -1106,7 +1106,7 @@ export const sanctionsListEntries = pgTable('sanctions_list_entries', {
 export const dataDeletionRequests = pgTable('data_deletion_requests', {
   id: serial('id').primaryKey(),
   requestId: varchar('request_id', { length: 256 }).notNull().unique(),
-  userId: varchar('user_id', { length: 256 }).notNull(),
+  userId: varchar('user_id', { length: 256 }).notNull().references(() => users.userId, { onDelete: 'restrict' }),
   requestType: varchar('request_type', { length: 32 }).notNull(),
   status: varchar('status', { length: 32 }).notNull().default('pending'),
   reason: text('reason'),
@@ -1170,7 +1170,7 @@ export const analyticsProtocolSnapshots = pgTable('analytics_protocol_snapshots'
 // ---------------------------------------------------------------------------
 export const analyticsUserPositionSnapshots = pgTable('analytics_user_position_snapshots', {
   id: serial('id').primaryKey(),
-  userId: varchar('user_id', { length: 256 }).notNull(),
+  userId: varchar('user_id', { length: 256 }).notNull().references(() => users.userId, { onDelete: 'cascade' }),
   totalSupplyUsd: decimal('total_supply_usd', { precision: 30, scale: 6 }).notNull().default('0'),
   totalBorrowUsd: decimal('total_borrow_usd', { precision: 30, scale: 6 }).notNull().default('0'),
   totalCollateralUsd: decimal('total_collateral_usd', { precision: 30, scale: 6 }).notNull().default('0'),
