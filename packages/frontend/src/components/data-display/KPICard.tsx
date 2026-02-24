@@ -22,6 +22,7 @@ interface KPICardProps {
   prefix?: string | undefined;
   suffix?: string | undefined;
   decimals?: number | undefined;
+  index?: number | undefined;
   className?: string | undefined;
 }
 
@@ -43,6 +44,7 @@ function KPICard({
   prefix = '',
   suffix = '',
   decimals = 2,
+  index,
   className,
 }: KPICardProps) {
   const numValue = typeof value === 'string' ? parseFloat(value) : value;
@@ -51,7 +53,7 @@ function KPICard({
 
   if (loading) {
     return (
-      <div className={cn('rounded-lg bg-bg-tertiary border border-border-default p-5 shadow-card', className)}>
+      <div className={cn('rounded-xl bg-bg-tertiary border border-border-default p-5 shadow-card', className)}>
         <Skeleton variant="rect" height={10} width="35%" />
         <Skeleton variant="rect" height={size === 'lg' ? 44 : 32} width="65%" className="mt-3" />
         <Skeleton variant="rect" height={14} width="45%" className="mt-3" />
@@ -63,18 +65,21 @@ function KPICard({
   const TrendIcon = trend === 'up' ? TrendingUp : trend === 'down' ? TrendingDown : Minus;
 
   return (
-    <div className={cn(
-      'relative rounded-lg bg-bg-tertiary border border-border-default p-5 transition-all duration-200 hover:border-border-medium hover-lift card-highlight shadow-card',
-      className
-    )}>
-      <span className="text-[11px] font-medium uppercase tracking-widest text-text-tertiary">{label}</span>
+    <div
+      className={cn(
+        'relative rounded-xl bg-bg-tertiary border border-border-default p-5 transition-all duration-200 hover:border-border-medium hover-lift-glow card-highlight-strong shadow-card animate-stagger-in',
+        className
+      )}
+      style={{ animationDelay: `${(index ?? 0) * 80}ms` }}
+    >
+      <span className="text-[10.5px] font-semibold uppercase tracking-widest text-text-tertiary">{label}</span>
 
-      <div className={cn('font-mono font-semibold text-text-primary mt-2 tracking-tight', config.valueClass)}>
+      <div className={cn('font-mono font-bold text-text-primary mt-2.5 tracking-tight', config.valueClass)}>
         {prefix}{formattedValue}{suffix}
       </div>
 
       {(trend || sparkline) && size !== 'sm' && (
-        <div className="flex items-center gap-2 mt-3">
+        <div className="flex items-center gap-2.5 mt-3.5">
           {trend && trendValue && (
             <>
               <TrendIcon className={cn('h-3 w-3', trendColor)} />

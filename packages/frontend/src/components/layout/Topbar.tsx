@@ -89,7 +89,7 @@ function Topbar({
   return (
     <header
       className={cn(
-        'flex items-center justify-between h-14 px-6 bg-bg-secondary/95 backdrop-blur-lg border-b border-border-default sticky top-0 z-50',
+        'flex items-center justify-between h-14 px-6 bg-bg-secondary/90 backdrop-blur-xl border-b border-border-subtle sticky top-0 z-50',
         className
       )}
     >
@@ -101,19 +101,19 @@ function Topbar({
       {/* Right: Actions */}
       <div className="flex items-center gap-3">
         {/* Network selector */}
-        <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-bg-tertiary/80 border border-border-default text-xs text-text-secondary">
-          <span className="h-1.5 w-1.5 rounded-full bg-positive shrink-0" />
+        <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-positive/[0.06] border border-positive/15 text-xs text-positive/80">
+          <span className="h-1.5 w-1.5 rounded-full bg-positive animate-pulse shrink-0" />
           <span>Canton Mainnet</span>
         </div>
 
         {/* Search */}
         <button
           onClick={onSearchClick}
-          className="flex items-center gap-2 h-9 px-3 rounded-lg bg-bg-tertiary/70 border border-border-subtle text-text-tertiary text-xs hover:text-text-secondary hover:bg-bg-hover hover:border-border-default transition-all duration-150"
+          className="flex items-center gap-2 h-9 px-3.5 rounded-lg bg-bg-tertiary/60 border border-border-subtle text-text-tertiary text-xs hover:text-text-secondary hover:bg-bg-hover hover:border-border-default transition-all duration-200"
         >
           <Search className="h-4 w-4" />
           <span className="hidden sm:inline">Search</span>
-          <kbd className="hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-bg-primary/60 border border-border-subtle text-[10px] font-mono">
+          <kbd className="hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-bg-primary/40 border border-border-subtle/60 text-[10px] font-mono text-text-disabled">
             ⌘K
           </kbd>
         </button>
@@ -122,7 +122,7 @@ function Topbar({
         <button
           onClick={onThemeCycle}
           title={`Theme: ${themePreference}`}
-          className="flex items-center justify-center h-9 w-9 rounded-lg text-text-tertiary hover:text-text-primary hover:bg-bg-hover transition-all duration-150"
+          className="flex items-center justify-center h-9 w-9 rounded-lg text-text-tertiary hover:text-text-primary hover:bg-bg-hover/80 active:scale-95 transition-all duration-150"
         >
           <ThemeIcon className="h-4 w-4" />
         </button>
@@ -130,11 +130,11 @@ function Topbar({
         {/* Notifications */}
         <button
           onClick={onNotificationClick}
-          className="relative flex items-center justify-center h-9 w-9 rounded-lg text-text-tertiary hover:text-text-primary hover:bg-bg-hover transition-all duration-150"
+          className="relative flex items-center justify-center h-9 w-9 rounded-lg text-text-tertiary hover:text-text-primary hover:bg-bg-hover/80 active:scale-95 transition-all duration-150"
         >
           <Bell className="h-4 w-4" />
           {unreadCount > 0 && (
-            <span className="absolute -top-0.5 -right-0.5 flex items-center justify-center h-4 min-w-[16px] px-1 rounded-full bg-negative text-[9px] font-bold text-white">
+            <span className="absolute -top-1 -right-1 flex items-center justify-center h-[18px] min-w-[18px] px-1 rounded-full bg-negative text-[9px] font-bold text-white shadow-glow-danger ring-2 ring-bg-secondary">
               {unreadCount > 9 ? '9+' : unreadCount}
             </span>
           )}

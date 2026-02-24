@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils/cn';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Skeleton } from '@/components/ui/Skeleton';
+import { Select } from '@/components/ui/Select';
 import { APYDisplay } from '@/components/data-display/APYDisplay';
 import { AssetIcon } from '@/components/data-display/AssetIcon';
 import { UtilizationBar } from '@/components/data-display/UtilizationBar';
@@ -175,36 +176,32 @@ export default function MarketsPage() {
     <div className="flex flex-col gap-6">
       {/* Header Row with filters inline */}
       <div className="flex flex-wrap items-center gap-4">
-        <h1 className="text-xl font-bold text-text-primary tracking-tight">Markets</h1>
+        <h1 className="text-2xl font-bold text-text-primary tracking-tight">Markets</h1>
         <span className="text-sm text-text-tertiary font-mono">TVL {formatTVL(totalTVL)}</span>
 
         <div className="ml-auto flex flex-wrap items-center gap-3">
-          <select
+          <Select
             value={instrumentFilter}
             onChange={(e) => setInstrumentFilter(e.target.value as InstrumentFilter)}
-            className="h-9 rounded-md border border-border-default bg-bg-tertiary px-3 text-sm text-text-primary focus:border-border-focus focus:outline-none"
-          >
-            {INSTRUMENT_OPTIONS.map((opt) => (
-              <option key={opt} value={opt}>
-                {opt === 'All' ? 'All Types' : opt.replace(/([A-Z])/g, ' $1').trim()}
-              </option>
-            ))}
-          </select>
+            size="sm"
+            options={INSTRUMENT_OPTIONS.map((opt) => ({
+              value: opt,
+              label: opt === 'All' ? 'All Types' : opt.replace(/([A-Z])/g, ' $1').trim(),
+            }))}
+          />
 
-          <select
+          <Select
             value={sortKey}
             onChange={(e) => {
               setSortKey(e.target.value as SortKey);
               setSortDir('desc');
             }}
-            className="h-9 rounded-md border border-border-default bg-bg-tertiary px-3 text-sm text-text-primary focus:border-border-focus focus:outline-none"
-          >
-            {SORT_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                Sort: {opt.label}
-              </option>
-            ))}
-          </select>
+            size="sm"
+            options={SORT_OPTIONS.map((opt) => ({
+              value: opt.value,
+              label: `Sort: ${opt.label}`,
+            }))}
+          />
 
           <Button
             variant="ghost"
@@ -226,16 +223,16 @@ export default function MarketsPage() {
       </div>
 
       {/* Markets Table */}
-      <div className="overflow-x-auto rounded-lg border border-border-default bg-bg-tertiary shadow-card">
+      <div className="overflow-x-auto rounded-xl border border-border-default bg-bg-tertiary shadow-card">
         <table className="w-full">
           <thead>
-            <tr className="border-b border-border-default backdrop-blur">
+            <tr className="border-b border-border-default bg-bg-secondary/40">
               {COLUMNS.map((col) => (
                 <th
                   key={col.key}
                   onClick={() => handleColumnSort(col.key)}
                   className={cn(
-                    'text-label px-4 h-10 cursor-pointer select-none transition-colors hover:text-text-secondary',
+                    'text-label px-4 h-9 cursor-pointer select-none transition-colors hover:text-text-secondary',
                     col.align === 'right' && 'text-right',
                     col.align === 'center' && 'text-center',
                   )}
@@ -248,7 +245,7 @@ export default function MarketsPage() {
                   </span>
                 </th>
               ))}
-              <th className="text-label px-4 h-10 text-right">
+              <th className="text-label px-4 h-9 text-right">
                 Actions
               </th>
             </tr>
@@ -293,7 +290,7 @@ export default function MarketsPage() {
                   <tr
                     key={pool.poolId}
                     onClick={() => handleRowClick(pool.poolId)}
-                    className="border-b border-border-subtle h-14 transition-colors hover:bg-bg-hover/50 cursor-pointer"
+                    className="border-b border-border-subtle h-12 transition-colors hover:bg-surface-selected table-row-interactive cursor-pointer"
                   >
                     {/* Asset */}
                     <td className="px-4">

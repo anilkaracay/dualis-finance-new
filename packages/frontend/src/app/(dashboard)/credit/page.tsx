@@ -277,7 +277,7 @@ function ScoreBreakdown() {
                 {/* Middle: Bar */}
                 <div className="flex-1 h-2 rounded-full bg-bg-tertiary overflow-hidden">
                   <div
-                    className={cn('h-full rounded-full transition-all duration-700 ease-out bg-gradient-to-r from-accent-teal/60', colors.bar)}
+                    className={cn('h-full rounded-full transition-all duration-700 ease-out bg-gradient-to-r from-accent-teal/60 animate-progress-fill', colors.bar)}
                     style={{ width: `${currentWidth}%` }}
                   />
                 </div>
@@ -351,7 +351,7 @@ function TierBenefitsTable() {
               {TIER_BENEFITS.map((row) => (
                 <tr
                   key={row.metric}
-                  className="border-b border-border-default last:border-b-0"
+                  className="border-b border-border-default last:border-b-0 table-row-interactive hover:bg-surface-selected transition-colors"
                 >
                   <td className="px-4 py-3 font-medium text-text-primary">
                     {row.metric}
@@ -419,7 +419,7 @@ export default function CreditPage() {
   if (!isConnected) {
     return (
       <div className="space-y-8">
-        <h1 className="text-xl font-bold text-text-primary tracking-tight">Credit Score</h1>
+        <h1 className="text-2xl font-bold text-text-primary tracking-tight">Credit Score</h1>
         <Card>
           <CardContent>
             <div className="flex flex-col items-center gap-4 py-16">
@@ -439,7 +439,7 @@ export default function CreditPage() {
     <div className="space-y-8">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-text-primary tracking-tight">Credit Score</h1>
+        <h1 className="text-2xl font-bold text-text-primary tracking-tight">Credit Score</h1>
         <Link href="/credit/attestations">
           <Button variant="secondary" size="sm" icon={<ShieldCheck className="h-4 w-4" />} iconRight={<ArrowRight className="h-3 w-3" />}>
             ZK Attestations

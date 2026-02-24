@@ -33,6 +33,8 @@ function CreditTierBadge({ tier, showScore, score, size = 'md', className }: Cre
       'inline-flex items-center gap-1.5 font-medium',
       tc.textClass,
       size === 'sm' ? 'text-xs' : size === 'md' ? 'text-sm' : 'text-sm',
+      size !== 'sm' && 'px-2.5 py-1 rounded-full bg-bg-tertiary/50 border border-border-subtle',
+      tier === 'Diamond' && size !== 'sm' && 'animate-breathe-glow',
       className
     )}>
       <Icon className={size === 'sm' ? 'h-3 w-3' : 'h-4 w-4'} />

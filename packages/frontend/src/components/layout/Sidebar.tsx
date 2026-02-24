@@ -82,8 +82,8 @@ function NavItemLink({
         'flex items-center gap-2 h-9 rounded-md text-[13px] font-medium transition-all duration-150',
         collapsed ? 'justify-center w-10 mx-auto' : 'px-3',
         active
-          ? 'bg-accent-teal-subtle text-accent-teal font-semibold active-indicator'
-          : 'text-text-secondary hover:text-text-primary hover:bg-bg-hover/60'
+          ? 'bg-[image:var(--gradient-sidebar-active)] text-accent-teal font-semibold active-indicator'
+          : 'text-text-secondary hover:text-text-primary hover:bg-bg-hover/50 hover:translate-x-0.5 transition-all duration-150'
       )}
     >
       <item.icon
@@ -130,7 +130,7 @@ function Sidebar({ collapsed = false, onToggleCollapse, className }: SidebarProp
     <Tooltip.Provider>
       <aside
         className={cn(
-          'relative flex flex-col h-full bg-bg-secondary border-r border-border-default transition-all duration-200',
+          'relative flex flex-col h-full bg-bg-secondary border-r border-border-default transition-all duration-300 ease-out',
           collapsed ? 'w-16' : 'w-60',
           className
         )}
@@ -149,7 +149,7 @@ function Sidebar({ collapsed = false, onToggleCollapse, className }: SidebarProp
               </span>
             ) : (
               <div className="flex flex-col">
-                <span className="text-text-primary font-bold text-[16px] tracking-wide leading-none">
+                <span className="text-text-primary font-bold text-[15px] tracking-[0.15em] leading-none">
                   DUALIS
                 </span>
                 <span className="text-text-tertiary font-light text-[9px] tracking-[0.2em] leading-none mt-0.5">
@@ -183,7 +183,7 @@ function Sidebar({ collapsed = false, onToggleCollapse, className }: SidebarProp
           {navSections.map((section) => (
             <div key={section.label} className="mt-4 first:mt-2">
               {!collapsed && (
-                <div className="px-3 pb-1.5 text-[10px] font-medium uppercase tracking-[0.1em] text-text-tertiary select-none">
+                <div className="px-3 pb-2 pt-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-text-disabled select-none">
                   {section.label}
                 </div>
               )}

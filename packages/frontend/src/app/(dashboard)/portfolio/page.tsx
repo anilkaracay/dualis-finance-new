@@ -287,10 +287,10 @@ function PnlBreakdownCard({ breakdown }: { breakdown: PnlBreakdown[] }) {
           </div>
         </div>
       </div>
-      <div className="overflow-hidden rounded-lg border border-border-default shadow-card">
+      <div className="overflow-hidden rounded-xl border border-border-default shadow-card">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-border-default backdrop-blur">
+            <tr className="border-b border-border-default bg-bg-secondary/40">
               <th className="text-label px-4 h-9 text-left">Asset</th>
               <th className="text-label px-4 h-9 text-right">Earned</th>
               <th className="text-label px-4 h-9 text-right">Paid</th>
@@ -302,7 +302,7 @@ function PnlBreakdownCard({ breakdown }: { breakdown: PnlBreakdown[] }) {
             {breakdown.map((row) => (
               <tr
                 key={row.poolId}
-                className="border-b border-border-default last:border-b-0 h-12 hover:bg-bg-hover/50 transition-colors"
+                className="border-b border-border-default last:border-b-0 h-12 hover:bg-surface-selected table-row-interactive transition-colors"
               >
                 <td className="px-4">
                   <div className="flex items-center gap-2">
@@ -386,31 +386,31 @@ function PositionsTable({
 
   if (unified.length === 0) {
     return (
-      <div className="flex flex-col items-center gap-3 rounded-lg border border-border-default bg-bg-tertiary py-12">
-        <p className="text-text-tertiary text-sm">No positions found</p>
+      <div className="flex flex-col items-center gap-3 rounded-xl border border-border-default bg-bg-tertiary py-16">
+        <p className="text-text-disabled text-sm">No positions found</p>
       </div>
     );
   }
 
   return (
-    <div className="overflow-x-auto rounded-lg border border-border-default bg-bg-tertiary shadow-card">
+    <div className="overflow-x-auto rounded-xl border border-border-default bg-bg-tertiary shadow-card">
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-b border-border-default backdrop-blur">
-            <th className="text-label px-4 h-10 text-left">Side</th>
-            <th className="text-label px-4 h-10 text-left">Asset</th>
-            <th className="text-label px-4 h-10 text-right">Amount</th>
-            <th className="text-label px-4 h-10 text-right">Value USD</th>
-            <th className="text-label px-4 h-10 text-right">APY</th>
-            <th className="text-label px-4 h-10 text-right">Interest</th>
-            <th className="text-label px-4 h-10 text-center">Health Factor</th>
+          <tr className="border-b border-border-default bg-bg-secondary/40">
+            <th className="text-label px-4 h-9 text-left">Side</th>
+            <th className="text-label px-4 h-9 text-left">Asset</th>
+            <th className="text-label px-4 h-9 text-right">Amount</th>
+            <th className="text-label px-4 h-9 text-right">Value USD</th>
+            <th className="text-label px-4 h-9 text-right">APY</th>
+            <th className="text-label px-4 h-9 text-right">Interest</th>
+            <th className="text-label px-4 h-9 text-center">Health Factor</th>
           </tr>
         </thead>
         <tbody>
           {unified.map((pos) => (
             <tr
               key={pos.id}
-              className="border-b border-border-default last:border-b-0 h-14 hover:bg-bg-hover/50 transition-colors"
+              className="border-b border-border-default last:border-b-0 h-12 hover:bg-surface-selected table-row-interactive transition-colors"
             >
               <td className="px-4">
                 <Badge variant={pos.side === 'Supply' ? 'success' : 'danger'} size="sm">
@@ -495,29 +495,29 @@ function getTxTypeLabel(type: UserTransaction['type']): string {
 function RecentTransactionsTable({ transactions }: { transactions: UserTransaction[] }) {
   if (transactions.length === 0) {
     return (
-      <div className="flex items-center justify-center rounded-lg border border-border-default bg-bg-tertiary py-12">
-        <p className="text-text-tertiary text-sm">No transactions yet</p>
+      <div className="flex items-center justify-center rounded-xl border border-border-default bg-bg-tertiary py-16">
+        <p className="text-text-disabled text-sm">No transactions yet</p>
       </div>
     );
   }
 
   return (
-    <div className="overflow-x-auto rounded-lg border border-border-default bg-bg-tertiary shadow-card">
+    <div className="overflow-x-auto rounded-xl border border-border-default bg-bg-tertiary shadow-card">
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-b border-border-default backdrop-blur">
-            <th className="text-label px-4 h-10 text-left">Time</th>
-            <th className="text-label px-4 h-10 text-left">Type</th>
-            <th className="text-label px-4 h-10 text-left">Asset</th>
-            <th className="text-label px-4 h-10 text-right">Amount</th>
-            <th className="text-label px-4 h-10 text-right">Value USD</th>
+          <tr className="border-b border-border-default bg-bg-secondary/40">
+            <th className="text-label px-4 h-9 text-left">Time</th>
+            <th className="text-label px-4 h-9 text-left">Type</th>
+            <th className="text-label px-4 h-9 text-left">Asset</th>
+            <th className="text-label px-4 h-9 text-right">Amount</th>
+            <th className="text-label px-4 h-9 text-right">Value USD</th>
           </tr>
         </thead>
         <tbody>
           {transactions.map((tx) => (
             <tr
               key={tx.id}
-              className="border-b border-border-default last:border-b-0 h-14 hover:bg-bg-hover/50 transition-colors"
+              className="border-b border-border-default last:border-b-0 h-12 hover:bg-surface-selected table-row-interactive transition-colors"
             >
               <td className="px-4">
                 <span className="text-xs text-text-tertiary">{relativeTime(tx.createdAt)}</span>
@@ -676,7 +676,7 @@ export default function PortfolioPage() {
     <div className="space-y-8">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-text-primary tracking-tight">Portfolio</h1>
+        <h1 className="text-2xl font-bold text-text-primary tracking-tight">Portfolio</h1>
         <ExportButtons />
       </div>
 
@@ -793,7 +793,7 @@ export default function PortfolioPage() {
 
       {/* All Positions */}
       <section>
-        <h2 className="text-label mb-4">Positions</h2>
+        <h2 className="text-label section-heading mb-4">Positions</h2>
         <PositionsTable
           supplyPositions={portfolio.supplyPositions}
           borrowPositions={portfolio.borrowPositions}
@@ -802,7 +802,7 @@ export default function PortfolioPage() {
 
       {/* Recent Transactions */}
       <section>
-        <h2 className="text-label mb-4">Recent Transactions</h2>
+        <h2 className="text-label section-heading mb-4">Recent Transactions</h2>
         <RecentTransactionsTable transactions={transactions} />
       </section>
     </div>

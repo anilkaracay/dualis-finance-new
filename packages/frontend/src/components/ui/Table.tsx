@@ -124,7 +124,7 @@ function Table<T>({
   const rowHeight = compact ? 'h-9' : 'h-12';
 
   return (
-    <div className={cn('overflow-auto rounded-lg border border-border-default shadow-card', className)}>
+    <div className={cn('overflow-auto rounded-xl border border-border-default shadow-card', className)}>
       <table
         ref={tableRef}
         className="w-full border-collapse"
@@ -133,12 +133,12 @@ function Table<T>({
         tabIndex={onRowClick ? 0 : undefined}
       >
         <thead className="sticky top-0 z-10">
-          <tr className="bg-bg-secondary/90 backdrop-blur-md">
+          <tr className="bg-bg-secondary/95 backdrop-blur-md">
             {columns.map((col) => (
               <th
                 key={col.key}
                 className={cn(
-                  'h-10 px-4 text-left text-[11px] font-semibold uppercase tracking-wider text-text-tertiary',
+                  'h-10 px-4 text-left text-[10.5px] font-semibold uppercase tracking-wider text-text-tertiary select-none',
                   'border-b border-border-default',
                   col.numeric && 'text-right',
                   col.sortable && 'cursor-pointer select-none hover:text-text-primary transition-colors',
@@ -179,7 +179,7 @@ function Table<T>({
             ))
           ) : data.length === 0 ? (
             <tr>
-              <td colSpan={columns.length} className="py-12 text-center">
+              <td colSpan={columns.length} className="py-16 text-center">
                 {emptyState ?? (
                   <p className="text-sm text-text-tertiary">No data available</p>
                 )}
@@ -194,7 +194,7 @@ function Table<T>({
                   className={cn(
                     rowHeight,
                     'border-b border-border-subtle last:border-0 transition-colors duration-100',
-                    'hover:bg-bg-hover/40',
+                    'hover:bg-surface-selected table-row-interactive',
                     onRowClick && 'cursor-pointer',
                     focusedRow === rowIndex && 'bg-surface-selected',
                     activeRowKey === key && 'bg-surface-selected'

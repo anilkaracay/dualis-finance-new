@@ -22,7 +22,7 @@ const TabsList = React.forwardRef<
     className={cn(
       'inline-flex items-center gap-1',
       variant === 'underline' && 'border-b border-border-default',
-      variant === 'pill' && 'bg-bg-secondary rounded-md p-1',
+      variant === 'pill' && 'bg-bg-secondary/80 rounded-lg p-1 border border-border-subtle',
       className
     )}
     data-variant={variant}
@@ -43,7 +43,7 @@ const TabsTrigger = React.forwardRef<
         'text-text-tertiary hover:text-text-primary focus-ring',
         'disabled:pointer-events-none disabled:opacity-50',
         'border-b-2 border-transparent -mb-px',
-        'data-[state=active]:text-accent-teal data-[state=active]:border-accent-teal',
+        'data-[state=active]:text-accent-teal data-[state=active]:border-accent-teal data-[state=active]:font-semibold',
         className
       )}
       {...props}
@@ -58,7 +58,7 @@ const TabsContent = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <TabsPrimitive.Content
     ref={ref}
-    className={cn('mt-4 animate-fade-in focus-ring', className)}
+    className={cn('mt-4 animate-fade-in-up focus-ring', className)}
     {...props}
   />
 ));

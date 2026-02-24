@@ -123,7 +123,7 @@ function ProposalCard({ proposal }: { proposal: GovernanceProposal }) {
   const remaining = timeRemaining(proposal.votingEndsAt);
 
   return (
-    <Card className="flex flex-col">
+    <Card className="flex flex-col card-highlight-strong">
       <CardContent className="flex flex-1 flex-col gap-4 p-5">
         <div className="flex items-start justify-between gap-3">
           <h3 className="font-medium text-text-primary leading-snug">{proposal.title}</h3>
@@ -171,7 +171,7 @@ function PastProposalRow({ proposal }: { proposal: GovernanceProposal }) {
   );
 
   return (
-    <div className="flex items-center justify-between rounded-md border border-border-default bg-bg-tertiary px-5 py-4 hover:bg-bg-hover/50 transition-colors">
+    <div className="flex items-center justify-between rounded-xl border border-border-default bg-bg-tertiary px-5 py-4 hover:bg-surface-selected transition-colors shadow-card">
       <div className="flex flex-col gap-1">
         <div className="flex items-center gap-2">
           <h4 className="text-sm font-medium text-text-primary">{proposal.title}</h4>
@@ -228,7 +228,7 @@ export default function GovernancePage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-text-primary tracking-tight">Governance</h1>
+          <h1 className="text-2xl font-bold text-text-primary tracking-tight">Governance</h1>
           <p className="mt-1 text-sm text-text-tertiary">DIP Proposals — vote on protocol changes</p>
         </div>
         <Link href="/governance/create">

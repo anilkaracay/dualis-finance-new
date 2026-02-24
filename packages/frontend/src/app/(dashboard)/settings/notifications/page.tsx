@@ -15,6 +15,7 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
+import { Select } from '@/components/ui/Select';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -562,24 +563,21 @@ export default function NotificationSettingsPage() {
         {form.digest.enabled && (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {/* Frequency */}
-            <div>
-              <label className="block text-sm font-medium text-text-secondary mb-1">
-                Frequency
-              </label>
-              <select
-                value={form.digest.frequency}
-                onChange={(e) =>
-                  updateDigest(
-                    'frequency',
-                    e.target.value as 'daily' | 'weekly',
-                  )
-                }
-                className="w-full px-3 py-2 rounded-md bg-bg-tertiary border border-border-default text-text-primary text-sm focus:outline-none focus:ring-1 focus:ring-accent-teal"
-              >
-                <option value="daily">Daily</option>
-                <option value="weekly">Weekly</option>
-              </select>
-            </div>
+            <Select
+              label="Frequency"
+              value={form.digest.frequency}
+              onChange={(e) =>
+                updateDigest(
+                  'frequency',
+                  e.target.value as 'daily' | 'weekly',
+                )
+              }
+              size="sm"
+              options={[
+                { value: 'daily', label: 'Daily' },
+                { value: 'weekly', label: 'Weekly' },
+              ]}
+            />
 
             {/* Time */}
             <div>

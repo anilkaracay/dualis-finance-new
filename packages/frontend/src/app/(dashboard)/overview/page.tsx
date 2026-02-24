@@ -100,6 +100,7 @@ function KPIGrid({
         trendValue="+3.2%"
         sparkline={sparklineNetWorth}
         loading={isLoading}
+        index={0}
       />
 
       {/* Total Supplied */}
@@ -112,6 +113,7 @@ function KPIGrid({
         trendValue="+3.2%"
         sparkline={sparklineSupplied}
         loading={isLoading}
+        index={1}
       />
 
       {/* Health Factor */}
@@ -120,6 +122,7 @@ function KPIGrid({
         value={minHealthFactor ?? 0}
         decimals={2}
         loading={isLoading}
+        index={2}
       />
 
       {/* Total Borrowed */}
@@ -130,6 +133,7 @@ function KPIGrid({
         decimals={2}
         sparkline={sparklineBorrowed}
         loading={isLoading}
+        index={3}
       />
 
       {/* Earned (24h) */}
@@ -140,6 +144,7 @@ function KPIGrid({
         decimals={2}
         sparkline={sparklineEarned}
         loading={isLoading}
+        index={4}
       />
 
       {/* Credit Tier */}
@@ -147,6 +152,7 @@ function KPIGrid({
         label="Credit Tier"
         value={creditTier ?? 'Unrated'}
         loading={isLoading}
+        index={5}
       />
     </div>
   );
@@ -175,8 +181,8 @@ function SupplyPositionsTable({
 
   if (positions.length === 0) {
     return (
-      <div className="flex flex-col items-center gap-3 rounded-lg border border-border-default bg-bg-tertiary py-12">
-        <p className="text-text-tertiary text-sm">No supply positions yet</p>
+      <div className="flex flex-col items-center gap-3 rounded-xl border border-border-default bg-bg-tertiary py-16">
+        <p className="text-text-disabled text-sm">No supply positions yet</p>
         <Link
           href="/markets"
           className="text-sm font-medium text-accent-primary hover:text-accent-hover transition-colors"
@@ -188,7 +194,7 @@ function SupplyPositionsTable({
   }
 
   return (
-    <div className="overflow-x-auto rounded-lg border border-border-default bg-bg-tertiary shadow-card">
+    <div className="overflow-x-auto rounded-xl border border-border-default bg-bg-tertiary shadow-card">
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-border-default bg-bg-secondary/40">
@@ -203,7 +209,7 @@ function SupplyPositionsTable({
           {positions.map((pos) => (
             <tr
               key={pos.positionId}
-              className="border-b border-border-default last:border-b-0 h-12 hover:bg-bg-hover/40 transition-colors duration-100"
+              className="border-b border-border-default last:border-b-0 h-12 hover:bg-surface-selected table-row-interactive transition-colors duration-100"
             >
               <td className="px-4">
                 <div className="flex items-center gap-2">
@@ -257,14 +263,14 @@ function BorrowPositionsTable({
 
   if (positions.length === 0) {
     return (
-      <div className="flex flex-col items-center gap-3 rounded-lg border border-border-default bg-bg-tertiary py-12">
-        <p className="text-text-tertiary text-sm">No active borrows</p>
+      <div className="flex flex-col items-center gap-3 rounded-xl border border-border-default bg-bg-tertiary py-16">
+        <p className="text-text-disabled text-sm">No active borrows</p>
       </div>
     );
   }
 
   return (
-    <div className="overflow-x-auto rounded-lg border border-border-default bg-bg-tertiary shadow-card">
+    <div className="overflow-x-auto rounded-xl border border-border-default bg-bg-tertiary shadow-card">
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-border-default bg-bg-secondary/40">
@@ -281,7 +287,7 @@ function BorrowPositionsTable({
             <tr
               key={pos.positionId}
               className={cn(
-                'border-b border-border-default last:border-b-0 h-12 hover:bg-bg-hover/40 transition-colors duration-100',
+                'border-b border-border-default last:border-b-0 h-12 hover:bg-surface-selected table-row-interactive transition-colors duration-100',
                 pos.healthFactor < 1.2 && 'bg-negative/5'
               )}
             >
@@ -345,14 +351,14 @@ function SecLendingDealsTable({
 
   if (deals.length === 0) {
     return (
-      <div className="flex flex-col items-center gap-3 rounded-lg border border-border-default bg-bg-tertiary py-12">
-        <p className="text-text-tertiary text-sm">No active deals</p>
+      <div className="flex flex-col items-center gap-3 rounded-xl border border-border-default bg-bg-tertiary py-16">
+        <p className="text-text-disabled text-sm">No active deals</p>
       </div>
     );
   }
 
   return (
-    <div className="overflow-x-auto rounded-lg border border-border-default bg-bg-tertiary shadow-card">
+    <div className="overflow-x-auto rounded-xl border border-border-default bg-bg-tertiary shadow-card">
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-border-default bg-bg-secondary/40">
@@ -367,7 +373,7 @@ function SecLendingDealsTable({
           {deals.map((deal) => (
             <tr
               key={deal.dealId}
-              className="border-b border-border-default last:border-b-0 h-12 hover:bg-bg-hover/40 transition-colors duration-100"
+              className="border-b border-border-default last:border-b-0 h-12 hover:bg-surface-selected table-row-interactive transition-colors duration-100"
             >
               <td className="px-4">
                 <div className="flex items-center gap-2">
@@ -437,8 +443,8 @@ function PortfolioComposition({ segments, totalValue, isLoading }: PortfolioComp
 
   if (segments.length === 0) {
     return (
-      <div className="flex items-center justify-center rounded-md border border-border-default bg-bg-tertiary py-12">
-        <p className="text-text-tertiary text-sm">No positions to display</p>
+      <div className="flex items-center justify-center rounded-xl border border-border-default bg-bg-tertiary py-16">
+        <p className="text-text-disabled text-sm">No positions to display</p>
       </div>
     );
   }
@@ -457,7 +463,7 @@ function PortfolioComposition({ segments, totalValue, isLoading }: PortfolioComp
 
       {/* Summary table */}
       <div className="w-full md:w-80">
-        <div className="overflow-hidden rounded-lg border border-border-default bg-bg-tertiary shadow-card">
+        <div className="overflow-hidden rounded-xl border border-border-default bg-bg-tertiary shadow-card">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border-default bg-bg-secondary/40">
@@ -472,7 +478,7 @@ function PortfolioComposition({ segments, totalValue, isLoading }: PortfolioComp
                 return (
                   <tr
                     key={seg.label}
-                    className="border-b border-border-default last:border-b-0"
+                    className="border-b border-border-default last:border-b-0 table-row-interactive hover:bg-surface-selected transition-colors"
                   >
                     <td className="px-4 py-2.5">
                       <div className="flex items-center gap-2">
@@ -568,7 +574,7 @@ export default function OverviewPage() {
   return (
     <div className="space-y-8">
       {/* 1. Page title */}
-      <h1 className="text-xl font-bold text-text-primary tracking-tight">Overview</h1>
+      <h1 className="text-2xl font-bold text-text-primary tracking-tight">Overview</h1>
 
       {/* 2. KPI Grid */}
       <section>
@@ -592,7 +598,7 @@ export default function OverviewPage() {
               className={cn(
                 'px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px',
                 positionTab === tab.key
-                  ? 'border-accent-teal text-accent-teal'
+                  ? 'border-accent-teal text-accent-teal font-semibold'
                   : 'border-transparent text-text-tertiary hover:text-text-secondary'
               )}
             >
@@ -628,7 +634,8 @@ export default function OverviewPage() {
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 mt-1">
           <Link
             href="/productive"
-            className="group relative flex items-center gap-3 rounded-lg border border-border-default bg-bg-tertiary p-4 transition-all duration-200 hover:border-border-medium hover-lift card-highlight shadow-card"
+            className="group relative flex items-center gap-3 rounded-xl border border-border-default bg-bg-tertiary p-4 transition-all duration-200 hover:border-border-medium hover-lift card-highlight-strong shadow-card animate-stagger-in"
+            style={{ animationDelay: '0ms' }}
           >
             <Factory className="h-5 w-5 text-accent-teal" />
             <div className="flex-1">
@@ -640,7 +647,8 @@ export default function OverviewPage() {
 
           <Link
             href="/institutional"
-            className="group relative flex items-center gap-3 rounded-lg border border-border-default bg-bg-tertiary p-4 transition-all duration-200 hover:border-border-medium hover-lift card-highlight shadow-card"
+            className="group relative flex items-center gap-3 rounded-xl border border-border-default bg-bg-tertiary p-4 transition-all duration-200 hover:border-border-medium hover-lift card-highlight-strong shadow-card animate-stagger-in"
+            style={{ animationDelay: '100ms' }}
           >
             <Building2 className="h-5 w-5 text-accent-teal" />
             <div className="flex-1">
@@ -652,7 +660,8 @@ export default function OverviewPage() {
 
           <Link
             href="/credit/attestations"
-            className="group relative flex items-center gap-3 rounded-lg border border-border-default bg-bg-tertiary p-4 transition-all duration-200 hover:border-border-medium hover-lift card-highlight shadow-card"
+            className="group relative flex items-center gap-3 rounded-xl border border-border-default bg-bg-tertiary p-4 transition-all duration-200 hover:border-border-medium hover-lift card-highlight-strong shadow-card animate-stagger-in"
+            style={{ animationDelay: '200ms' }}
           >
             <Fingerprint className="h-5 w-5 text-accent-teal" />
             <div className="flex-1">
@@ -664,7 +673,8 @@ export default function OverviewPage() {
 
           <Link
             href="/settings/privacy"
-            className="group relative flex items-center gap-3 rounded-lg border border-border-default bg-bg-tertiary p-4 transition-all duration-200 hover:border-border-medium hover-lift card-highlight shadow-card"
+            className="group relative flex items-center gap-3 rounded-xl border border-border-default bg-bg-tertiary p-4 transition-all duration-200 hover:border-border-medium hover-lift card-highlight-strong shadow-card animate-stagger-in"
+            style={{ animationDelay: '300ms' }}
           >
             <ShieldCheck className="h-5 w-5 text-accent-teal" />
             <div className="flex-1">

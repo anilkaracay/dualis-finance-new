@@ -1,5 +1,6 @@
 'use client';
 
+import { createPortal } from 'react-dom';
 import { WalletModal } from '@partylayer/react';
 
 interface WalletConnectModalProps {
@@ -12,9 +13,12 @@ interface WalletConnectModalProps {
  * Wallet connection modal powered by PartyLayer.
  * Displays all 5 supported Canton wallets (Console, Loop, Cantor8, Nightly, Bron)
  * with CIP-0103 native support and registry verification.
+ *
+ * Uses React Portal to render at document.body — prevents backdrop-filter
+ * on ancestor elements (e.g. Topbar) from breaking position:fixed centering.
  */
 function WalletConnectModal({ open, onOpenChange, onConnected }: WalletConnectModalProps) {
-  return (
+  const modal = (
     <WalletModal
       isOpen={open}
       onClose={() => onOpenChange(false)}
@@ -24,6 +28,13 @@ function WalletConnectModal({ open, onOpenChange, onConnected }: WalletConnectMo
       }}
     />
   );
+
+  // Portal to document.body to escape ancestor stacking contexts
+  if (typeof document !== 'undefined') {
+    return createPortal(modal, document.body);
+  }
+
+  return modal;
 }
 
 export { WalletConnectModal, type WalletConnectModalProps };

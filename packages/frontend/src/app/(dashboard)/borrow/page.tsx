@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils/cn';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { Select } from '@/components/ui/Select';
 import { Skeleton } from '@/components/ui/Skeleton';
 import {
   Dialog,
@@ -314,22 +315,13 @@ function AddCollateralDialog({
         ) : (
           <>
             <div className="space-y-4">
-              <div>
-                <label className="text-sm font-medium text-text-secondary mb-1.5 block">
-                  Collateral Asset
-                </label>
-                <select
-                  value={selectedAsset}
-                  onChange={(e) => setSelectedAsset(e.target.value)}
-                  className="h-9 w-full rounded-md bg-bg-tertiary border border-border-default px-3 text-sm text-text-primary focus-ring transition-colors"
-                >
-                  {assets.map((asset) => (
-                    <option key={asset} value={asset}>
-                      {asset}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              <Select
+                label="Collateral Asset"
+                value={selectedAsset}
+                onChange={(e) => setSelectedAsset(e.target.value)}
+                size="sm"
+                options={assets.map((asset) => ({ value: asset, label: asset }))}
+              />
 
               <Input
                 label="Amount"
@@ -444,14 +436,14 @@ function ActiveBorrowPositions({
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-border-default backdrop-blur">
-              <th className="text-label px-6 h-10 text-left">Asset</th>
-              <th className="text-label px-6 h-10 text-right">Principal</th>
-              <th className="text-label px-6 h-10 text-right">Current Debt</th>
-              <th className="text-label px-6 h-10 text-center">Health Factor</th>
-              <th className="text-label px-6 h-10 text-center">Credit Tier</th>
-              <th className="text-label px-6 h-10 text-right">APY</th>
-              <th className="text-label px-6 h-10 text-right">Actions</th>
+            <tr className="border-b border-border-default bg-bg-secondary/40">
+              <th className="text-label px-6 h-9 text-left">Asset</th>
+              <th className="text-label px-6 h-9 text-right">Principal</th>
+              <th className="text-label px-6 h-9 text-right">Current Debt</th>
+              <th className="text-label px-6 h-9 text-center">Health Factor</th>
+              <th className="text-label px-6 h-9 text-center">Credit Tier</th>
+              <th className="text-label px-6 h-9 text-right">APY</th>
+              <th className="text-label px-6 h-9 text-right">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -463,7 +455,7 @@ function ActiveBorrowPositions({
                 <tr
                   key={pos.positionId}
                   className={cn(
-                    'border-b border-border-default last:border-b-0 h-14 hover:bg-bg-hover/50 transition-colors',
+                    'border-b border-border-default last:border-b-0 h-12 hover:bg-surface-selected table-row-interactive transition-colors',
                     pos.healthFactor < 1.2 && 'bg-negative/5'
                   )}
                 >
@@ -645,32 +637,30 @@ function NewBorrowSection({ pools, collateralAssets, collateralPrices }: {
             {/* Step 1 — Select Asset */}
             <div>
               <h4 className="text-sm font-semibold text-text-primary mb-3 flex items-center gap-2">
-                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-accent-teal-muted text-accent-teal text-2xs font-medium">
+                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-accent-teal-muted text-accent-teal text-xs font-bold border border-accent-teal/20">
                   1
                 </span>
                 Select Asset
               </h4>
-              <select
+              <Select
                 value={selectedPoolId}
                 onChange={(e) => setSelectedPoolId(e.target.value)}
-                className="h-9 w-full max-w-md rounded-md bg-bg-tertiary border border-border-default px-3 text-sm text-text-primary focus-ring transition-colors"
-              >
-                <option value="">Choose an asset...</option>
-                {activePools.map((pool) => {
+                className="max-w-md"
+                placeholder="Choose an asset..."
+                options={activePools.map((pool) => {
                   const available = pool.totalDeposits - pool.totalBorrows;
-                  return (
-                    <option key={pool.poolId} value={pool.poolId}>
-                      {pool.symbol} — Available: {formatUSD(available * pool.priceUSD)}
-                    </option>
-                  );
+                  return {
+                    value: pool.poolId,
+                    label: `${pool.symbol} — Available: ${formatUSD(available * pool.priceUSD)}`,
+                  };
                 })}
-              </select>
+              />
             </div>
 
             {/* Step 2 — Borrow Amount */}
             <div>
               <h4 className="text-sm font-semibold text-text-primary mb-3 flex items-center gap-2">
-                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-accent-teal-muted text-accent-teal text-2xs font-medium">
+                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-accent-teal-muted text-accent-teal text-xs font-bold border border-accent-teal/20">
                   2
                 </span>
                 Borrow Amount
@@ -695,7 +685,7 @@ function NewBorrowSection({ pools, collateralAssets, collateralPrices }: {
             {/* Step 3 — Select Collateral */}
             <div>
               <h4 className="text-sm font-semibold text-text-primary mb-3 flex items-center gap-2">
-                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-accent-teal-muted text-accent-teal text-2xs font-medium">
+                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-accent-teal-muted text-accent-teal text-xs font-bold border border-accent-teal/20">
                   3
                 </span>
                 Select Collateral
@@ -704,20 +694,13 @@ function NewBorrowSection({ pools, collateralAssets, collateralPrices }: {
                 {collateralEntries.map((entry, index) => (
                   <div key={index} className="flex items-end gap-2">
                     <div className="w-32">
-                      <label className="text-xs font-medium text-text-secondary mb-1.5 block">
-                        Asset
-                      </label>
-                      <select
+                      <Select
+                        label="Asset"
                         value={entry.asset}
                         onChange={(e) => handleCollateralAssetChange(index, e.target.value)}
-                        className="h-9 w-full rounded-md bg-bg-tertiary border border-border-default px-3 text-sm text-text-primary focus-ring transition-colors"
-                      >
-                        {effectiveAssets.map((asset) => (
-                          <option key={asset} value={asset}>
-                            {asset}
-                          </option>
-                        ))}
-                      </select>
+                        size="sm"
+                        options={effectiveAssets.map((asset) => ({ value: asset, label: asset }))}
+                      />
                     </div>
                     <div className="flex-1">
                       <Input
@@ -751,7 +734,7 @@ function NewBorrowSection({ pools, collateralAssets, collateralPrices }: {
             {/* Step 4 — Health Factor Simulator */}
             <div>
               <h4 className="text-sm font-semibold text-text-primary mb-3 flex items-center gap-2">
-                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-accent-teal-muted text-accent-teal text-2xs font-medium">
+                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-accent-teal-muted text-accent-teal text-xs font-bold border border-accent-teal/20">
                   4
                 </span>
                 Health Factor Simulator
@@ -785,7 +768,7 @@ function NewBorrowSection({ pools, collateralAssets, collateralPrices }: {
             {/* Step 5 — Summary Panel */}
             <div>
               <h4 className="text-sm font-semibold text-text-primary mb-3 flex items-center gap-2">
-                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-accent-teal-muted text-accent-teal text-2xs font-medium">
+                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-accent-teal-muted text-accent-teal text-xs font-bold border border-accent-teal/20">
                   5
                 </span>
                 Summary
@@ -969,7 +952,7 @@ export default function BorrowPage() {
   if (!isConnected) {
     return (
       <div className="space-y-8">
-        <h1 className="text-xl font-bold text-text-primary tracking-tight">Borrow</h1>
+        <h1 className="text-2xl font-bold text-text-primary tracking-tight">Borrow</h1>
         <Card>
           <CardContent>
             <div className="flex flex-col items-center gap-4 py-16">
@@ -988,7 +971,7 @@ export default function BorrowPage() {
   return (
     <div className="space-y-8">
       {/* Header */}
-      <h1 className="text-xl font-bold text-text-primary tracking-tight">Borrow</h1>
+      <h1 className="text-2xl font-bold text-text-primary tracking-tight">Borrow</h1>
 
       {/* Active Borrow Positions */}
       <section>

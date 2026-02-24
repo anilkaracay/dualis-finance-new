@@ -27,12 +27,12 @@ function ChartTooltip({
   return (
     <div
       className={cn(
-        'rounded-lg border border-border-default bg-bg-elevated p-3 shadow-lg backdrop-blur-md',
+        'rounded-xl border border-border-default bg-bg-elevated/95 p-3 shadow-elevated backdrop-blur-lg',
         className
       )}
     >
       {label && (
-        <p className="text-xs text-text-secondary mb-2">
+        <p className="text-[10px] uppercase tracking-wider text-text-tertiary mb-2.5 font-medium">
           {labelFormatter ? labelFormatter(label) : label}
         </p>
       )}
@@ -40,7 +40,7 @@ function ChartTooltip({
         {payload.map((entry, idx) => (
           <div key={idx} className="flex items-center gap-2 text-sm">
             <span
-              className="h-2 w-2 rounded-full shrink-0"
+              className="h-2.5 w-2.5 rounded-full shrink-0"
               style={{ backgroundColor: entry.color }}
             />
             <span className="text-text-secondary">{entry.name}:</span>

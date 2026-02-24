@@ -95,7 +95,7 @@ function NotificationPanel({ open, onClose, notifications, onMarkAllRead, onNoti
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
             transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-            className="fixed right-0 top-0 z-50 flex h-full w-[360px] flex-col bg-bg-secondary/95 backdrop-blur-lg border-l border-border-default shadow-xl"
+            className="fixed right-0 top-0 z-50 flex h-full w-[380px] flex-col bg-bg-secondary/95 backdrop-blur-xl border-l border-border-subtle shadow-xl"
           >
             {/* Header */}
             <div className="flex items-center justify-between h-16 px-4 border-b border-border-subtle">
@@ -127,8 +127,8 @@ function NotificationPanel({ open, onClose, notifications, onMarkAllRead, onNoti
                       key={notif.id}
                       onClick={() => handleClick(notif)}
                       className={cn(
-                        'flex gap-3 px-4 py-3 border-b border-border-subtle cursor-pointer hover:bg-bg-hover transition-colors',
-                        !notif.read && `border-l-2 ${typeBorderColors[notif.type] ?? 'border-l-accent-teal'}`,
+                        'flex gap-3 px-4 py-3.5 border-b border-border-subtle/50 cursor-pointer hover:bg-surface-selected transition-all duration-150 animate-slide-in-right',
+                        !notif.read && `border-l-[3px] ${typeBorderColors[notif.type] ?? 'border-l-accent-teal'}`,
                       )}
                     >
                       <Icon className={cn('h-5 w-5 shrink-0 mt-0.5', typeColors[notif.type] ?? 'text-info')} />

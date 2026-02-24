@@ -6,6 +6,7 @@ import { ArrowLeft, CheckCircle2 } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { Select } from '@/components/ui/Select';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import { useProductiveStore } from '@/stores/useProductiveStore';
 
@@ -140,22 +141,12 @@ export default function SubmitProjectPage() {
             />
 
             {/* Project Type */}
-            <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-medium text-text-secondary text-label">
-                Project Type
-              </label>
-              <select
-                value={projectType}
-                onChange={(e) => setProjectType(e.target.value as ProjectType)}
-                className="h-9 w-full rounded-md border border-border-default bg-bg-tertiary px-3 text-sm text-text-primary transition-colors duration-100 focus:border-border-focus focus:outline-none"
-              >
-                {PROJECT_TYPES.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <Select
+              label="Project Type"
+              value={projectType}
+              onChange={(e) => setProjectType(e.target.value as ProjectType)}
+              options={PROJECT_TYPES.map((opt) => ({ value: opt.value, label: opt.label }))}
+            />
 
             {/* Location City + Country */}
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -218,22 +209,12 @@ export default function SubmitProjectPage() {
             </div>
 
             {/* ESG Rating */}
-            <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-medium text-text-secondary text-label">
-                ESG Rating
-              </label>
-              <select
-                value={esgRating}
-                onChange={(e) => setEsgRating(e.target.value as ESGRating)}
-                className="h-9 w-full rounded-md border border-border-default bg-bg-tertiary px-3 text-sm text-text-primary transition-colors duration-100 focus:border-border-focus focus:outline-none"
-              >
-                {ESG_RATINGS.map((rating) => (
-                  <option key={rating} value={rating}>
-                    {rating}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <Select
+              label="ESG Rating"
+              value={esgRating}
+              onChange={(e) => setEsgRating(e.target.value as ESGRating)}
+              options={ESG_RATINGS.map((rating) => ({ value: rating, label: rating }))}
+            />
 
             {/* Expected APY */}
             <div className="flex flex-col gap-1.5">

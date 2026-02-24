@@ -107,7 +107,7 @@ function DonutChart({
         {(centerLabel || centerValue) && (
           <div className="absolute inset-0 flex flex-col items-center justify-center">
             {centerValue && (
-              <span className="font-mono text-xl font-bold text-text-primary">{centerValue}</span>
+              <span className="font-mono text-2xl font-bold text-text-primary tracking-tight">{centerValue}</span>
             )}
             {centerLabel && (
               <span className="text-xs text-text-tertiary">{centerLabel}</span>
@@ -120,11 +120,11 @@ function DonutChart({
         {segments.map((seg, i) => (
           <div key={i} className="flex items-center gap-1.5 text-xs">
             <span
-              className="h-2 w-2 rounded-full shrink-0"
+              className="h-2.5 w-2.5 rounded-full shrink-0"
               style={{ backgroundColor: seg.color }}
             />
             <span className="text-text-secondary">{seg.label}</span>
-            <span className="font-mono text-text-tertiary">
+            <span className="font-mono text-text-tertiary tabular-nums">
               {total > 0 ? ((seg.value / total) * 100).toFixed(1) : 0}%
             </span>
           </div>

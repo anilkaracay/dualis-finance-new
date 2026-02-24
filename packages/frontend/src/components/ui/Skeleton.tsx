@@ -19,7 +19,7 @@ function Skeleton({
   lines = 3,
   ...props
 }: SkeletonProps) {
-  const baseClass = 'bg-bg-tertiary/40 rounded-md animate-shimmer bg-[length:200%_100%] bg-gradient-to-r from-bg-tertiary/50 via-bg-hover/30 to-bg-tertiary/50';
+  const baseClass = 'bg-bg-tertiary/30 rounded-lg animate-shimmer bg-[length:200%_100%] bg-gradient-to-r from-bg-tertiary/40 via-bg-hover/20 to-bg-tertiary/40';
 
   if (variant === 'circle') {
     return (

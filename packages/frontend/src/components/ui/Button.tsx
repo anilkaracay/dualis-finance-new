@@ -3,9 +3,9 @@ import { cn } from '@/lib/utils/cn';
 import { Loader2 } from 'lucide-react';
 
 const buttonVariants = {
-  primary: 'bg-accent-teal text-white hover:bg-accent-teal-hover hover:shadow-glow-teal-sm shadow-sm active:scale-[0.97]',
-  secondary: 'bg-transparent text-text-primary border border-border-default hover:bg-bg-hover hover:border-border-hover active:scale-[0.97]',
-  ghost: 'text-text-secondary hover:text-text-primary hover:bg-bg-hover/60 active:scale-[0.97]',
+  primary: 'bg-[image:var(--gradient-primary-btn)] text-white shadow-[var(--shadow-button-primary)] hover:shadow-[var(--shadow-button-primary-hover)] hover:brightness-110 active:scale-[0.97] active:shadow-sm',
+  secondary: 'bg-bg-tertiary/50 text-text-primary border border-border-default shadow-[var(--shadow-card-inset)] hover:bg-bg-hover hover:border-border-hover hover:shadow-sm active:scale-[0.97] active:bg-bg-active',
+  ghost: 'text-text-secondary hover:text-text-primary hover:bg-bg-hover/60 active:scale-[0.97] active:bg-bg-active/40',
   danger: 'bg-negative text-white hover:brightness-110 shadow-sm active:scale-[0.97]',
   success: 'bg-positive text-white hover:brightness-110 shadow-sm active:scale-[0.97]',
 } as const;
@@ -15,6 +15,7 @@ const buttonSizes = {
   md: 'h-9 px-4 text-[13px] rounded-lg gap-2',
   lg: 'h-11 px-5 text-sm rounded-lg gap-2',
   xl: 'h-12 px-6 text-base rounded-lg gap-2.5',
+  icon: 'h-9 w-9 p-0 rounded-lg',
 } as const;
 
 type ButtonVariant = keyof typeof buttonVariants;
@@ -39,7 +40,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       <button
         ref={ref}
         className={cn(
-          'inline-flex items-center justify-center font-semibold tracking-[0.01em] transition-all duration-150 focus-ring btn-press',
+          'inline-flex items-center justify-center font-semibold tracking-[0.01em] transition-all duration-200 ease-out focus-ring-enhanced btn-press',
           'disabled:opacity-50 disabled:pointer-events-none',
           buttonVariants[variant],
           buttonSizes[size],

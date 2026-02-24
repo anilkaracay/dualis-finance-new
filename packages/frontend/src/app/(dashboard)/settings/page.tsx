@@ -16,6 +16,7 @@ import { cn } from '@/lib/utils/cn';
 import { Button } from '@/components/ui/Button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
+import { Select } from '@/components/ui/Select';
 import { Toggle } from '@/components/ui/Toggle';
 import { useUIStore } from '@/stores/useUIStore';
 import { useWalletStore } from '@/stores/useWalletStore';
@@ -142,7 +143,7 @@ export default function SettingsPage() {
   return (
     <div className="space-y-6">
       {/* Page header */}
-      <h1 className="text-xl font-bold text-text-primary tracking-tight">Settings</h1>
+      <h1 className="text-2xl font-bold text-text-primary tracking-tight">Settings</h1>
 
       {/* ------------------------------------------------------------------- */}
       {/* Appearance Card                                                      */}
@@ -168,7 +169,7 @@ export default function SettingsPage() {
                     'flex flex-col items-center gap-2 rounded-lg border w-20 py-3 text-xs font-medium transition-all',
                     'focus-ring',
                     isSelected
-                      ? 'border-accent-teal bg-accent-teal-muted text-accent-teal shadow-card'
+                      ? 'border-accent-teal bg-accent-teal-muted text-accent-teal shadow-card ring-2 ring-accent-teal'
                       : 'border-border-default text-text-secondary hover:border-border-hover hover:text-text-primary',
                   )}
                 >
@@ -377,24 +378,16 @@ export default function SettingsPage() {
                   Interface language preference
                 </p>
               </div>
-              <select
-                className={cn(
-                  'h-9 rounded-md border border-border-default bg-bg-tertiary px-3 text-sm text-text-primary',
-                  'transition-colors focus-ring',
-                )}
+              <Select
                 defaultValue="en"
-              >
-                <option value="en">English</option>
-                <option value="de" disabled>
-                  German
-                </option>
-                <option value="tr" disabled>
-                  Turkish
-                </option>
-                <option value="ja" disabled>
-                  Japanese
-                </option>
-              </select>
+                size="sm"
+                options={[
+                  { value: 'en', label: 'English' },
+                  { value: 'de', label: 'German', disabled: true },
+                  { value: 'tr', label: 'Turkish', disabled: true },
+                  { value: 'ja', label: 'Japanese', disabled: true },
+                ]}
+              />
             </div>
           </div>
         </CardContent>

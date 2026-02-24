@@ -115,6 +115,18 @@ const config: Config = {
         'glow-danger': '0 0 20px rgba(248,113,113,0.25)',
         'glow-gold': '0 0 20px rgba(251,191,36,0.20)',
       },
+      transitionTimingFunction: {
+        'spring': 'cubic-bezier(0.34, 1.56, 0.64, 1)',
+        'out-expo': 'cubic-bezier(0.16, 1, 0.3, 1)',
+      },
+      backgroundImage: {
+        'gradient-card-teal': 'var(--gradient-card-teal)',
+        'gradient-card-indigo': 'var(--gradient-card-indigo)',
+        'gradient-card-gold': 'var(--gradient-card-gold)',
+        'gradient-card-danger': 'var(--gradient-card-danger)',
+        'gradient-primary-btn': 'var(--gradient-primary-btn)',
+        'gradient-hero-mesh': 'var(--gradient-hero-mesh)',
+      },
       animation: {
         shimmer: 'shimmer 2s ease-in-out infinite',
         'pulse-danger': 'pulse-danger 2s ease-in-out infinite',
@@ -128,6 +140,10 @@ const config: Config = {
         'grid-shift': 'gridShift 20s linear infinite',
         'tooltip-in': 'tooltipFadeIn 0.15s cubic-bezier(0.16,1,0.3,1)',
         'card-entrance': 'cardEntrance 0.3s ease-out both',
+        'stagger-in': 'staggerFadeInUp 0.4s cubic-bezier(0.16,1,0.3,1) both',
+        'slide-in-right': 'slideInRight 0.25s cubic-bezier(0.16,1,0.3,1) both',
+        'breathe-glow': 'breatheGlow 3s ease-in-out infinite',
+        'progress-fill': 'progressFill 0.8s cubic-bezier(0.16,1,0.3,1) both',
       },
       keyframes: {
         shimmer: {
@@ -147,20 +163,20 @@ const config: Config = {
           to: { opacity: '1' },
         },
         fadeInUp: {
-          from: { opacity: '0', transform: 'translateY(8px)' },
-          to: { opacity: '1', transform: 'translateY(0)' },
+          from: { opacity: '0', translate: '0 8px' },
+          to: { opacity: '1', translate: '0 0' },
         },
         slideUp: {
-          from: { opacity: '0', transform: 'translateY(20px)' },
-          to: { opacity: '1', transform: 'translateY(0)' },
+          from: { opacity: '0', translate: '0 20px' },
+          to: { opacity: '1', translate: '0 0' },
         },
         drawLine: {
           from: { strokeDashoffset: '1000' },
           to: { strokeDashoffset: '0' },
         },
         scaleIn: {
-          from: { opacity: '0', transform: 'scale(0.97)' },
-          to: { opacity: '1', transform: 'scale(1)' },
+          from: { opacity: '0', scale: '0.97' },
+          to: { opacity: '1', scale: '1' },
         },
         glowPulse: {
           '0%, 100%': { boxShadow: '0 0 20px rgba(0,212,170,0.12)' },
@@ -171,12 +187,27 @@ const config: Config = {
           '100%': { backgroundPosition: '60px 60px' },
         },
         tooltipFadeIn: {
-          from: { opacity: '0', transform: 'translateY(4px) scale(0.96)' },
-          to: { opacity: '1', transform: 'translateY(0) scale(1)' },
+          from: { opacity: '0', translate: '0 4px', scale: '0.96' },
+          to: { opacity: '1', translate: '0 0', scale: '1' },
         },
         cardEntrance: {
-          from: { opacity: '0', transform: 'translateY(8px)' },
-          to: { opacity: '1', transform: 'translateY(0)' },
+          from: { opacity: '0', translate: '0 8px' },
+          to: { opacity: '1', translate: '0 0' },
+        },
+        staggerFadeInUp: {
+          from: { opacity: '0', translate: '0 12px' },
+          to: { opacity: '1', translate: '0 0' },
+        },
+        slideInRight: {
+          from: { opacity: '0', translate: '12px 0' },
+          to: { opacity: '1', translate: '0 0' },
+        },
+        breatheGlow: {
+          '0%, 100%': { boxShadow: '0 0 0 1px rgba(0,212,170,0.10), 0 0 15px rgba(0,212,170,0.05)' },
+          '50%': { boxShadow: '0 0 0 1px rgba(0,212,170,0.20), 0 0 30px rgba(0,212,170,0.10)' },
+        },
+        progressFill: {
+          from: { width: '0%' },
         },
       },
       backdropBlur: {

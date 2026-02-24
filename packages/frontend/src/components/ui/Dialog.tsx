@@ -16,7 +16,7 @@ const DialogOverlay = React.forwardRef<
   <DialogPrimitive.Overlay
     ref={ref}
     className={cn(
-      'fixed inset-0 z-50 bg-black/50 backdrop-blur-[6px] data-[state=open]:animate-fade-in',
+      'fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm data-[state=open]:animate-fade-in',
       className
     )}
     {...props}
@@ -43,8 +43,8 @@ const DialogContent = React.forwardRef<
       <DialogPrimitive.Content
         ref={ref}
         className={cn(
-          'fixed left-1/2 top-1/2 z-50 w-full -translate-x-1/2 -translate-y-1/2',
-          'bg-bg-elevated border border-border-default rounded-xl p-6 shadow-xl backdrop-blur-lg',
+          'fixed left-1/2 top-1/2 z-[60] w-full -translate-x-1/2 -translate-y-1/2',
+          'bg-bg-elevated border border-border-default rounded-2xl p-6 shadow-xl backdrop-blur-lg',
           'animate-scale-in',
           sizeClasses[size],
           className
@@ -52,7 +52,7 @@ const DialogContent = React.forwardRef<
         {...props}
       >
         {children}
-        <DialogPrimitive.Close className="absolute right-4 top-4 rounded-sm text-text-tertiary hover:text-text-primary transition-colors focus-ring">
+        <DialogPrimitive.Close className="absolute right-4 top-4 h-8 w-8 flex items-center justify-center rounded-lg text-text-tertiary hover:text-text-primary hover:bg-bg-hover/60 transition-all duration-150 focus-ring">
           <X className="h-4 w-4" />
           <span className="sr-only">Close</span>
         </DialogPrimitive.Close>
@@ -73,7 +73,7 @@ const DialogTitle = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <DialogPrimitive.Title
     ref={ref}
-    className={cn('text-xl font-semibold text-text-primary', className)}
+    className={cn('text-lg font-semibold text-text-primary', className)}
     {...props}
   />
 ));
@@ -92,7 +92,7 @@ const DialogDescription = React.forwardRef<
 DialogDescription.displayName = DialogPrimitive.Description.displayName;
 
 const DialogFooter = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
-  <div className={cn('flex items-center justify-end gap-3 mt-6', className)} {...props} />
+  <div className={cn('flex items-center justify-end gap-3 mt-6 pt-4 border-t border-border-subtle', className)} {...props} />
 );
 DialogFooter.displayName = 'DialogFooter';
 

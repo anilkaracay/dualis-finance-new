@@ -248,19 +248,19 @@ function SafetyModuleCard() {
 
 function StakingParametersTable({ params }: { params: StakingParameter[] }) {
   return (
-    <div className="overflow-hidden rounded-lg border border-border-default bg-bg-tertiary shadow-card">
+    <div className="overflow-hidden rounded-xl border border-border-default bg-bg-tertiary shadow-card">
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-b border-border-default backdrop-blur">
-            <th className="text-label px-4 h-10 text-left">Parameter</th>
-            <th className="text-label px-4 h-10 text-right">Value</th>
+          <tr className="border-b border-border-default bg-bg-secondary/40">
+            <th className="text-label px-4 h-9 text-left">Parameter</th>
+            <th className="text-label px-4 h-9 text-right">Value</th>
           </tr>
         </thead>
         <tbody>
           {params.map((param) => (
             <tr
               key={param.label}
-              className="border-b border-border-default last:border-b-0 h-14 hover:bg-bg-hover/50 transition-colors"
+              className="border-b border-border-default last:border-b-0 h-12 hover:bg-surface-selected table-row-interactive transition-colors"
             >
               <td className="px-4 py-3 text-text-primary">{param.label}</td>
               <td className="px-4 py-3 text-right font-mono text-text-primary">{param.value}</td>
@@ -282,7 +282,7 @@ export default function StakingPage() {
   return (
     <div className="space-y-8">
       {/* Header */}
-      <h1 className="text-xl font-bold text-text-primary tracking-tight">Staking</h1>
+      <h1 className="text-2xl font-bold text-text-primary tracking-tight">Staking</h1>
 
       {/* KPI Row */}
       <section>
@@ -295,18 +295,21 @@ export default function StakingPage() {
             sparkline={SPARKLINE_STAKED}
             trend="up"
             trendValue="+2.1%"
+            index={0}
           />
           <KPICard
             label="Staking APY"
             value={8.5}
             suffix="%"
             decimals={1}
+            index={1}
           />
           <KPICard
             label="Safety Module"
             value={12_800_000}
             prefix="$"
             decimals={0}
+            index={2}
           />
           <KPICard
             label="Your Rewards"
@@ -316,6 +319,7 @@ export default function StakingPage() {
             sparkline={SPARKLINE_REWARDS}
             trend="up"
             trendValue="+$89"
+            index={3}
           />
         </div>
       </section>

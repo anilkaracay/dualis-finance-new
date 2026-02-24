@@ -42,7 +42,7 @@ export default function ProductiveLendingPage() {
     <div className="space-y-8">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-text-primary tracking-tight">Productive Lending</h1>
+        <h1 className="text-2xl font-bold text-text-primary tracking-tight">Productive Lending</h1>
         <Link href="/productive/apply">
           <Button variant="primary" size="md" icon={<Plus className="h-4 w-4" />}>
             Submit Project
@@ -64,12 +64,14 @@ export default function ProductiveLendingPage() {
             value={projects.length}
             size="sm"
             decimals={0}
+            index={0}
           />
           <KPICard
             label="Active Pools"
             value={pools.length}
             size="sm"
             decimals={0}
+            index={1}
           />
           <KPICard
             label="Total Borrowed"
@@ -77,12 +79,14 @@ export default function ProductiveLendingPage() {
             size="sm"
             prefix="$"
             decimals={0}
+            index={2}
           />
           <KPICard
             label="Active Borrows"
             value={borrows.length}
             size="sm"
             decimals={0}
+            index={3}
           />
         </div>
       )}
@@ -129,7 +133,7 @@ export default function ProductiveLendingPage() {
 
         {/* ── Pools Tab ────────────────────────────────────────────────────── */}
         <TabsContent value="pools">
-          <div className="overflow-x-auto rounded-lg border border-border-default bg-bg-tertiary shadow-card">
+          <div className="overflow-x-auto rounded-xl border border-border-default bg-bg-tertiary shadow-card">
             <table className="w-full">
               <thead>
                 <tr className="border-b border-border-default">
@@ -178,7 +182,7 @@ export default function ProductiveLendingPage() {
                       return (
                         <tr
                           key={pool.poolId}
-                          className="border-b border-border-subtle h-14 transition-colors hover:bg-bg-hover/50"
+                          className="border-b border-border-subtle h-12 transition-colors hover:bg-surface-selected table-row-interactive"
                         >
                           <td className="px-4">
                             <div className="flex items-center gap-2">
@@ -219,7 +223,7 @@ export default function ProductiveLendingPage() {
 
         {/* ── Borrows Tab ──────────────────────────────────────────────────── */}
         <TabsContent value="borrows">
-          <div className="overflow-x-auto rounded-lg border border-border-default bg-bg-tertiary shadow-card">
+          <div className="overflow-x-auto rounded-xl border border-border-default bg-bg-tertiary shadow-card">
             <table className="w-full">
               <thead>
                 <tr className="border-b border-border-default">
@@ -269,7 +273,7 @@ export default function ProductiveLendingPage() {
                       return (
                         <tr
                           key={borrow.borrowId}
-                          className="border-b border-border-subtle h-14 transition-colors hover:bg-bg-hover/50"
+                          className="border-b border-border-subtle h-12 transition-colors hover:bg-surface-selected table-row-interactive"
                         >
                           <td className="px-4">
                             <span className="font-mono text-sm text-text-primary">{borrow.borrowId}</span>

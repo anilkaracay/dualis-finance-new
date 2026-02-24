@@ -75,8 +75,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             walletSlot={<WalletDropdown />}
           />
 
-          <main className="flex-1 overflow-y-auto bg-bg-primary pb-20 md:pb-0">
-            <div className="mx-auto max-w-[1400px] px-4 py-6 md:px-8 md:py-8">
+          <main className="flex-1 overflow-y-auto bg-bg-primary bg-gradient-hero-mesh pb-20 md:pb-0">
+            <div className="mx-auto max-w-[1440px] px-4 py-6 md:px-8 md:py-8">
               {children}
             </div>
           </main>

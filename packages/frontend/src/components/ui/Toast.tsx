@@ -25,10 +25,10 @@ ToastViewport.displayName = ToastPrimitive.Viewport.displayName;
 type ToastVariant = 'success' | 'error' | 'warning' | 'info';
 
 const variantStyles: Record<ToastVariant, string> = {
-  success: 'border-l-[3px] border-l-positive border-border-default bg-bg-elevated',
-  error: 'border-l-[3px] border-l-negative border-border-default bg-bg-elevated',
-  warning: 'border-l-[3px] border-l-warning border-border-default bg-bg-elevated',
-  info: 'border-l-[3px] border-l-info border-border-default bg-bg-elevated',
+  success: 'border-l-[3px] border-l-positive border-border-default bg-bg-elevated bg-gradient-to-r from-positive/[0.03] to-transparent',
+  error: 'border-l-[3px] border-l-negative border-border-default bg-bg-elevated bg-gradient-to-r from-negative/[0.03] to-transparent',
+  warning: 'border-l-[3px] border-l-warning border-border-default bg-bg-elevated bg-gradient-to-r from-warning/[0.03] to-transparent',
+  info: 'border-l-[3px] border-l-info border-border-default bg-bg-elevated bg-gradient-to-r from-info/[0.03] to-transparent',
 };
 
 const variantIcons: Record<ToastVariant, React.ReactNode> = {
@@ -50,7 +50,7 @@ const Toast = React.forwardRef<
   <ToastPrimitive.Root
     ref={ref}
     className={cn(
-      'group pointer-events-auto relative flex w-full items-start gap-3 overflow-hidden rounded-lg border p-4 backdrop-blur-md',
+      'group pointer-events-auto relative flex w-full items-start gap-3 overflow-hidden rounded-xl border p-4 backdrop-blur-md',
       'border border-border-default shadow-lg',
       'data-[state=open]:animate-slide-up data-[state=closed]:animate-fade-in',
       'data-[swipe=cancel]:translate-x-0 data-[swipe=end]:translate-x-[var(--radix-toast-swipe-end-x)]',

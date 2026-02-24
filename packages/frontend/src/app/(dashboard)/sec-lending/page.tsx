@@ -11,6 +11,7 @@ import {
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Input } from '@/components/ui/Input';
+import { Select } from '@/components/ui/Select';
 import {
   Dialog,
   DialogTrigger,
@@ -178,23 +179,23 @@ const SECURITY_OPTIONS = ['SPY-2026', 'T-BILL-2026', 'AAPL-2026', 'ETH', 'wBTC']
 
 function AvailableOffersTable({ offers }: { offers: MarketplaceOffer[] }) {
   return (
-    <div className="overflow-x-auto rounded-lg border border-border-default bg-bg-tertiary shadow-card">
+    <div className="overflow-x-auto rounded-xl border border-border-default bg-bg-tertiary shadow-card">
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-b border-border-default backdrop-blur">
-            <th className="text-label px-4 h-10 text-left">Security</th>
-            <th className="text-label px-4 h-10 text-left">Lender</th>
-            <th className="text-label px-4 h-10 text-left">Fee</th>
-            <th className="text-label px-4 h-10 text-left">Duration</th>
-            <th className="text-label px-4 h-10 text-left">Collateral</th>
-            <th className="text-label px-4 h-10 text-right">Action</th>
+          <tr className="border-b border-border-default bg-bg-secondary/40">
+            <th className="text-label px-4 h-9 text-left">Security</th>
+            <th className="text-label px-4 h-9 text-left">Lender</th>
+            <th className="text-label px-4 h-9 text-left">Fee</th>
+            <th className="text-label px-4 h-9 text-left">Duration</th>
+            <th className="text-label px-4 h-9 text-left">Collateral</th>
+            <th className="text-label px-4 h-9 text-right">Action</th>
           </tr>
         </thead>
         <tbody>
           {offers.map((offer) => (
             <tr
               key={offer.id}
-              className="border-b border-border-default last:border-b-0 h-14 hover:bg-bg-hover/50 transition-colors"
+              className="border-b border-border-default last:border-b-0 h-12 hover:bg-surface-selected table-row-interactive transition-colors"
             >
               <td className="px-4">
                 <div className="flex items-center gap-2">
@@ -244,30 +245,30 @@ function MyDealsTable() {
 
   if (secLendingDeals.length === 0) {
     return (
-      <div className="flex flex-col items-center gap-3 rounded-lg border border-border-default bg-bg-tertiary py-12">
-        <p className="text-text-tertiary text-sm">No active deals</p>
+      <div className="flex flex-col items-center gap-3 rounded-xl border border-border-default bg-bg-tertiary py-16">
+        <p className="text-text-disabled text-sm">No active deals</p>
       </div>
     );
   }
 
   return (
-    <div className="overflow-x-auto rounded-lg border border-border-default bg-bg-tertiary shadow-card">
+    <div className="overflow-x-auto rounded-xl border border-border-default bg-bg-tertiary shadow-card">
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-b border-border-default backdrop-blur">
-            <th className="text-label px-4 h-10 text-left">Deal ID</th>
-            <th className="text-label px-4 h-10 text-left">Role</th>
-            <th className="text-label px-4 h-10 text-left">Security</th>
-            <th className="text-label px-4 h-10 text-center">Status</th>
-            <th className="text-label px-4 h-10 text-right">Fee Accrued</th>
-            <th className="text-label px-4 h-10 text-right">Action</th>
+          <tr className="border-b border-border-default bg-bg-secondary/40">
+            <th className="text-label px-4 h-9 text-left">Deal ID</th>
+            <th className="text-label px-4 h-9 text-left">Role</th>
+            <th className="text-label px-4 h-9 text-left">Security</th>
+            <th className="text-label px-4 h-9 text-center">Status</th>
+            <th className="text-label px-4 h-9 text-right">Fee Accrued</th>
+            <th className="text-label px-4 h-9 text-right">Action</th>
           </tr>
         </thead>
         <tbody>
           {secLendingDeals.map((deal) => (
             <tr
               key={deal.dealId}
-              className="border-b border-border-default last:border-b-0 h-14 hover:bg-bg-hover/50 transition-colors"
+              className="border-b border-border-default last:border-b-0 h-12 hover:bg-surface-selected table-row-interactive transition-colors"
             >
               <td className="px-4">
                 <span className="font-mono text-xs text-text-secondary">
@@ -316,29 +317,29 @@ function MyDealsTable() {
 function MyOffersTable({ offers }: { offers: MyOffer[] }) {
   if (offers.length === 0) {
     return (
-      <div className="flex flex-col items-center gap-3 rounded-lg border border-border-default bg-bg-tertiary py-12">
-        <p className="text-text-tertiary text-sm">No offers posted</p>
+      <div className="flex flex-col items-center gap-3 rounded-xl border border-border-default bg-bg-tertiary py-16">
+        <p className="text-text-disabled text-sm">No offers posted</p>
       </div>
     );
   }
 
   return (
-    <div className="overflow-x-auto rounded-lg border border-border-default bg-bg-tertiary shadow-card">
+    <div className="overflow-x-auto rounded-xl border border-border-default bg-bg-tertiary shadow-card">
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-b border-border-default backdrop-blur">
-            <th className="text-label px-4 h-10 text-left">Security</th>
-            <th className="text-label px-4 h-10 text-left">Fee</th>
-            <th className="text-label px-4 h-10 text-center">Status</th>
-            <th className="text-label px-4 h-10 text-left">Created</th>
-            <th className="text-label px-4 h-10 text-right">Action</th>
+          <tr className="border-b border-border-default bg-bg-secondary/40">
+            <th className="text-label px-4 h-9 text-left">Security</th>
+            <th className="text-label px-4 h-9 text-left">Fee</th>
+            <th className="text-label px-4 h-9 text-center">Status</th>
+            <th className="text-label px-4 h-9 text-left">Created</th>
+            <th className="text-label px-4 h-9 text-right">Action</th>
           </tr>
         </thead>
         <tbody>
           {offers.map((offer) => (
             <tr
               key={offer.id}
-              className="border-b border-border-default last:border-b-0 h-14 hover:bg-bg-hover/50 transition-colors"
+              className="border-b border-border-default last:border-b-0 h-12 hover:bg-surface-selected table-row-interactive transition-colors"
             >
               <td className="px-4">
                 <div className="flex items-center gap-2">
@@ -415,18 +416,12 @@ function NewOfferForm({ onClose }: { onClose: () => void }) {
   return (
     <div className="space-y-5">
       {/* Security Select */}
-      <div className="flex flex-col gap-1.5">
-        <label className="text-sm font-medium text-text-secondary">Security Asset</label>
-        <select
-          value={selectedSecurity}
-          onChange={(e) => setSelectedSecurity(e.target.value)}
-          className="h-9 w-full rounded-md bg-bg-tertiary border border-border-default px-3 text-sm text-text-primary focus-ring"
-        >
-          {SECURITY_OPTIONS.map((sec) => (
-            <option key={sec} value={sec}>{sec}</option>
-          ))}
-        </select>
-      </div>
+      <Select
+        label="Security Asset"
+        value={selectedSecurity}
+        onChange={(e) => setSelectedSecurity(e.target.value)}
+        options={SECURITY_OPTIONS.map((sec) => ({ value: sec, label: sec }))}
+      />
 
       {/* Amount */}
       <Input
@@ -527,7 +522,7 @@ export default function SecLendingPage() {
     <div className="space-y-8">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-text-primary tracking-tight">Securities Lending</h1>
+        <h1 className="text-2xl font-bold text-text-primary tracking-tight">Securities Lending</h1>
         <div className="flex items-center gap-3">
           <Link href="/sec-lending/netting">
             <Button variant="secondary" size="sm" icon={<ArrowRightLeft className="h-4 w-4" />}>

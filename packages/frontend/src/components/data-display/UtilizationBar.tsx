@@ -17,7 +17,7 @@ function getBarGradient(v: number): string {
 function UtilizationBar({ value, showLabel = true, size = 'sm', className }: UtilizationBarProps) {
   const clampedValue = Math.min(Math.max(value, 0), 1);
   const percent = Math.round(clampedValue * 100);
-  const barHeight = size === 'sm' ? 'h-1' : 'h-1';
+  const barHeight = size === 'sm' ? 'h-1.5' : 'h-2';
   const color = getBarGradient(clampedValue);
 
   return (
@@ -25,10 +25,10 @@ function UtilizationBar({ value, showLabel = true, size = 'sm', className }: Uti
       {showLabel && (
         <span className="text-xs font-mono text-text-tertiary tabular-nums w-8 text-right shrink-0">{percent}%</span>
       )}
-      <div className={cn('relative flex-1 rounded-full overflow-hidden', barHeight, 'bg-bg-active')}>
+      <div className={cn('relative flex-1 rounded-full overflow-hidden', barHeight, 'bg-bg-active/50')}>
         <div
           className="h-full rounded-full transition-all duration-500 ease-out"
-          style={{ width: `${percent}%`, backgroundColor: color }}
+          style={{ width: `${percent}%`, backgroundColor: color, ...(clampedValue > 0.8 ? { boxShadow: `0 0 8px ${color}40` } : {}) }}
         />
       </div>
     </div>
