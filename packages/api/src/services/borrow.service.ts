@@ -332,7 +332,9 @@ export async function getPositions(
   // ---------- Canton mode: query real BorrowPosition contracts ----------
   if (!env.CANTON_MOCK) {
     try {
-      const contracts = await cantonQueries.getUserPositions(partyId);
+      // Use operator party for Canton queries — all positions are created with operator as borrower
+      const operatorParty = cantonConfig().parties.operator;
+      const contracts = await cantonQueries.getUserPositions(operatorParty);
 
       return contracts.map((c) => {
         const p = c.payload as unknown as Record<string, unknown>;
@@ -390,9 +392,10 @@ export async function repay(
   // ---------- Canton mode ----------
   if (!env.CANTON_MOCK) {
     const client = CantonClient.getInstance();
+    const operatorParty = cantonConfig().parties.operator;
 
-    // Find the BorrowPosition contract by querying user positions
-    const positions = await cantonQueries.getUserPositions(partyId);
+    // Find the BorrowPosition contract by querying with operator party
+    const positions = await cantonQueries.getUserPositions(operatorParty);
     const posContract = positions.find(c => {
       const p = c.payload as unknown as Record<string, unknown>;
       return (p.positionId as string) === positionId || c.contractId === positionId;
@@ -405,7 +408,7 @@ export async function repay(
     const payload = posContract.payload as unknown as Record<string, unknown>;
     const poolId = (payload.poolId as string) ?? '';
     const pool = registry.getPool(poolId);
-    const currentBorrowIndex = pool ? String(pool.borrowIndex) : '1.0';
+    const currentBorrowIndex = pool ? pool.borrowIndex.toFixed(10) : '1.0000000000';
 
     // Exercise Repay on BorrowPosition
     await client.exerciseChoice(
@@ -413,7 +416,7 @@ export async function repay(
       posContract.contractId,
       'Repay',
       {
-        repayAmount: amount,
+        repayAmount: parseFloat(amount).toFixed(10),
         currentBorrowIndex,
         repayTime: new Date().toISOString(),
       },
@@ -429,15 +432,24 @@ export async function repay(
       );
 
       // Update local pool contract ID
+      let newPoolCid = pool.contractId;
       const events = poolResult.events ?? [];
       for (const event of events) {
         const created = (event as Record<string, unknown>).CreatedEvent as Record<string, unknown> | undefined;
         if (!created) continue;
         const tid = (created.templateId as string) ?? '';
         if (tid.includes('LendingPool')) {
-          pool.contractId = (created.contractId as string) ?? pool.contractId;
+          newPoolCid = (created.contractId as string) ?? newPoolCid;
         }
       }
+      if (newPoolCid === pool.contractId) {
+        try {
+          const { getPoolByKey } = await import('../canton/queries.js');
+          const fresh = await getPoolByKey(poolId);
+          if (fresh) newPoolCid = fresh.contractId;
+        } catch { /* fallthrough */ }
+      }
+      pool.contractId = newPoolCid;
       pool.totalBorrow = Math.max(0, pool.totalBorrow - parseFloat(amount));
     }
 
@@ -489,9 +501,10 @@ export async function addCollateral(
   // ---------- Canton mode ----------
   if (!env.CANTON_MOCK) {
     const client = CantonClient.getInstance();
+    const operatorParty = cantonConfig().parties.operator;
 
-    // Find the BorrowPosition contract
-    const positions = await cantonQueries.getUserPositions(partyId);
+    // Find the BorrowPosition contract using operator party
+    const positions = await cantonQueries.getUserPositions(operatorParty);
     const posContract = positions.find(c => {
       const p = c.payload as unknown as Record<string, unknown>;
       return (p.positionId as string) === positionId || c.contractId === positionId;
@@ -513,7 +526,7 @@ export async function addCollateral(
           vaultId: `vault-${randomUUID().slice(0, 8)}`,
           symbol: asset.symbol,
           amount: asset.amount,
-          valueUSD: String(addedValueUSD),
+          valueUSD: addedValueUSD.toFixed(10),
         },
         updateTime: new Date().toISOString(),
       },

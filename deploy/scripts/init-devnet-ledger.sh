@@ -215,9 +215,9 @@ create_contract "Dualis.Lending.Pool:LendingPool" "{
     \"isBorrowEnabled\": true,
     \"collateralTier\": \"CryptoTier\"
   },
-  \"totalSupply\": \"10000000.0\",
-  \"totalBorrow\": \"6500000.0\",
-  \"totalReserves\": \"150000.0\",
+  \"totalSupply\": \"1000000.0\",
+  \"totalBorrow\": \"450000.0\",
+  \"totalReserves\": \"15000.0\",
   \"accrual\": {
     \"borrowIndex\": \"1.0\",
     \"supplyIndex\": \"1.0\",
@@ -255,9 +255,9 @@ create_contract "Dualis.Lending.Pool:LendingPool" "{
     \"isBorrowEnabled\": true,
     \"collateralTier\": \"CryptoTier\"
   },
-  \"totalSupply\": \"5000.0\",
-  \"totalBorrow\": \"2800.0\",
-  \"totalReserves\": \"50.0\",
+  \"totalSupply\": \"500.0\",
+  \"totalBorrow\": \"200.0\",
+  \"totalReserves\": \"5.0\",
   \"accrual\": {
     \"borrowIndex\": \"1.0\",
     \"supplyIndex\": \"1.0\",
@@ -295,9 +295,9 @@ create_contract "Dualis.Lending.Pool:LendingPool" "{
     \"isBorrowEnabled\": true,
     \"collateralTier\": \"RWATier\"
   },
-  \"totalSupply\": \"500000.0\",
-  \"totalBorrow\": \"350000.0\",
-  \"totalReserves\": \"10000.0\",
+  \"totalSupply\": \"100000.0\",
+  \"totalBorrow\": \"30000.0\",
+  \"totalReserves\": \"1000.0\",
   \"accrual\": {
     \"borrowIndex\": \"1.0\",
     \"supplyIndex\": \"1.0\",
@@ -335,9 +335,9 @@ create_contract "Dualis.Lending.Pool:LendingPool" "{
     \"isBorrowEnabled\": true,
     \"collateralTier\": \"CryptoTier\"
   },
-  \"totalSupply\": \"50000000.0\",
-  \"totalBorrow\": \"25000000.0\",
-  \"totalReserves\": \"500000.0\",
+  \"totalSupply\": \"200000.0\",
+  \"totalBorrow\": \"80000.0\",
+  \"totalReserves\": \"2000.0\",
   \"accrual\": {
     \"borrowIndex\": \"1.0\",
     \"supplyIndex\": \"1.0\",

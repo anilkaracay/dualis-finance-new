@@ -5,6 +5,7 @@ import { createChildLogger } from '../config/logger.js';
 import { getDb } from '../db/client.js';
 import { getRedis } from '../cache/redis.js';
 import { sql } from 'drizzle-orm';
+import * as registry from '../services/poolRegistry.js';
 
 const log = createChildLogger('health-routes');
 
@@ -42,23 +43,32 @@ async function checkRedis(): Promise<DependencyStatus> {
   }
 }
 
-async function checkCanton(): Promise<DependencyStatus> {
-  if (env.CANTON_MOCK) return { status: 'mock_mode' };
+interface CantonStatus extends DependencyStatus {
+  ledgerOffset?: number | undefined;
+  poolCount?: number | undefined;
+  mode?: string | undefined;
+}
+
+async function checkCanton(): Promise<CantonStatus> {
+  if (env.CANTON_MOCK) return { status: 'mock_mode', mode: 'mock', poolCount: registry.poolCount() };
   try {
     const start = Date.now();
-    const res = await fetch(`${env.CANTON_JSON_API_URL}/v1/query`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: '{}',
+    const res = await fetch(`${env.CANTON_JSON_API_URL}/v2/state/ledger-end`, {
       signal: AbortSignal.timeout(5000),
     });
-    // 400 is acceptable — means Canton is responding
-    if (res.ok || res.status === 400) {
-      return { status: 'up', latency: Date.now() - start };
+    if (res.ok) {
+      const body = await res.json() as { offset?: number };
+      return {
+        status: 'up',
+        latency: Date.now() - start,
+        ledgerOffset: body.offset,
+        poolCount: registry.poolCount(),
+        mode: 'devnet',
+      };
     }
-    return { status: 'down', error: `HTTP ${res.status}` };
+    return { status: 'down', error: `HTTP ${res.status}`, mode: 'devnet' };
   } catch (err) {
-    return { status: 'down', error: (err as Error).message };
+    return { status: 'down', error: (err as Error).message, mode: 'devnet' };
   }
 }
 
@@ -134,6 +144,20 @@ export async function healthRoutes(fastify: FastifyInstance): Promise<void> {
       deployTimestamp: process.env.DEPLOY_TIMESTAMP || null,
 
       dependencies: { postgres, redis, canton },
+
+      canton: {
+        mode: env.CANTON_MOCK ? 'mock' : 'devnet',
+        apiUrl: env.CANTON_JSON_API_URL,
+        ledgerOffset: (canton as CantonStatus).ledgerOffset ?? null,
+        poolCount: registry.poolCount(),
+        pools: registry.getAllPools().map(p => ({
+          poolId: p.poolId,
+          asset: p.asset.symbol,
+          totalSupply: p.totalSupply,
+          totalBorrow: p.totalBorrow,
+          available: p.totalSupply - p.totalBorrow,
+        })),
+      },
 
       memory: {
         rss: Math.round(mem.rss / 1024 / 1024),

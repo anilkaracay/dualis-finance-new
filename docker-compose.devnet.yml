@@ -106,7 +106,7 @@ services:
       CANTON_LIQUIDATOR_PARTY: ${CANTON_LIQUIDATOR_PARTY:-cantara-finance-validator-dev::12204bcabe5f617d26d082a442b560d61e60e57ad845260b01c98657285eeeb2e7ef}
       CANTON_TREASURY_PARTY: ${CANTON_TREASURY_PARTY:-cantara-finance-validator-dev::12204bcabe5f617d26d082a442b560d61e60e57ad845260b01c98657285eeeb2e7ef}
       # Database — postgres container via internal network
-      DATABASE_URL: postgresql://${POSTGRES_USER:-dualis}:${POSTGRES_PASSWORD:-dualis_secure_password}@dualis-postgres:5432/${POSTGRES_DB:-dualis}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-dualis}:${POSTGRES_PASSWORD:-dualis_secure_password}@dualis-postgres:5432/${POSTGRES_DB:-dualis}?sslmode=disable
       DB_POOL_MIN: 2
       DB_POOL_MAX: 20
       # Redis — via internal network

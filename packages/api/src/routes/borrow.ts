@@ -89,12 +89,18 @@ export async function borrowRoutes(fastify: FastifyInstance): Promise<void> {
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         if (msg.includes('INSUFFICIENT_COLLATERAL')) {
-          throw new AppError('INSUFFICIENT_COLLATERAL', msg, 400);
+          throw new AppError('INSUFFICIENT_COLLATERAL', msg, 422);
         }
         if (msg.includes('HEALTH_FACTOR_TOO_LOW')) {
-          throw new AppError('HEALTH_FACTOR_TOO_LOW', msg, 400);
+          throw new AppError('HEALTH_FACTOR_TOO_LOW', msg, 422);
         }
-        throw new AppError('CANTON_ERROR', msg, 500);
+        if (msg.includes('not found')) {
+          throw new AppError('POOL_NOT_FOUND', msg, 404);
+        }
+        if (msg.includes('CONTRACT_NOT_FOUND') || msg.includes('CONTRACT_NOT_ACTIVE')) {
+          throw new AppError('CANTON_CONFLICT', msg, 409);
+        }
+        throw new AppError('CANTON_ERROR', msg, 502);
       }
     }
   );
@@ -140,7 +146,13 @@ export async function borrowRoutes(fastify: FastifyInstance): Promise<void> {
         if (msg.includes('not found')) {
           throw new AppError('POSITION_NOT_FOUND', `Position ${positionId} not found`, 404);
         }
-        throw new AppError('CANTON_ERROR', msg, 500);
+        if (msg.includes('exceeds current debt')) {
+          throw new AppError('REPAY_EXCEEDS_DEBT', msg, 422);
+        }
+        if (msg.includes('CONTRACT_NOT_FOUND') || msg.includes('CONTRACT_NOT_ACTIVE')) {
+          throw new AppError('CANTON_CONFLICT', msg, 409);
+        }
+        throw new AppError('CANTON_ERROR', msg, 502);
       }
     }
   );
@@ -170,7 +182,10 @@ export async function borrowRoutes(fastify: FastifyInstance): Promise<void> {
         if (msg.includes('not found')) {
           throw new AppError('POSITION_NOT_FOUND', `Position ${positionId} not found`, 404);
         }
-        throw new AppError('CANTON_ERROR', msg, 500);
+        if (msg.includes('CONTRACT_NOT_FOUND') || msg.includes('CONTRACT_NOT_ACTIVE')) {
+          throw new AppError('CANTON_CONFLICT', msg, 409);
+        }
+        throw new AppError('CANTON_ERROR', msg, 502);
       }
     }
   );

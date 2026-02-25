@@ -111,7 +111,7 @@ export async function poolRoutes(fastify: FastifyInstance): Promise<void> {
         if (msg.includes('not found')) {
           throw new AppError('POOL_NOT_FOUND', `Pool ${poolId} not found`, 404);
         }
-        throw new AppError('CANTON_ERROR', msg, 500);
+        throw new AppError('CANTON_ERROR', msg, 502);
       }
     }
   );
@@ -144,7 +144,7 @@ export async function poolRoutes(fastify: FastifyInstance): Promise<void> {
         if (msg.includes('Insufficient liquidity')) {
           throw new AppError('INSUFFICIENT_BALANCE', msg, 400);
         }
-        throw new AppError('CANTON_ERROR', msg, 500);
+        throw new AppError('CANTON_ERROR', msg, 502);
       }
     }
   );
@@ -235,7 +235,7 @@ export async function poolRoutes(fastify: FastifyInstance): Promise<void> {
         if (msg.includes('not found')) {
           throw new AppError('POOL_NOT_FOUND', `Pool ${poolId} not found`, 404);
         }
-        throw new AppError('CANTON_ERROR', msg, 500);
+        throw new AppError('CANTON_ERROR', msg, 502);
       }
     }
   );

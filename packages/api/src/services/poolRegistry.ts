@@ -157,7 +157,10 @@ function cantonPoolToState(
     totalReserves: parseFloat((payload.totalReserves as string) ?? '0'),
     borrowIndex: parseFloat((accrual?.borrowIndex as string) ?? '1'),
     supplyIndex: parseFloat((accrual?.supplyIndex as string) ?? '1'),
-    lastAccrualTs: (accrual?.lastAccrualTs as number) ?? now(),
+    // Canton sends lastAccrualTs as string "0" for bootstrap pools.
+    // Parse to number and use current time if 0 so interest accrual
+    // starts from "now" rather than epoch 0.
+    lastAccrualTs: Number(accrual?.lastAccrualTs) || now(),
     isActive: (payload.isActive as boolean) ?? true,
     contractId,
   };

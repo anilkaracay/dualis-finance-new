@@ -230,7 +230,7 @@ export async function deposit(
       'Deposit',
       {
         depositor: cantonConfig().parties.operator,
-        amount: amount,
+        amount: parseFloat(amount).toFixed(10),
         depositTime: new Date().toISOString(),
       },
     );
@@ -318,7 +318,7 @@ export async function withdraw(
       'Dualis.Lending.Pool:LendingPool',
       pool.contractId,
       'ProcessWithdraw',
-      { withdrawAmount: withdrawnAmount.toString() },
+      { withdrawAmount: withdrawnAmount.toFixed(10) },
     );
 
     // Update local pool contract ID (choice archives old pool, creates new one)
