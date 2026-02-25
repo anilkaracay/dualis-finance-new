@@ -19,6 +19,7 @@ import {
 } from '@dualis/shared';
 import { randomUUID } from 'node:crypto';
 import { env } from '../config/env.js';
+import { cantonConfig } from '../config/canton-env.js';
 import { CantonClient } from '../canton/client.js';
 import * as cantonQueries from '../canton/queries.js';
 import * as compositeCreditService from './compositeCredit.service.js';
@@ -216,48 +217,68 @@ export async function requestBorrow(
     );
 
     // Update local pool contract ID
+    let newPoolCid = pool.contractId;
     const events = result.events ?? [];
     for (const event of events) {
       const created = (event as Record<string, unknown>).CreatedEvent as Record<string, unknown> | undefined;
       if (!created) continue;
       const tid = (created.templateId as string) ?? '';
       if (tid.includes('LendingPool')) {
-        pool.contractId = (created.contractId as string) ?? pool.contractId;
+        newPoolCid = (created.contractId as string) ?? newPoolCid;
       }
     }
+    if (newPoolCid === pool.contractId) {
+      try {
+        const { getPoolByKey } = await import('../canton/queries.js');
+        const fresh = await getPoolByKey(params.lendingPoolId);
+        if (fresh) newPoolCid = fresh.contractId;
+      } catch { /* fallthrough */ }
+    }
+    pool.contractId = newPoolCid;
     pool.totalBorrow += borrowAmount;
 
     // Create a BorrowPosition contract on-ledger
+    const operatorParty = cantonConfig().parties.operator;
+    const collateralCfg = getCollateralParams(poolAsset);
     const borrowPosResult = await client.createContract(
       'Dualis.Lending.Borrow:BorrowPosition',
       {
-        operator: partyId, // Operator party for the position
-        borrower: partyId,
+        operator: operatorParty,
+        borrower: operatorParty,
         positionId: `borrow-pos-${randomUUID().slice(0, 8)}`,
         poolId: params.lendingPoolId,
         borrowedAsset: {
           symbol: poolAsset,
           instrumentType: pool.asset.type,
-          priceUSD: String(borrowPrice),
+          priceUSD: Number(borrowPrice).toFixed(10),
+          decimals: 6, // DAML AssetInfo requires decimals : Int
         },
         borrowedAmountPrincipal: params.borrowAmount,
-        borrowIndexAtEntry: String(pool.borrowIndex),
+        borrowIndexAtEntry: pool.borrowIndex.toFixed(10),
         collateralRefs: params.collateralAssets.map(a => ({
           vaultId: `vault-${randomUUID().slice(0, 8)}`,
           symbol: a.symbol,
           amount: a.amount,
-          valueUSD: String(parseFloat(a.amount) * getAssetPrice(a.symbol)),
+          valueUSD: (parseFloat(a.amount) * getAssetPrice(a.symbol)).toFixed(10),
         })),
         creditTier: tier,
         tierParams: {
-          maxLTV: String(tierMaxLTV),
-          rateDiscount: String(rateDiscount),
+          maxLTV: Number(tierMaxLTV).toFixed(10),
+          rateDiscount: Number(rateDiscount).toFixed(10),
+          minCollateralRatio: Number(collateralCfg?.liquidationThreshold ?? 1.25).toFixed(10),
+          liquidationBuffer: Number(collateralCfg?.liquidationPenalty ?? 0.05).toFixed(10),
         },
         lastHealthFactor: {
-          value: String(previewHF.value),
-          collateralValueUSD: String(previewHF.collateralValueUSD),
-          borrowValueUSD: String(previewHF.borrowValueUSD),
-          weightedLTV: String(previewHF.weightedLTV),
+          value: previewHF.value.toFixed(10),
+          collateralValueUSD: previewHF.collateralValueUSD.toFixed(10),
+          weightedCollateralUSD: (previewHF.weightedCollateralValueUSD ?? previewHF.collateralValueUSD).toFixed(10),
+          borrowValueUSD: previewHF.borrowValueUSD.toFixed(10),
+          weightedLTV: previewHF.weightedLTV.toFixed(10),
+          status: previewHF.value <= 1.0 ? 'HFLiquidatable'
+            : previewHF.value <= 1.2 ? 'HFDanger'
+            : previewHF.value <= 1.5 ? 'HFCaution'
+            : previewHF.value <= 2.0 ? 'HFHealthy'
+            : 'HFSafe',
         },
         borrowTimestamp: new Date().toISOString(),
         lastUpdateTimestamp: new Date().toISOString(),

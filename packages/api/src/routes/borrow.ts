@@ -1,4 +1,4 @@
-import type { FastifyInstance, FastifyRequest } from 'fastify';
+import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import type { ApiResponse, BorrowResponse, BorrowPositionItem, RepayResponse, AddCollateralResponse } from '@dualis/shared';
 import { getCollateralParams } from '@dualis/shared';
@@ -77,7 +77,7 @@ export async function borrowRoutes(fastify: FastifyInstance): Promise<void> {
         throw new AppError('VALIDATION_ERROR', 'Invalid borrow request', 400, parsed.error.flatten());
       }
 
-      const partyId = (request as FastifyRequest & { partyId: string }).partyId;
+      const partyId = request.user!.partyId;
 
       try {
         const result = await borrowService.requestBorrow(partyId, parsed.data);
@@ -104,7 +104,7 @@ export async function borrowRoutes(fastify: FastifyInstance): Promise<void> {
     '/borrow/positions',
     { preHandler: [authMiddleware] },
     async (request, reply) => {
-      const partyId = (request as FastifyRequest & { partyId: string }).partyId;
+      const partyId = request.user!.partyId;
       const positions = await borrowService.getPositions(partyId);
 
       const response: ApiResponse<BorrowPositionItem[]> = {
@@ -126,7 +126,7 @@ export async function borrowRoutes(fastify: FastifyInstance): Promise<void> {
         throw new AppError('VALIDATION_ERROR', 'Invalid repay request', 400, parsed.error.flatten());
       }
 
-      const partyId = (request as FastifyRequest & { partyId: string }).partyId;
+      const partyId = request.user!.partyId;
 
       try {
         const result = await borrowService.repay(partyId, positionId, parsed.data.amount);
@@ -156,7 +156,7 @@ export async function borrowRoutes(fastify: FastifyInstance): Promise<void> {
         throw new AppError('VALIDATION_ERROR', 'Invalid add collateral request', 400, parsed.error.flatten());
       }
 
-      const partyId = (request as FastifyRequest & { partyId: string }).partyId;
+      const partyId = request.user!.partyId;
 
       try {
         const result = await borrowService.addCollateral(partyId, positionId, parsed.data.asset);

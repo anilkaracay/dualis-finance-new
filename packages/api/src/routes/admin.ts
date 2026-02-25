@@ -1,4 +1,4 @@
-import type { FastifyInstance, FastifyRequest } from 'fastify';
+import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import type { ApiResponse, UpdateConfigRequest } from '@dualis/shared';
 import { AppError } from '../middleware/errorHandler.js';
@@ -55,7 +55,7 @@ export async function adminRoutes(fastify: FastifyInstance): Promise<void> {
     '/admin/pause',
     { preHandler: [operatorMiddleware] },
     async (request, reply) => {
-      const partyId = (request as FastifyRequest & { partyId: string }).partyId;
+      const partyId = request.user!.partyId;
 
       if (protocolStatus.paused) {
         throw new AppError('VALIDATION_ERROR', 'Protocol is already paused', 400);
@@ -91,7 +91,7 @@ export async function adminRoutes(fastify: FastifyInstance): Promise<void> {
     '/admin/resume',
     { preHandler: [operatorMiddleware] },
     async (request, reply) => {
-      const partyId = (request as FastifyRequest & { partyId: string }).partyId;
+      const partyId = request.user!.partyId;
 
       if (!protocolStatus.paused) {
         throw new AppError('VALIDATION_ERROR', 'Protocol is not paused', 400);
@@ -131,7 +131,7 @@ export async function adminRoutes(fastify: FastifyInstance): Promise<void> {
         throw new AppError('VALIDATION_ERROR', 'Invalid config update', 400, parsed.error.flatten());
       }
 
-      const partyId = (request as FastifyRequest & { partyId: string }).partyId;
+      const partyId = request.user!.partyId;
       const updates = parsed.data as UpdateConfigRequest;
 
       log.info({ operator: partyId, updates }, 'Protocol config updated');

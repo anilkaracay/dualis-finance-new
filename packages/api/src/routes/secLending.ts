@@ -1,4 +1,4 @@
-import type { FastifyInstance, FastifyRequest } from 'fastify';
+import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import type {
   ApiResponse,
@@ -78,7 +78,7 @@ export async function secLendingRoutes(fastify: FastifyInstance): Promise<void> 
         throw new AppError('VALIDATION_ERROR', 'Invalid offer request', 400, parsed.error.flatten());
       }
 
-      const partyId = (request as FastifyRequest & { partyId: string }).partyId;
+      const partyId = request.user!.partyId;
       const offerData = parsed.data as CreateSecLendingOfferRequest;
       const result = secLendingService.createOffer(partyId, offerData);
 
@@ -102,7 +102,7 @@ export async function secLendingRoutes(fastify: FastifyInstance): Promise<void> 
         throw new AppError('VALIDATION_ERROR', 'Invalid accept request', 400, parsed.error.flatten());
       }
 
-      const partyId = (request as FastifyRequest & { partyId: string }).partyId;
+      const partyId = request.user!.partyId;
 
       try {
         const result = secLendingService.acceptOffer(partyId, offerId, parsed.data);
@@ -122,7 +122,7 @@ export async function secLendingRoutes(fastify: FastifyInstance): Promise<void> 
     '/sec-lending/deals',
     { preHandler: [authMiddleware] },
     async (request, reply) => {
-      const partyId = (request as FastifyRequest & { partyId: string }).partyId;
+      const partyId = request.user!.partyId;
       const deals = secLendingService.getDeals(partyId);
 
       const response: ApiResponse<SecLendingDealItem[]> = {
@@ -139,7 +139,7 @@ export async function secLendingRoutes(fastify: FastifyInstance): Promise<void> 
     { preHandler: [authMiddleware] },
     async (request, reply) => {
       const { dealId } = request.params as { dealId: string };
-      const partyId = (request as FastifyRequest & { partyId: string }).partyId;
+      const partyId = request.user!.partyId;
 
       try {
         const result = secLendingService.recall(partyId, dealId);
@@ -160,7 +160,7 @@ export async function secLendingRoutes(fastify: FastifyInstance): Promise<void> 
     { preHandler: [authMiddleware] },
     async (request, reply) => {
       const { dealId } = request.params as { dealId: string };
-      const partyId = (request as FastifyRequest & { partyId: string }).partyId;
+      const partyId = request.user!.partyId;
 
       try {
         const result = secLendingService.returnSecurities(partyId, dealId);

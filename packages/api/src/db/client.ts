@@ -23,7 +23,9 @@ export function getDb(): DbInstance | null {
       dbClient = postgres(env.DATABASE_URL, {
         max: env.DB_POOL_MAX,
         // postgres.js does not support min pool size directly; max is sufficient
-        ssl: env.NODE_ENV === 'production' ? 'require' : false,
+        ssl: env.NODE_ENV === 'production' && !env.DATABASE_URL.includes('sslmode=disable')
+          ? 'require'
+          : false,
         onnotice: () => {
           // suppress notices
         },

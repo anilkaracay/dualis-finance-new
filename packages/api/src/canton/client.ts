@@ -347,6 +347,7 @@ function mockPrivacyConfig(
 function parseActiveContractsResponse<T>(
   data: ActiveContractEntry[],
   templateFilter?: string,
+  templateIdCache?: Map<string, string>,
 ): CantonContract<T>[] {
   const results: CantonContract<T>[] = [];
 
@@ -357,17 +358,23 @@ function parseActiveContractsResponse<T>(
     const ev = ac.createdEvent;
     if (!ev) continue;
 
-    // If a template filter is given, match by module:template (ignoring package hash prefix)
-    if (templateFilter) {
-      const evTemplate = ev.templateId.includes(':')
-        ? ev.templateId.substring(ev.templateId.indexOf(':') + 1)
-        : ev.templateId;
-      if (evTemplate !== templateFilter) continue;
+    // Extract short template ID (Module:Template) from full ID (pkgHash:Module:Template)
+    const fullTid = ev.templateId;
+    const firstColon = fullTid.indexOf(':');
+    const shortTid = firstColon >= 0 ? fullTid.substring(firstColon + 1) : fullTid;
+
+    // Cache the mapping from short to full template ID — only for Dualis packages
+    const isDualisTemplate = shortTid.startsWith('Dualis.');
+    if (templateIdCache && firstColon >= 0 && isDualisTemplate) {
+      templateIdCache.set(shortTid, fullTid);
     }
+
+    // If a template filter is given, match by module:template (ignoring package hash prefix)
+    if (templateFilter && shortTid !== templateFilter) continue;
 
     results.push({
       contractId: ev.contractId,
-      templateId: ev.templateId,
+      templateId: fullTid,
       payload: ev.createArgument as T,
       signatories: ev.signatories ?? [],
       observers: ev.observers ?? [],
@@ -388,6 +395,8 @@ export class CantonClient {
   private readonly party: string;
   private readonly userId: string;
   private latestOffset: number = 0;
+  /** Maps short template IDs (e.g. "Dualis.Lending.Pool:LendingPool") to full IDs with package hash. */
+  private readonly templateIdCache: Map<string, string> = new Map();
 
   private constructor() {
     this.isMock = env.CANTON_MOCK;
@@ -416,7 +425,13 @@ export class CantonClient {
       (error) => {
         if (axios.isAxiosError(error)) {
           log.error(
-            { url: error.config?.url, status: error.response?.status, message: error.message },
+            {
+              url: error.config?.url,
+              status: error.response?.status,
+              message: error.message,
+              responseBody: error.response?.data,
+              requestBody: error.config?.data ? JSON.parse(error.config.data as string) : undefined,
+            },
             'Canton API error',
           );
         }
@@ -437,16 +452,16 @@ export class CantonClient {
   /**
    * Fetch the latest ledger offset from the participant.
    * Used as activeAtOffset for active-contracts queries.
+   * Always fetches fresh to avoid using stale offsets that Canton rejects.
    */
   private async getLatestOffset(): Promise<number> {
-    if (this.latestOffset > 0) return this.latestOffset;
     try {
       const response = await this.http.get<{ offset: number }>('/v2/state/ledger-end');
       this.latestOffset = response.data.offset;
       return this.latestOffset;
     } catch {
-      // Fallback: use a high offset value that the participant will accept
-      return 999999999;
+      // If we have a previously cached offset, use it; otherwise try a reasonable fallback
+      return this.latestOffset > 0 ? this.latestOffset : 0;
     }
   }
 
@@ -479,7 +494,7 @@ export class CantonClient {
           },
         );
 
-        const contracts = parseActiveContractsResponse<T>(response.data, templateId);
+        const contracts = parseActiveContractsResponse<T>(response.data, templateId, this.templateIdCache);
 
         // Apply client-side query filter if provided
         if (query) {
@@ -521,6 +536,38 @@ export class CantonClient {
   }
 
   /**
+   * Resolve a short template ID (e.g. "Dualis.Lending.Pool:LendingPool")
+   * to the full ID with package hash (e.g. "ca705a84...:Dualis.Lending.Pool:LendingPool").
+   * If not directly cached, tries to derive the full ID from any cached entry
+   * sharing the same Dualis package (all templates share one DAR package hash).
+   * Falls back to the original if no mapping can be derived.
+   */
+  private resolveTemplateId(shortId: string): string {
+    // Direct cache hit
+    const cached = this.templateIdCache.get(shortId);
+    if (cached) return cached;
+
+    // Already has a package hash prefix (contains 2+ colons) — return as-is
+    if (shortId.split(':').length > 2) return shortId;
+
+    // Derive from any cached Dualis template that shares the same package hash
+    for (const [cachedShort, fullId] of this.templateIdCache) {
+      // Only derive from other Dualis templates (not system packages)
+      if (!cachedShort.startsWith('Dualis.')) continue;
+      const firstColon = fullId.indexOf(':');
+      if (firstColon > 0) {
+        const packageHash = fullId.substring(0, firstColon);
+        const derived = `${packageHash}:${shortId}`;
+        // Cache it for next time
+        this.templateIdCache.set(shortId, derived);
+        return derived;
+      }
+    }
+
+    return shortId;
+  }
+
+  /**
    * Exercise a choice on an existing contract.
    *
    * Uses Canton JSON API v2 endpoint: POST /v2/commands/submit-and-wait
@@ -536,6 +583,9 @@ export class CantonClient {
       return { exerciseResult: { status: 'success' }, events: [] };
     }
 
+    // Canton JSON API v2 requires the full template ID with package hash
+    const fullTemplateId = this.resolveTemplateId(templateId);
+
     return pRetry(
       async () => {
         const response = await this.http.post<SubmitAndWaitResponse>(
@@ -547,7 +597,7 @@ export class CantonClient {
             commands: [
               {
                 ExerciseCommand: {
-                  templateId,
+                  templateId: fullTemplateId,
                   contractId,
                   choice,
                   choiceArgument: argument,
@@ -595,6 +645,8 @@ export class CantonClient {
       };
     }
 
+    const fullTemplateId = this.resolveTemplateId(templateId);
+
     return pRetry(
       async () => {
         const response = await this.http.post<SubmitAndWaitResponse>(
@@ -606,7 +658,7 @@ export class CantonClient {
             commands: [
               {
                 CreateCommand: {
-                  templateId,
+                  templateId: fullTemplateId,
                   createArguments: payload,
                 },
               },

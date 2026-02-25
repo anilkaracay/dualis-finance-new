@@ -1,4 +1,4 @@
-import type { FastifyInstance, FastifyRequest } from 'fastify';
+import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import type { ApiResponse, StakingInfo, StakingPositionResponse } from '@dualis/shared';
 import { AppError } from '../middleware/errorHandler.js';
@@ -31,7 +31,7 @@ export async function stakingRoutes(fastify: FastifyInstance): Promise<void> {
     '/staking/position',
     { preHandler: [authMiddleware] },
     async (request, reply) => {
-      const partyId = (request as FastifyRequest & { partyId: string }).partyId;
+      const partyId = request.user!.partyId;
       const position = stakingService.getPosition(partyId);
 
       const response: ApiResponse<StakingPositionResponse> = {
@@ -52,7 +52,7 @@ export async function stakingRoutes(fastify: FastifyInstance): Promise<void> {
         throw new AppError('VALIDATION_ERROR', 'Invalid stake request', 400, parsed.error.flatten());
       }
 
-      const partyId = (request as FastifyRequest & { partyId: string }).partyId;
+      const partyId = request.user!.partyId;
       const result = stakingService.stake(partyId, parsed.data);
 
       const response: ApiResponse<StakingPositionResponse> = {
@@ -74,7 +74,7 @@ export async function stakingRoutes(fastify: FastifyInstance): Promise<void> {
         throw new AppError('VALIDATION_ERROR', 'Invalid unstake request', 400, parsed.error.flatten());
       }
 
-      const partyId = (request as FastifyRequest & { partyId: string }).partyId;
+      const partyId = request.user!.partyId;
       const result = stakingService.unstake(partyId, parsed.data);
 
       const response: ApiResponse<StakingPositionResponse> = {
@@ -91,7 +91,7 @@ export async function stakingRoutes(fastify: FastifyInstance): Promise<void> {
     '/staking/claim',
     { preHandler: [authMiddleware] },
     async (request, reply) => {
-      const partyId = (request as FastifyRequest & { partyId: string }).partyId;
+      const partyId = request.user!.partyId;
       const result = stakingService.claim(partyId);
 
       const response: ApiResponse<{ claimedAmount: number }> = {

@@ -1,4 +1,4 @@
-import type { FastifyInstance, FastifyRequest } from 'fastify';
+import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import type { ApiResponse, CreditHistoryParams, CreditScoreResponse, CreditHistoryPoint, CreditTier, TierBenefits } from '@dualis/shared';
 import { TIER_BENEFITS, CREDIT_TIER_THRESHOLDS } from '@dualis/shared';
@@ -16,7 +16,7 @@ export async function creditRoutes(fastify: FastifyInstance): Promise<void> {
     '/credit/score',
     { preHandler: [authMiddleware] },
     async (request, reply) => {
-      const partyId = (request as FastifyRequest & { partyId: string }).partyId;
+      const partyId = request.user!.partyId;
       const score = await creditService.getScore(partyId);
 
       const response: ApiResponse<CreditScoreResponse> = {
@@ -37,7 +37,7 @@ export async function creditRoutes(fastify: FastifyInstance): Promise<void> {
         throw new AppError('VALIDATION_ERROR', 'Invalid query parameters', 400, parsed.error.flatten());
       }
 
-      const partyId = (request as FastifyRequest & { partyId: string }).partyId;
+      const partyId = request.user!.partyId;
       const params = parsed.data as CreditHistoryParams;
       const history = creditService.getHistory(partyId, params);
 
@@ -69,7 +69,7 @@ export async function creditRoutes(fastify: FastifyInstance): Promise<void> {
     '/credit/benefits',
     { preHandler: [authMiddleware] },
     async (request, reply) => {
-      const partyId = (request as FastifyRequest & { partyId: string }).partyId;
+      const partyId = request.user!.partyId;
       const score = await creditService.getScore(partyId);
 
       const tierBenefits = TIER_BENEFITS[score.creditTier] ?? TIER_BENEFITS['Unrated'];

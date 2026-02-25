@@ -36,7 +36,7 @@ services:
     environment:
       PORT: 4000
       NODE_ENV: production
-      DATABASE_URL: postgresql://dualis:dualis_dev_password@postgres:5432/dualis
+      DATABASE_URL: postgresql://dualis:dualis_dev_password@postgres:5432/dualis?sslmode=disable
       REDIS_URL: redis://redis:6379
       JWT_SECRET: dev-secret-change-in-production
       LOG_LEVEL: info

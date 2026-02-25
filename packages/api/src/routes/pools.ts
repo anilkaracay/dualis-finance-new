@@ -97,7 +97,7 @@ export async function poolRoutes(fastify: FastifyInstance): Promise<void> {
         throw new AppError('VALIDATION_ERROR', 'Invalid deposit request', 400, parsed.error.flatten());
       }
 
-      const partyId = (request as FastifyRequest & { partyId: string }).partyId;
+      const partyId = request.user!.partyId;
 
       try {
         const result = await poolService.deposit(poolId, partyId, parsed.data.amount);
@@ -127,7 +127,7 @@ export async function poolRoutes(fastify: FastifyInstance): Promise<void> {
         throw new AppError('VALIDATION_ERROR', 'Invalid withdraw request', 400, parsed.error.flatten());
       }
 
-      const partyId = (request as FastifyRequest & { partyId: string }).partyId;
+      const partyId = request.user!.partyId;
 
       try {
         const result = await poolService.withdraw(poolId, partyId, parsed.data.shares);
@@ -221,7 +221,7 @@ export async function poolRoutes(fastify: FastifyInstance): Promise<void> {
         throw new AppError('VALIDATION_ERROR', 'Invalid supply request', 400, parsed.error.flatten());
       }
 
-      const partyId = (request as FastifyRequest & { partyId: string }).partyId;
+      const partyId = request.user!.partyId;
 
       try {
         const result = await poolService.deposit(poolId, partyId, parsed.data.amount);

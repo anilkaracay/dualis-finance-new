@@ -1,4 +1,4 @@
-import type { FastifyInstance, FastifyRequest } from 'fastify';
+import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import type { ApiResponse, FlashLoanResponse } from '@dualis/shared';
 import { AppError } from '../middleware/errorHandler.js';
@@ -28,7 +28,7 @@ export async function flashLoanRoutes(fastify: FastifyInstance): Promise<void> {
         throw new AppError('VALIDATION_ERROR', 'Invalid flash loan request', 400, parsed.error.flatten());
       }
 
-      const partyId = (request as FastifyRequest & { partyId: string }).partyId;
+      const partyId = request.user!.partyId;
       const result = flashLoanService.execute(partyId, parsed.data);
 
       const response: ApiResponse<FlashLoanResponse> = {

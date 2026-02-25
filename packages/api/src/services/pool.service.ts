@@ -17,6 +17,7 @@ import {
 } from '@dualis/shared';
 import { randomUUID } from 'node:crypto';
 import { env } from '../config/env.js';
+import { cantonConfig } from '../config/canton-env.js';
 import { CantonClient } from '../canton/client.js';
 import * as registry from './poolRegistry.js';
 
@@ -207,10 +208,10 @@ export function getPoolHistory(poolId: string, period: string): PoolHistoryPoint
 
 export async function deposit(
   poolId: string,
-  partyId: string,
+  _partyId: string,
   amount: string,
 ): Promise<{ data: DepositResponse; transaction: TransactionMeta }> {
-  log.info({ poolId, partyId, amount }, 'Processing deposit');
+  log.info({ poolId, amount }, 'Processing deposit');
   const pool = registry.getPool(poolId);
   if (!pool) throw new Error(`Pool ${poolId} not found`);
 
@@ -228,7 +229,7 @@ export async function deposit(
       pool.contractId,
       'Deposit',
       {
-        depositor: partyId,
+        depositor: cantonConfig().parties.operator,
         amount: amount,
         depositTime: new Date().toISOString(),
       },
@@ -250,6 +251,14 @@ export async function deposit(
     }
 
     // Update pool contract ID (Deposit archives old pool, creates new one)
+    // If events didn't provide a new ID, re-query Canton for the fresh contract
+    if (newPoolContractId === pool.contractId) {
+      try {
+        const { getPoolByKey } = await import('../canton/queries.js');
+        const fresh = await getPoolByKey(poolId);
+        if (fresh) newPoolContractId = fresh.contractId;
+      } catch { /* fallthrough — keep existing ID */ }
+    }
     pool.contractId = newPoolContractId;
     pool.totalSupply += amountNum;
 
@@ -313,15 +322,24 @@ export async function withdraw(
     );
 
     // Update local pool contract ID (choice archives old pool, creates new one)
+    let newCid = pool.contractId;
     const events = result.events ?? [];
     for (const event of events) {
       const created = (event as Record<string, unknown>).CreatedEvent as Record<string, unknown> | undefined;
       if (!created) continue;
       const tid = (created.templateId as string) ?? '';
       if (tid.includes('LendingPool')) {
-        pool.contractId = (created.contractId as string) ?? pool.contractId;
+        newCid = (created.contractId as string) ?? newCid;
       }
     }
+    if (newCid === pool.contractId) {
+      try {
+        const { getPoolByKey } = await import('../canton/queries.js');
+        const fresh = await getPoolByKey(poolId);
+        if (fresh) newCid = fresh.contractId;
+      } catch { /* fallthrough */ }
+    }
+    pool.contractId = newCid;
 
     pool.totalSupply -= withdrawnAmount;
 
