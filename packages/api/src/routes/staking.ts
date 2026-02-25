@@ -26,6 +26,34 @@ export async function stakingRoutes(fastify: FastifyInstance): Promise<void> {
     return reply.status(200).send(response);
   });
 
+  // GET /staking/pools — staking pool listing
+  fastify.get('/staking/pools', async (_request, reply) => {
+    const info = stakingService.getInfo();
+
+    return reply.status(200).send({
+      data: [
+        {
+          id: 'dual-staking',
+          asset: 'DUAL',
+          totalStaked: info.totalStaked,
+          apy: info.stakingAPY,
+          lockPeriod: 30,
+          minStake: 100,
+          status: 'active',
+        },
+        {
+          id: 'safety-module',
+          asset: 'DUAL',
+          totalStaked: info.safetyModuleSize,
+          apy: info.safetyModuleAPY,
+          lockPeriod: 90,
+          minStake: 1000,
+          status: 'active',
+        },
+      ],
+    });
+  });
+
   // GET /staking/position (auth)
   fastify.get(
     '/staking/position',

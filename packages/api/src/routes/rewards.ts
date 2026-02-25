@@ -143,6 +143,38 @@ export async function rewardRoutes(fastify: FastifyInstance): Promise<void> {
     return reply.send({ data: leaderboard });
   });
 
+  // GET /rewards/canton-balance — Canton Coin balance + marker status
+  fastify.get('/rewards/canton-balance', { preHandler: authMiddleware }, async (_request, reply) => {
+    const [stats, featuredAppRight] = await Promise.all([
+      activityService.getActivityStats(),
+      findFeaturedAppRight(),
+    ]);
+
+    const totalMarkers = stats?.totalActivities ?? 0;
+
+    return reply.send({
+      data: {
+        canton: {
+          balance: 'unavailable',
+          pendingRewards: 'unavailable',
+          currency: 'CC',
+          source: 'ledger-query',
+          note: 'Canton Coin balance available via Splice Wallet UI. Activity markers are minted per transaction.',
+        },
+        featuredApp: {
+          active: !!featuredAppRight,
+          contractId: featuredAppRight ?? null,
+          totalMarkersCreated: totalMarkers,
+        },
+        protocol: {
+          totalPoints: stats?.totalPoints ?? 0,
+          totalVolume: stats?.totalVolume ?? '0',
+          uniqueUsers: stats?.uniqueUsers ?? 0,
+        },
+      },
+    });
+  });
+
   // GET /rewards/user/:userId — user reward detail (auth required)
   fastify.get('/rewards/user/:userId', { preHandler: authMiddleware }, async (request, reply) => {
     const parsed = userParamSchema.safeParse(request.params);

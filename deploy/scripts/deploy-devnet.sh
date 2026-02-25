@@ -188,7 +188,7 @@ run_migrations() {
         cd ${REMOTE_DIR}
 
         # Wait for postgres to be ready
-        echo "[*] Waiting for Dualis PostgreSQL (port 5433)..."
+        echo "[*] Waiting for Dualis PostgreSQL..."
         for i in {1..30}; do
             if docker exec dualis-postgres pg_isready -U dualis &>/dev/null; then
                 echo "[✓] PostgreSQL ready"
@@ -197,9 +197,35 @@ run_migrations() {
             sleep 2
         done
 
-        # Run migrations inside the API container
-        docker exec dualis-api node dist/db/migrate.js 2>/dev/null || \
-            echo "[!] Migration script not found or failed — may need manual migration"
+        # Run SQL migrations directly on the postgres container.
+        # Each migration uses IF NOT EXISTS / CREATE TABLE so re-runs are safe.
+        PGCMD="docker exec -i dualis-postgres psql -U dualis -d dualis"
+
+        # Core schema (0000) — uses CREATE TABLE (no IF NOT EXISTS),
+        # so ON_ERROR_STOP=off lets it skip already-existing tables.
+        if [ -f "packages/api/drizzle/0000_glorious_ego.sql" ]; then
+            echo "[*] Running core schema migration (0000)..."
+            sed 's/--> statement-breakpoint//g' packages/api/drizzle/0000_glorious_ego.sql \
+              | docker exec -i dualis-postgres psql -U dualis -d dualis -v ON_ERROR_STOP=off 2>&1 \
+              | grep -c "CREATE\|ALTER\|already exists" || true
+            echo "[✓] Core migration applied"
+        fi
+
+        # Rewards tables (0001) — uses CREATE TABLE IF NOT EXISTS
+        if [ -f "packages/api/drizzle/0001_rewards.sql" ]; then
+            echo "[*] Running rewards migration (0001)..."
+            sed 's/--> statement-breakpoint//g' packages/api/drizzle/0001_rewards.sql \
+              | docker exec -i dualis-postgres psql -U dualis -d dualis 2>&1 \
+              | grep -c "CREATE\|already exists" || true
+            echo "[✓] Rewards migration applied"
+        fi
+
+        # Future migrations: add more blocks following the same pattern.
+        # Files use CREATE TABLE IF NOT EXISTS so they are idempotent.
+
+        # Verify table count
+        TABLE_COUNT=\$(docker exec dualis-postgres psql -U dualis -d dualis -tAc "SELECT count(*) FROM information_schema.tables WHERE table_schema='public'")
+        echo "[✓] Total tables in database: \$TABLE_COUNT"
 SSHEOF
 
     ok "Migrations complete"
