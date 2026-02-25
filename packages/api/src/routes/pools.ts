@@ -98,9 +98,10 @@ export async function poolRoutes(fastify: FastifyInstance): Promise<void> {
       }
 
       const partyId = request.user!.partyId;
+      const userId = request.user?.userId;
 
       try {
-        const result = await poolService.deposit(poolId, partyId, parsed.data.amount);
+        const result = await poolService.deposit(poolId, partyId, parsed.data.amount, userId);
         const response: ApiResponse<DepositResponse> = {
           data: result.data,
           transaction: result.transaction,
@@ -128,9 +129,10 @@ export async function poolRoutes(fastify: FastifyInstance): Promise<void> {
       }
 
       const partyId = request.user!.partyId;
+      const userId = request.user?.userId;
 
       try {
-        const result = await poolService.withdraw(poolId, partyId, parsed.data.shares);
+        const result = await poolService.withdraw(poolId, partyId, parsed.data.shares, userId);
         const response: ApiResponse<WithdrawResponse> = {
           data: result.data,
           transaction: result.transaction,
@@ -222,9 +224,10 @@ export async function poolRoutes(fastify: FastifyInstance): Promise<void> {
       }
 
       const partyId = request.user!.partyId;
+      const userId = request.user?.userId;
 
       try {
-        const result = await poolService.deposit(poolId, partyId, parsed.data.amount);
+        const result = await poolService.deposit(poolId, partyId, parsed.data.amount, userId);
         const response: ApiResponse<DepositResponse> = {
           data: result.data,
           transaction: result.transaction,

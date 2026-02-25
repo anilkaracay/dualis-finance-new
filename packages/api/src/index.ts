@@ -89,6 +89,9 @@ import { analyticsPublicRoutes } from './routes/analyticsPublic.js';
 import { analyticsInstitutionalRoutes } from './routes/analyticsInstitutional.js';
 import { analyticsAdminRoutes } from './routes/analyticsAdmin.js';
 
+// Rewards routes (MP25)
+import { rewardRoutes } from './routes/rewards.js';
+
 // Compliance queues & workers (MP21)
 import { initComplianceQueues, closeComplianceQueues } from './compliance/queue.js';
 import { startWalletScreeningWorker, stopWalletScreeningWorker } from './compliance/workers/wallet-screening.worker.js';
@@ -350,6 +353,9 @@ async function main(): Promise<void> {
     await app.register(analyticsPublicRoutes);
     await app.register(analyticsInstitutionalRoutes);
     await app.register(analyticsAdminRoutes);
+
+    // Rewards (MP25)
+    await app.register(rewardRoutes);
   }, { prefix: '/v1' });
 
   // ---------------------------------------------------------------------------

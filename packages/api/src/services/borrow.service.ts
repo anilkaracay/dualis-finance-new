@@ -25,6 +25,7 @@ import * as cantonQueries from '../canton/queries.js';
 import * as compositeCreditService from './compositeCredit.service.js';
 import * as poolService from './pool.service.js';
 import * as registry from './poolRegistry.js';
+import { trackActivity } from './reward-tracker.service.js';
 
 const log = createChildLogger('borrow-service');
 
@@ -141,6 +142,7 @@ function buildCollateralInputs(
 export async function requestBorrow(
   partyId: string,
   params: BorrowRequest,
+  userId?: string | undefined,
 ): Promise<{ data: BorrowResponse; transaction: TransactionMeta }> {
   log.info({ partyId, params }, 'Processing borrow request');
 
@@ -287,6 +289,16 @@ export async function requestBorrow(
       },
     );
 
+    // Fire-and-forget reward tracking
+    void trackActivity({
+      activityType: 'borrow',
+      userId,
+      partyId: operatorParty,
+      poolId: params.lendingPoolId,
+      asset: poolAsset,
+      amount: borrowAmountUSD,
+    });
+
     return {
       data: {
         borrowPositionId: borrowPosResult.contractId,
@@ -306,6 +318,17 @@ export async function requestBorrow(
   }
 
   // ---------- Mock mode ----------
+
+  // Fire-and-forget reward tracking (mock mode)
+  void trackActivity({
+    activityType: 'borrow',
+    userId,
+    partyId: cantonConfig().parties.operator,
+    poolId: params.lendingPoolId,
+    asset: poolAsset,
+    amount: borrowAmountUSD,
+  });
+
   return {
     data: {
       borrowPositionId: `borrow-pos-${randomUUID().slice(0, 8)}`,
@@ -386,6 +409,7 @@ export async function repay(
   partyId: string,
   positionId: string,
   amount: string,
+  userId?: string | undefined,
 ): Promise<{ data: RepayResponse; transaction: TransactionMeta }> {
   log.info({ partyId, positionId, amount }, 'Processing repayment');
 
@@ -460,6 +484,19 @@ export async function repay(
       ((payload.lastHealthFactor as Record<string, unknown>)?.collateralValueUSD as string) ?? '0',
     );
 
+    // Fire-and-forget reward tracking
+    const borrowedAsset = payload.borrowedAsset as Record<string, unknown> | undefined;
+    const repayAsset = (borrowedAsset?.symbol as string) ?? 'USDC';
+    const repayPriceUSD = parseFloat((borrowedAsset?.priceUSD as string) ?? '1');
+    void trackActivity({
+      activityType: 'repay',
+      userId,
+      partyId: operatorParty,
+      poolId,
+      asset: repayAsset,
+      amount: repayAmount * repayPriceUSD,
+    });
+
     return {
       data: {
         remainingDebt: Number(remaining.toFixed(2)),
@@ -480,6 +517,16 @@ export async function repay(
   const repayAmount = parseFloat(amount);
   const remaining = Math.max(0, position.currentDebt - repayAmount);
 
+  // Fire-and-forget reward tracking (mock mode)
+  void trackActivity({
+    activityType: 'repay',
+    userId,
+    partyId: cantonConfig().parties.operator,
+    poolId: position.lendingPoolId,
+    asset: position.borrowedAsset.symbol,
+    amount: repayAmount * position.borrowedAsset.priceUSD,
+  });
+
   return {
     data: {
       remainingDebt: Number(remaining.toFixed(2)),
@@ -495,6 +542,7 @@ export async function addCollateral(
   partyId: string,
   positionId: string,
   asset: { symbol: string; amount: string },
+  userId?: string | undefined,
 ): Promise<{ data: AddCollateralResponse; transaction: TransactionMeta }> {
   log.info({ partyId, positionId, asset }, 'Adding collateral');
 
@@ -538,6 +586,15 @@ export async function addCollateral(
     const currentDebt = parseFloat((payload.borrowedAmountPrincipal as string) ?? '0');
     const newCollateralValue = currentCollateralValue + addedValueUSD;
 
+    // Fire-and-forget reward tracking
+    void trackActivity({
+      activityType: 'add_collateral',
+      userId,
+      partyId: operatorParty,
+      asset: asset.symbol,
+      amount: addedValueUSD,
+    });
+
     return {
       data: {
         newCollateralValueUSD: Number(newCollateralValue.toFixed(2)),
@@ -557,6 +614,15 @@ export async function addCollateral(
 
   const addedValueUSD = parseFloat(asset.amount) * getAssetPrice(asset.symbol);
   const newCollateralValue = position.healthFactor.collateralValueUSD + addedValueUSD;
+
+  // Fire-and-forget reward tracking (mock mode)
+  void trackActivity({
+    activityType: 'add_collateral',
+    userId,
+    partyId: cantonConfig().parties.operator,
+    asset: asset.symbol,
+    amount: addedValueUSD,
+  });
 
   return {
     data: {

@@ -20,6 +20,7 @@ import { env } from '../config/env.js';
 import { cantonConfig } from '../config/canton-env.js';
 import { CantonClient } from '../canton/client.js';
 import * as registry from './poolRegistry.js';
+import { trackActivity } from './reward-tracker.service.js';
 
 const log = createChildLogger('pool-service');
 
@@ -210,6 +211,7 @@ export async function deposit(
   poolId: string,
   _partyId: string,
   amount: string,
+  userId?: string | undefined,
 ): Promise<{ data: DepositResponse; transaction: TransactionMeta }> {
   log.info({ poolId, amount }, 'Processing deposit');
   const pool = registry.getPool(poolId);
@@ -264,6 +266,16 @@ export async function deposit(
 
     const shares = amountNum / (pool.supplyIndex || 1);
 
+    // Fire-and-forget reward tracking (never fails the main operation)
+    void trackActivity({
+      activityType: 'deposit',
+      userId,
+      partyId: cantonConfig().parties.operator,
+      poolId,
+      asset: pool.asset.symbol,
+      amount: amountNum * pool.asset.priceUSD,
+    });
+
     return {
       data: {
         poolContractId: newPoolContractId,
@@ -278,6 +290,16 @@ export async function deposit(
   // ---------- Mock mode: in-memory state update ----------
   pool.totalSupply += amountNum;
   const shares = amountNum / (pool.supplyIndex || 1);
+
+  // Fire-and-forget reward tracking (mock mode)
+  void trackActivity({
+    activityType: 'deposit',
+    userId,
+    partyId: cantonConfig().parties.operator,
+    poolId,
+    asset: pool.asset.symbol,
+    amount: amountNum * pool.asset.priceUSD,
+  });
 
   return {
     data: {
@@ -294,6 +316,7 @@ export async function withdraw(
   poolId: string,
   partyId: string,
   shares: string,
+  userId?: string | undefined,
 ): Promise<{ data: WithdrawResponse; transaction: TransactionMeta }> {
   log.info({ poolId, partyId, shares }, 'Processing withdrawal');
   const pool = registry.getPool(poolId);
@@ -343,6 +366,16 @@ export async function withdraw(
 
     pool.totalSupply -= withdrawnAmount;
 
+    // Fire-and-forget reward tracking (never fails the main operation)
+    void trackActivity({
+      activityType: 'withdraw',
+      userId,
+      partyId: cantonConfig().parties.operator,
+      poolId,
+      asset: pool.asset.symbol,
+      amount: withdrawnAmount * pool.asset.priceUSD,
+    });
+
     return {
       data: {
         withdrawnAmount: withdrawnAmount.toFixed(6),
@@ -354,6 +387,16 @@ export async function withdraw(
 
   // ---------- Mock mode: in-memory state update ----------
   pool.totalSupply -= withdrawnAmount;
+
+  // Fire-and-forget reward tracking (mock mode)
+  void trackActivity({
+    activityType: 'withdraw',
+    userId,
+    partyId: cantonConfig().parties.operator,
+    poolId,
+    asset: pool.asset.symbol,
+    amount: withdrawnAmount * pool.asset.priceUSD,
+  });
 
   return {
     data: {

@@ -31,4 +31,7 @@ import './governanceFinalization.job.js';
 // Analytics & Reporting jobs (MP24)
 import './analyticsSnapshot.job.js';
 
+// Rewards jobs (MP25)
+import './epochRotation.job.js';
+
 export { initScheduler, stopScheduler } from './scheduler.js';

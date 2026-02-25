@@ -78,9 +78,10 @@ export async function borrowRoutes(fastify: FastifyInstance): Promise<void> {
       }
 
       const partyId = request.user!.partyId;
+      const userId = request.user?.userId;
 
       try {
-        const result = await borrowService.requestBorrow(partyId, parsed.data);
+        const result = await borrowService.requestBorrow(partyId, parsed.data, userId);
         const response: ApiResponse<BorrowResponse> = {
           data: result.data,
           transaction: result.transaction,
@@ -133,9 +134,10 @@ export async function borrowRoutes(fastify: FastifyInstance): Promise<void> {
       }
 
       const partyId = request.user!.partyId;
+      const userId = request.user?.userId;
 
       try {
-        const result = await borrowService.repay(partyId, positionId, parsed.data.amount);
+        const result = await borrowService.repay(partyId, positionId, parsed.data.amount, userId);
         const response: ApiResponse<RepayResponse> = {
           data: result.data,
           transaction: result.transaction,
@@ -169,9 +171,10 @@ export async function borrowRoutes(fastify: FastifyInstance): Promise<void> {
       }
 
       const partyId = request.user!.partyId;
+      const userId = request.user?.userId;
 
       try {
-        const result = await borrowService.addCollateral(partyId, positionId, parsed.data.asset);
+        const result = await borrowService.addCollateral(partyId, positionId, parsed.data.asset, userId);
         const response: ApiResponse<AddCollateralResponse> = {
           data: result.data,
           transaction: result.transaction,

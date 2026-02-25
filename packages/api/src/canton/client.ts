@@ -370,7 +370,13 @@ function parseActiveContractsResponse<T>(
     }
 
     // If a template filter is given, match by module:template (ignoring package hash prefix)
-    if (templateFilter && shortTid !== templateFilter) continue;
+    if (templateFilter) {
+      const filterColon = templateFilter.indexOf(':');
+      const filterShort = filterColon >= 0 && templateFilter.substring(0, filterColon).length === 64
+        ? templateFilter.substring(filterColon + 1)
+        : templateFilter;
+      if (shortTid !== filterShort) continue;
+    }
 
     results.push({
       contractId: ev.contractId,

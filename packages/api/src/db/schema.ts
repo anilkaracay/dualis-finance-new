@@ -1243,3 +1243,85 @@ export const revenueLog = pgTable('revenue_log', {
   index('idx_revenue_log_type').on(table.revenueType, table.createdAt),
   index('idx_revenue_log_pool').on(table.poolId, table.createdAt),
 ]);
+
+// ===========================================================================
+// MP25 — Canton Coin Rewards Tables
+// ===========================================================================
+
+// ---------------------------------------------------------------------------
+// 60. Activity Logs — every Canton transaction + activity marker tracking
+// ---------------------------------------------------------------------------
+export const activityLogs = pgTable('activity_logs', {
+  id: varchar('id', { length: 64 }).primaryKey(),
+  activityType: varchar('activity_type', { length: 32 }).notNull(), // deposit | withdraw | borrow | repay | add_collateral
+  userId: varchar('user_id', { length: 256 }),
+  partyId: varchar('party_id', { length: 256 }).notNull(),
+  poolId: varchar('pool_id', { length: 128 }),
+  asset: varchar('asset', { length: 64 }),
+  amount: decimal('amount', { precision: 38, scale: 18 }),
+  cantonOffset: varchar('canton_offset', { length: 64 }),
+  cantonContractId: varchar('canton_contract_id', { length: 256 }),
+  activityMarkerCreated: boolean('activity_marker_created').default(false).notNull(),
+  activityMarkerContractId: varchar('activity_marker_contract_id', { length: 256 }),
+  rewardPoints: integer('reward_points').default(0).notNull(),
+  epoch: integer('epoch'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index('idx_activity_logs_user').on(table.userId, table.createdAt),
+  index('idx_activity_logs_party').on(table.partyId, table.createdAt),
+  index('idx_activity_logs_type').on(table.activityType, table.createdAt),
+  index('idx_activity_logs_epoch').on(table.epoch),
+]);
+
+// ---------------------------------------------------------------------------
+// 61. Reward Epochs — daily epoch rotation for reward distribution
+// ---------------------------------------------------------------------------
+export const rewardEpochs = pgTable('reward_epochs', {
+  id: serial('id').primaryKey(),
+  epochNumber: integer('epoch_number').notNull().unique(),
+  startTime: timestamp('start_time', { withTimezone: true }).notNull(),
+  endTime: timestamp('end_time', { withTimezone: true }),
+  totalActivities: integer('total_activities').default(0).notNull(),
+  totalVolume: decimal('total_volume', { precision: 38, scale: 18 }).default('0').notNull(),
+  totalPoints: integer('total_points').default(0).notNull(),
+  cantonRoundStart: integer('canton_round_start'),
+  cantonRoundEnd: integer('canton_round_end'),
+  cantonCcEarned: decimal('canton_cc_earned', { precision: 28, scale: 8 }).default('0').notNull(),
+  status: varchar('status', { length: 16 }).notNull().default('active'), // active | completed
+}, (table) => [
+  index('idx_reward_epochs_status').on(table.status),
+]);
+
+// ---------------------------------------------------------------------------
+// 62. User Rewards — per-user aggregate reward stats
+// ---------------------------------------------------------------------------
+export const userRewards = pgTable('user_rewards', {
+  id: varchar('id', { length: 64 }).primaryKey(),
+  userId: varchar('user_id', { length: 256 }).notNull().unique(),
+  totalPoints: integer('total_points').default(0).notNull(),
+  totalActivities: integer('total_activities').default(0).notNull(),
+  totalVolume: decimal('total_volume', { precision: 38, scale: 18 }).default('0').notNull(),
+  tier: varchar('tier', { length: 16 }).notNull().default('bronze'), // bronze | silver | gold | diamond
+  tierMultiplier: decimal('tier_multiplier', { precision: 6, scale: 2 }).notNull().default('1.00'),
+  lastActivityAt: timestamp('last_activity_at', { withTimezone: true }),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index('idx_user_rewards_points').on(table.totalPoints),
+  index('idx_user_rewards_tier').on(table.tier),
+]);
+
+// ---------------------------------------------------------------------------
+// 63. Reward Claims — claim history for epoch rewards
+// ---------------------------------------------------------------------------
+export const rewardClaims = pgTable('reward_claims', {
+  id: varchar('id', { length: 64 }).primaryKey(),
+  userId: varchar('user_id', { length: 256 }).notNull(),
+  epochNumber: integer('epoch_number').notNull(),
+  pointsClaimed: integer('points_claimed').notNull(),
+  cantonCcAmount: decimal('canton_cc_amount', { precision: 28, scale: 8 }),
+  status: varchar('status', { length: 16 }).notNull().default('pending'), // pending | claimed | failed
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index('idx_reward_claims_user').on(table.userId, table.createdAt),
+  index('idx_reward_claims_epoch').on(table.epochNumber),
+]);
