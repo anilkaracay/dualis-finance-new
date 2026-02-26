@@ -89,6 +89,9 @@ import { analyticsPublicRoutes } from './routes/analyticsPublic.js';
 import { analyticsInstitutionalRoutes } from './routes/analyticsInstitutional.js';
 import { analyticsAdminRoutes } from './routes/analyticsAdmin.js';
 
+// Supply positions routes (MP25)
+import { supplyRoutes } from './routes/supply.js';
+
 // Rewards routes (MP25)
 import { rewardRoutes } from './routes/rewards.js';
 
@@ -354,8 +357,16 @@ async function main(): Promise<void> {
     await app.register(analyticsInstitutionalRoutes);
     await app.register(analyticsAdminRoutes);
 
+    // Supply positions
+    await app.register(supplyRoutes);
+
     // Rewards (MP25)
     await app.register(rewardRoutes);
+
+    // Alias: /notification-preferences → /notifications/preferences
+    app.get('/notification-preferences', async (_request, reply) => {
+      return reply.redirect('/v1/notifications/preferences');
+    });
   }, { prefix: '/v1' });
 
   // ---------------------------------------------------------------------------

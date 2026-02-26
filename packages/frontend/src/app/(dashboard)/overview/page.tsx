@@ -517,14 +517,16 @@ export default function OverviewPage() {
     borrowPositions,
     secLendingDeals,
     isLoading: positionsLoading,
+    isDemo,
+    error: positionError,
     fetchPositions,
   } = usePositionStore();
-  const { fetchPools } = useProtocolStore();
+  const { fetchPools, isDemo: poolsDemo } = useProtocolStore();
 
   const [positionTab, setPositionTab] = useState<'supply' | 'borrow' | 'seclend'>('supply');
 
   useEffect(() => {
-    fetchPositions('mock');
+    fetchPositions();
     fetchPools();
   }, [fetchPositions, fetchPools]);
 
@@ -571,10 +573,29 @@ export default function OverviewPage() {
     { key: 'seclend' as const, label: 'SecLend' },
   ];
 
+  const showDemoBanner = isDemo || poolsDemo;
+
   return (
     <div className="space-y-8">
       {/* 1. Page title */}
       <h1 className="text-2xl font-bold text-text-primary tracking-tight">Overview</h1>
+
+      {/* Demo mode / API error banner */}
+      {(showDemoBanner || positionError) && (
+        <div className="flex items-start gap-3 rounded-xl border border-warning/30 bg-warning/5 px-4 py-3">
+          <span className="text-warning text-lg mt-0.5">&#9888;</span>
+          <div>
+            <p className="text-sm font-medium text-warning">
+              {positionError
+                ? 'API connection issue — showing demo data'
+                : 'Demo Mode — displaying sample data'}
+            </p>
+            <p className="text-xs text-text-tertiary mt-0.5">
+              Values shown may not reflect real positions. Do not make financial decisions based on displayed data.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* 2. KPI Grid */}
       <section>

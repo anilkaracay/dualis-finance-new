@@ -43,10 +43,11 @@ interface PositionState {
   secLendingDeals: SecLendingDealData[];
   isLoading: boolean;
   isDemo: boolean;
+  error: string | null;
 }
 
 interface PositionActions {
-  fetchPositions: (partyId: string) => void;
+  fetchPositions: () => Promise<void>;
   fetchFromAPI: () => Promise<void>;
 }
 
@@ -166,60 +167,69 @@ export const usePositionStore = create<PositionState & PositionActions>()((set) 
   secLendingDeals: [],
   isLoading: false,
   isDemo: false,
+  error: null,
 
-  fetchPositions: (_partyId: string) => {
-    set({ isLoading: true });
-    setTimeout(() => {
+  fetchPositions: async () => {
+    set({ isLoading: true, error: null });
+    try {
+      const { apiClient } = await import('@/lib/api/client');
+      const [borrowRes, supplyRes, dealsRes] = await Promise.allSettled([
+        apiClient.get<{ data: BorrowPositionItem[] }>('/borrow/positions'),
+        apiClient.get<{ data: SupplyPosition[] }>('/supply/positions'),
+        apiClient.get<{ data: SecLendingDealItem[] }>('/sec-lending/deals'),
+      ]);
+
+      const borrowData = borrowRes.status === 'fulfilled' ? borrowRes.value.data : null;
+      const supplyData = supplyRes.status === 'fulfilled' ? supplyRes.value.data : null;
+      const dealsData = dealsRes.status === 'fulfilled' ? dealsRes.value.data : null;
+
+      // Extract arrays from response (handle { data: [...] } wrapper)
+      const borrowArr = borrowData ? (Array.isArray(borrowData) ? borrowData : (borrowData as { data?: BorrowPositionItem[] }).data ?? []) : [];
+      const supplyArr = supplyData ? (Array.isArray(supplyData) ? supplyData : (supplyData as { data?: SupplyPosition[] }).data ?? []) : [];
+      const dealsArr = dealsData ? (Array.isArray(dealsData) ? dealsData : (dealsData as { data?: SecLendingDealItem[] }).data ?? []) : [];
+
+      const hasAnyData = borrowArr.length > 0 || supplyArr.length > 0 || dealsArr.length > 0;
+
+      if (hasAnyData) {
+        set({
+          borrowPositions: borrowArr.length > 0
+            ? (borrowArr as BorrowPositionItem[]).map(mapBorrowPositionItem)
+            : [],
+          supplyPositions: supplyArr as SupplyPosition[],
+          secLendingDeals: dealsArr.length > 0
+            ? (dealsArr as SecLendingDealItem[]).map(mapSecLendingDealItem)
+            : [],
+          isLoading: false,
+          isDemo: false,
+          error: null,
+        });
+      } else {
+        // API returned empty — use demo data with clear flag
+        set({
+          supplyPositions: MOCK_SUPPLY,
+          borrowPositions: MOCK_BORROW,
+          secLendingDeals: MOCK_SEC_LENDING,
+          isLoading: false,
+          isDemo: true,
+          error: null,
+        });
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to fetch positions';
+      console.warn('[PositionStore] API failed, using demo data:', msg);
       set({
         supplyPositions: MOCK_SUPPLY,
         borrowPositions: MOCK_BORROW,
         secLendingDeals: MOCK_SEC_LENDING,
         isLoading: false,
         isDemo: true,
+        error: `API unavailable: ${msg}`,
       });
-    }, 500);
+    }
   },
 
   fetchFromAPI: async () => {
-    set({ isLoading: true });
-    try {
-      const { apiClient } = await import('@/lib/api/client');
-      const [borrowRes, dealsRes] = await Promise.all([
-        apiClient.get<BorrowPositionItem[]>('/borrow/positions'),
-        apiClient.get<SecLendingDealItem[]>('/sec-lending/deals'),
-      ]);
-
-      const borrowPositions = borrowRes.data;
-      const secLendingDeals = dealsRes.data;
-
-      if (
-        (Array.isArray(borrowPositions) && borrowPositions.length > 0) ||
-        (Array.isArray(secLendingDeals) && secLendingDeals.length > 0)
-      ) {
-        set({
-          borrowPositions: Array.isArray(borrowPositions)
-            ? borrowPositions.map(mapBorrowPositionItem)
-            : MOCK_BORROW,
-          secLendingDeals: Array.isArray(secLendingDeals)
-            ? secLendingDeals.map(mapSecLendingDealItem)
-            : MOCK_SEC_LENDING,
-          // Supply positions don't have a dedicated endpoint yet — keep mock
-          supplyPositions: MOCK_SUPPLY,
-          isLoading: false,
-          isDemo: false,
-        });
-      } else {
-        throw new Error('Empty response');
-      }
-    } catch {
-      // Fall back to mock data
-      set({
-        supplyPositions: MOCK_SUPPLY,
-        borrowPositions: MOCK_BORROW,
-        secLendingDeals: MOCK_SEC_LENDING,
-        isLoading: false,
-        isDemo: true,
-      });
-    }
+    // Alias — same as fetchPositions
+    await usePositionStore.getState().fetchPositions();
   },
 }));

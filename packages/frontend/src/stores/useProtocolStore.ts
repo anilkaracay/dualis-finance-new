@@ -148,8 +148,10 @@ export const useProtocolStore = create<ProtocolState & ProtocolActions>()((set) 
           set({ pools: MOCK_POOLS, isLoading: false, isDemo: true });
         }
       })
-      .catch(() => {
-        set({ pools: MOCK_POOLS, isLoading: false, isDemo: true });
+      .catch((err) => {
+        const msg = err instanceof Error ? err.message : 'API unavailable';
+        console.warn('[ProtocolStore] Pools API failed, using demo data:', msg);
+        set({ pools: MOCK_POOLS, isLoading: false, isDemo: true, error: `Pool data unavailable: ${msg}` });
       });
   },
 
@@ -165,13 +167,15 @@ export const useProtocolStore = create<ProtocolState & ProtocolActions>()((set) 
           pools: pools.map(mapPoolListItemToPoolData),
           isLoading: false,
           isDemo: false,
+          error: null,
         });
       } else {
         throw new Error('Empty response');
       }
-    } catch {
-      // Fall back to mock data
-      set({ pools: MOCK_POOLS, isLoading: false, isDemo: true });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'API unavailable';
+      console.warn('[ProtocolStore] Pools API failed, using demo data:', msg);
+      set({ pools: MOCK_POOLS, isLoading: false, isDemo: true, error: `Pool data unavailable: ${msg}` });
     }
   },
 

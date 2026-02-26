@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   Shield,
   Gift,
@@ -20,6 +20,7 @@ import {
   DialogClose,
 } from '@/components/ui/Dialog';
 import { KPICard } from '@/components/data-display/KPICard';
+import { Skeleton } from '@/components/ui/Skeleton';
 import { useWalletStore } from '@/stores/useWalletStore';
 
 // ---------------------------------------------------------------------------
@@ -29,6 +30,17 @@ import { useWalletStore } from '@/stores/useWalletStore';
 interface StakingParameter {
   label: string;
   value: string;
+}
+
+interface StakingInfoData {
+  totalStaked: number;
+  stakingAPY: number;
+  safetyModuleSize: number;
+  safetyModuleAPY: number;
+  cooldownPeriod: number;
+  slashingPenalty: number;
+  emissionRate: number;
+  minStakeAmount: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -53,20 +65,6 @@ function formatUSD(value: number): string {
     maximumFractionDigits: 2,
   }).format(value);
 }
-
-// ---------------------------------------------------------------------------
-// Mock Data
-// ---------------------------------------------------------------------------
-
-const STAKING_PARAMS: StakingParameter[] = [
-  { label: 'Cooldown Period', value: '10 days' },
-  { label: 'Slashing Percentage', value: '30%' },
-  { label: 'Emission Rate', value: '100,000 DUAL/day' },
-  { label: 'Min Stake', value: '100 DUAL' },
-];
-
-const SPARKLINE_STAKED = generateSparkline(7, 44, 2);
-const SPARKLINE_REWARDS = generateSparkline(7, 1_100, 150);
 
 // ---------------------------------------------------------------------------
 // Sub-components: Dialogs
@@ -189,16 +187,16 @@ function YourStakeCard({ isConnected }: { isConnected: boolean }) {
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <div className="rounded-md border border-border-subtle bg-bg-primary p-4">
             <p className="text-label">Staked</p>
-            <p className="mt-1 text-lg font-medium font-mono text-text-primary">25,000 DUAL</p>
-            <p className="text-xs text-text-tertiary">{formatUSD(30_750)}</p>
+            <p className="mt-1 text-lg font-medium font-mono text-text-primary">0 DUAL</p>
+            <p className="text-xs text-text-tertiary">{formatUSD(0)}</p>
           </div>
           <div className="rounded-md border border-border-subtle bg-bg-primary p-4">
             <p className="text-label">Pending Rewards</p>
-            <p className="mt-1 text-lg font-medium font-mono text-text-primary">123.45 DUAL</p>
+            <p className="mt-1 text-lg font-medium font-mono text-text-primary">0 DUAL</p>
           </div>
           <div className="rounded-md border border-border-subtle bg-bg-primary p-4">
             <p className="text-label">Claimable</p>
-            <p className="mt-1 text-lg font-medium font-mono text-positive">89.12 DUAL</p>
+            <p className="mt-1 text-lg font-medium font-mono text-positive">0 DUAL</p>
           </div>
         </div>
 
@@ -215,7 +213,7 @@ function YourStakeCard({ isConnected }: { isConnected: boolean }) {
   );
 }
 
-function SafetyModuleCard() {
+function SafetyModuleCard({ safetyModuleSize }: { safetyModuleSize: number }) {
   return (
     <Card>
       <CardHeader>
@@ -230,7 +228,7 @@ function SafetyModuleCard() {
         <div className="flex flex-wrap gap-6">
           <div>
             <p className="text-label">Current Size</p>
-            <p className="mt-1 font-mono font-medium text-text-primary">$12.8M</p>
+            <p className="mt-1 font-mono font-medium text-text-primary">{formatUSD(safetyModuleSize)}</p>
           </div>
           <div>
             <p className="text-label">Slashing Risk</p>
@@ -238,8 +236,8 @@ function SafetyModuleCard() {
           </div>
         </div>
 
-        <Button variant="primary" size="sm" icon={<Shield className="h-4 w-4" />}>
-          Stake in Safety Module
+        <Button variant="primary" size="sm" icon={<Shield className="h-4 w-4" />} disabled>
+          Stake in Safety Module (Coming Soon)
         </Button>
       </CardContent>
     </Card>
@@ -276,20 +274,85 @@ function StakingParametersTable({ params }: { params: StakingParameter[] }) {
 // Page Component
 // ---------------------------------------------------------------------------
 
+const SPARKLINE_STAKED = generateSparkline(7, 44, 2);
+const SPARKLINE_REWARDS = generateSparkline(7, 1_100, 150);
+
 export default function StakingPage() {
   const { isConnected } = useWalletStore();
+  const [stakingInfo, setStakingInfo] = useState<StakingInfoData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchStakingData = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const { apiClient } = await import('@/lib/api/client');
+      const infoRes = await apiClient.get<{ data: StakingInfoData }>('/staking/info');
+      const body = infoRes.data;
+      const info = (body as { data?: StakingInfoData }).data ?? body;
+      setStakingInfo(info as StakingInfoData);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to fetch staking data';
+      console.warn('[Staking] API failed:', msg);
+      setError(msg);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchStakingData();
+  }, [fetchStakingData]);
+
+  // Derived values from API data or defaults
+  const totalStaked = stakingInfo?.totalStaked ?? 0;
+  const stakingAPY = stakingInfo?.stakingAPY ?? 0;
+  const safetyModuleSize = stakingInfo?.safetyModuleSize ?? 0;
+
+  const stakingParams: StakingParameter[] = [
+    { label: 'Cooldown Period', value: stakingInfo ? `${stakingInfo.cooldownPeriod} days` : '\u2014' },
+    { label: 'Slashing Percentage', value: stakingInfo ? `${(stakingInfo.slashingPenalty * 100).toFixed(0)}%` : '\u2014' },
+    { label: 'Emission Rate', value: stakingInfo ? `${stakingInfo.emissionRate.toLocaleString()} DUAL/day` : '\u2014' },
+    { label: 'Min Stake', value: stakingInfo ? `${stakingInfo.minStakeAmount.toLocaleString()} DUAL` : '\u2014' },
+  ];
+
+  if (isLoading) {
+    return (
+      <div className="space-y-8">
+        <h1 className="text-2xl font-bold text-text-primary tracking-tight">Staking</h1>
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} variant="rect" height={120} width="100%" />
+          ))}
+        </div>
+        <Skeleton variant="rect" height={200} width="100%" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
       {/* Header */}
       <h1 className="text-2xl font-bold text-text-primary tracking-tight">Staking</h1>
 
+      {/* API error banner */}
+      {error && (
+        <div className="flex items-start gap-3 rounded-xl border border-warning/30 bg-warning/5 px-4 py-3">
+          <span className="text-warning text-lg mt-0.5">&#9888;</span>
+          <div>
+            <p className="text-sm font-medium text-warning">Staking data unavailable</p>
+            <p className="text-xs text-text-tertiary mt-0.5">{error}</p>
+          </div>
+        </div>
+      )}
+
       {/* KPI Row */}
       <section>
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
           <KPICard
             label="Total Staked"
-            value={45_200_000}
+            value={totalStaked}
             prefix="$"
             decimals={0}
             sparkline={SPARKLINE_STAKED}
@@ -299,26 +362,24 @@ export default function StakingPage() {
           />
           <KPICard
             label="Staking APY"
-            value={8.5}
+            value={stakingAPY * 100}
             suffix="%"
             decimals={1}
             index={1}
           />
           <KPICard
             label="Safety Module"
-            value={12_800_000}
+            value={safetyModuleSize}
             prefix="$"
             decimals={0}
             index={2}
           />
           <KPICard
             label="Your Rewards"
-            value={1_234}
+            value={0}
             prefix="$"
             decimals={0}
             sparkline={SPARKLINE_REWARDS}
-            trend="up"
-            trendValue="+$89"
             index={3}
           />
         </div>
@@ -331,13 +392,13 @@ export default function StakingPage() {
 
       {/* Safety Module */}
       <section>
-        <SafetyModuleCard />
+        <SafetyModuleCard safetyModuleSize={safetyModuleSize} />
       </section>
 
       {/* Staking Parameters */}
       <section>
         <h2 className="text-label mb-4">Staking Parameters</h2>
-        <StakingParametersTable params={STAKING_PARAMS} />
+        <StakingParametersTable params={stakingParams} />
       </section>
     </div>
   );

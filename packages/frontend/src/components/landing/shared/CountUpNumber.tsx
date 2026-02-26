@@ -70,9 +70,14 @@ export function CountUpNumber({
     return Math.round(num).toString();
   };
 
+  const showPlaceholder = !hasAnimated.current && displayValue === 0;
+
   return (
     <span ref={ref} className={`font-data ${className}`}>
-      {prefix}{formatNumber(displayValue)}{suffix}
+      {showPlaceholder
+        ? '\u2014'
+        : <>{prefix}{formatNumber(displayValue)}{suffix}</>
+      }
     </span>
   );
 }

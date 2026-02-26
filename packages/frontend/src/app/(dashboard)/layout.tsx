@@ -15,6 +15,7 @@ import { useNotificationStore } from '@/stores/useNotificationStore';
 import { useProtocolStore } from '@/stores/useProtocolStore';
 import { useWebSocket } from '@/hooks/useWebSocket';
 import { AuthGuard } from '@/components/auth/AuthGuard';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { PartyLayerKit } from '@partylayer/react';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -77,7 +78,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
           <main className="flex-1 overflow-y-auto bg-bg-primary bg-gradient-hero-mesh pb-20 md:pb-0">
             <div className="mx-auto max-w-[1440px] px-4 py-6 md:px-8 md:py-8">
-              {children}
+              <ErrorBoundary>
+                {children}
+              </ErrorBoundary>
             </div>
           </main>
         </div>

@@ -258,9 +258,12 @@ function AddCollateralDialog({
   const addedValueUSD = amountValue * priceUSD;
   const existingCollateralUSD = position.collateral.reduce((sum, c) => sum + c.valueUSD, 0);
   const newTotalCollateral = existingCollateralUSD + addedValueUSD;
+  const avgThreshold = collateralPrices[selectedAsset]
+    ? (FALLBACK_COLLATERAL_PRICES[selectedAsset] ? 0.8 : 0.8) // use per-asset threshold when available
+    : 0.8;
   const newHealthFactor =
     position.currentDebt > 0
-      ? (newTotalCollateral / (position.currentDebt * 1.25)) * position.healthFactor
+      ? (newTotalCollateral * avgThreshold) / position.currentDebt
       : position.healthFactor;
 
   const handleConfirm = useCallback(async () => {
@@ -520,10 +523,11 @@ function ActiveBorrowPositions({
 // New Borrow Section
 // ---------------------------------------------------------------------------
 
-function NewBorrowSection({ pools, collateralAssets, collateralPrices }: {
+function NewBorrowSection({ pools, collateralAssets, collateralPrices, collateralThresholds }: {
   pools: PoolData[];
   collateralAssets: string[];
   collateralPrices: Record<string, number>;
+  collateralThresholds: Record<string, number>;
 }) {
   const { creditTier } = useWalletStore();
   const borrowMutation = useBorrow();
@@ -554,10 +558,26 @@ function NewBorrowSection({ pools, collateralAssets, collateralPrices }: {
     }, 0);
   }, [collateralEntries, collateralPrices]);
 
+  // Weighted average liquidation threshold from selected collateral
+  const weightedLiqThreshold = useMemo(() => {
+    if (collateralValueUSD <= 0) return 0.8;
+    let weightedSum = 0;
+    let totalVal = 0;
+    for (const entry of collateralEntries) {
+      const amt = parseFloat(entry.amount) || 0;
+      const price = collateralPrices[entry.asset] ?? FALLBACK_COLLATERAL_PRICES[entry.asset] ?? 1;
+      const val = amt * price;
+      const threshold = collateralThresholds[entry.asset] ?? 0.8;
+      weightedSum += val * threshold;
+      totalVal += val;
+    }
+    return totalVal > 0 ? weightedSum / totalVal : 0.8;
+  }, [collateralEntries, collateralPrices, collateralThresholds, collateralValueUSD]);
+
   const mockHealthFactor = useMemo(() => {
     if (borrowValueUSD <= 0) return 0;
-    return collateralValueUSD / (borrowValueUSD * 1.25);
-  }, [collateralValueUSD, borrowValueUSD]);
+    return (collateralValueUSD * weightedLiqThreshold) / borrowValueUSD;
+  }, [collateralValueUSD, borrowValueUSD, weightedLiqThreshold]);
 
   const ltvRatio = useMemo(() => {
     if (collateralValueUSD <= 0) return 0;
@@ -752,7 +772,9 @@ function NewBorrowSection({ pools, collateralAssets, collateralPrices }: {
                       <p className="text-sm text-text-secondary">
                         Liquidation Price:{' '}
                         <span className="font-mono text-warning">
-                          {formatUSD(selectedPool.priceUSD / mockHealthFactor)}
+                          {isFinite(selectedPool.priceUSD / mockHealthFactor) && mockHealthFactor > 0.01
+                            ? formatUSD(selectedPool.priceUSD / mockHealthFactor)
+                            : 'N/A'}
                         </span>
                       </p>
                     )}
@@ -912,28 +934,32 @@ export default function BorrowPage() {
   // Dynamic collateral assets from API
   const [collateralAssets, setCollateralAssets] = useState<string[]>([]);
   const [collateralPrices, setCollateralPrices] = useState<Record<string, number>>({});
+  const [collateralThresholds, setCollateralThresholds] = useState<Record<string, number>>({});
 
   useEffect(() => {
-    fetchPositions('mock');
+    fetchPositions();
     fetchPools();
 
     // Fetch collateral assets dynamically from the API
     import('@/lib/api/client')
-      .then(({ apiClient }) => apiClient.get<{ data: Array<{ symbol: string; priceUSD: number }> }>('/borrow/collateral-assets'))
+      .then(({ apiClient }) => apiClient.get<{ data: Array<{ symbol: string; priceUSD: number; liquidationThreshold: number }> }>('/borrow/collateral-assets'))
       .then((response) => {
         const body = response.data;
         const assets = Array.isArray(body) ? body : body?.data;
         if (Array.isArray(assets) && assets.length > 0) {
           setCollateralAssets(assets.map((a) => a.symbol));
           const prices: Record<string, number> = {};
+          const thresholds: Record<string, number> = {};
           for (const a of assets) {
             prices[a.symbol] = a.priceUSD;
+            thresholds[a.symbol] = a.liquidationThreshold ?? 0.8;
           }
           setCollateralPrices(prices);
+          setCollateralThresholds(thresholds);
         }
       })
       .catch(() => {
-        // Use fallback hardcoded assets if API fails
+        console.warn('[Borrow] Collateral assets API unavailable — using fallback prices');
       });
   }, [fetchPositions, fetchPools]);
 
@@ -986,7 +1012,7 @@ export default function BorrowPage() {
 
       {/* New Borrow Section */}
       <section>
-        <NewBorrowSection pools={pools} collateralAssets={collateralAssets} collateralPrices={collateralPrices} />
+        <NewBorrowSection pools={pools} collateralAssets={collateralAssets} collateralPrices={collateralPrices} collateralThresholds={collateralThresholds} />
       </section>
 
       {/* Repay Dialog */}

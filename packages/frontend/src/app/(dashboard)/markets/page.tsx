@@ -216,8 +216,11 @@ export default function MarketsPage() {
             variant="ghost"
             size="sm"
             icon={<Zap className="h-4 w-4" />}
+            disabled
+            title="Flash loans coming soon"
+            className="opacity-50 cursor-not-allowed"
           >
-            Flash Loan
+            Flash Loan (Coming Soon)
           </Button>
         </div>
       </div>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -26,10 +26,24 @@ export default function LoginPage() {
   const [walletPickerOpen, setWalletPickerOpen] = useState(false);
   const [walletConnecting, setWalletConnecting] = useState(false);
   const [connectingWalletId, setConnectingWalletId] = useState<string | null>(null);
+  const [walletTimeout, setWalletTimeout] = useState(false);
 
   // PartyLayer hooks — useConnect gives us a direct Promise<Session>
   const { connect } = useConnect();
   const { wallets } = useWallets();
+
+  // 5s timeout for wallet detection
+  useEffect(() => {
+    if (!walletPickerOpen) {
+      setWalletTimeout(false);
+      return;
+    }
+    if (wallets.length > 0) return;
+    const timer = setTimeout(() => {
+      if (wallets.length === 0) setWalletTimeout(true);
+    }, 5000);
+    return () => clearTimeout(timer);
+  }, [walletPickerOpen, wallets.length]);
 
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
@@ -202,12 +216,14 @@ export default function LoginPage() {
           <button
             type="button"
             onClick={() => {
-              setEmail('demo@dualis.finance');
-              setPassword('Demo1234!');
+              const demoEmail = process.env.NEXT_PUBLIC_DEMO_EMAIL || 'demo@dualis.finance';
+              const demoPass = process.env.NEXT_PUBLIC_DEMO_PASS || 'Demo1234!';
+              setEmail(demoEmail);
+              setPassword(demoPass);
               setFormError(null);
               clearError();
               setTimeout(() => {
-                loginWithEmail('demo@dualis.finance', 'Demo1234!')
+                loginWithEmail(demoEmail, demoPass)
                   .then(() => router.push(redirect))
                   .catch(() => {});
               }, 300);
@@ -267,10 +283,23 @@ export default function LoginPage() {
               {/* Wallet list */}
               <div className="px-6 pb-6 space-y-2">
                 {wallets.length === 0 ? (
-                  <div className="py-8 text-center text-text-tertiary text-sm font-jakarta">
-                    <Loader2 className="w-5 h-5 mx-auto mb-2 animate-spin text-accent-teal" />
-                    Loading wallets...
-                  </div>
+                  walletTimeout ? (
+                    <div className="py-6 text-center text-sm font-jakarta space-y-3">
+                      <p className="text-text-secondary font-medium">No Canton-compatible wallets detected</p>
+                      <p className="text-text-tertiary text-xs">Install one of these wallets to connect:</p>
+                      <div className="flex flex-col gap-1.5">
+                        <a href="https://console.canton.network" target="_blank" rel="noopener noreferrer" className="text-accent-teal hover:text-accent-teal-hover text-xs transition-colors">Console Wallet</a>
+                        <a href="https://loop.canton.network" target="_blank" rel="noopener noreferrer" className="text-accent-teal hover:text-accent-teal-hover text-xs transition-colors">Loop Wallet</a>
+                        <a href="https://nightly.app" target="_blank" rel="noopener noreferrer" className="text-accent-teal hover:text-accent-teal-hover text-xs transition-colors">Nightly Wallet</a>
+                      </div>
+                      <p className="text-text-disabled text-[11px] mt-2">Or use &ldquo;Demo Login&rdquo; to explore without a wallet</p>
+                    </div>
+                  ) : (
+                    <div className="py-8 text-center text-text-tertiary text-sm font-jakarta">
+                      <Loader2 className="w-5 h-5 mx-auto mb-2 animate-spin text-accent-teal" />
+                      Loading wallets...
+                    </div>
+                  )
                 ) : (
                   wallets.map((w) => (
                     <button

@@ -410,7 +410,7 @@ export default function CreditPage() {
 
   useEffect(() => {
     if (isConnected) {
-      fetchPositions('mock');
+      fetchPositions();
     }
   }, [isConnected, fetchPositions]);
 
