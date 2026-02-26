@@ -191,11 +191,24 @@ export const usePositionStore = create<PositionState & PositionActions>()((set) 
       const hasAnyData = borrowArr.length > 0 || supplyArr.length > 0 || dealsArr.length > 0;
 
       if (hasAnyData) {
+        // Map supply positions: API returns { asset: { symbol } } but store expects { symbol }
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const mappedSupply: SupplyPosition[] = supplyArr.map((raw: any) => ({
+          positionId: String(raw.positionId ?? ''),
+          poolId: String(raw.poolId ?? ''),
+          symbol: String(raw.symbol ?? raw.asset?.symbol ?? ''),
+          depositedAmount: Number(raw.depositedAmount ?? 0),
+          shares: Number(raw.shares ?? 0),
+          currentValueUSD: Number(raw.currentValueUSD ?? 0),
+          apy: Number(raw.apy ?? 0),
+          depositTimestamp: String(raw.depositTimestamp ?? new Date().toISOString()),
+        }));
+
         set({
           borrowPositions: borrowArr.length > 0
             ? (borrowArr as BorrowPositionItem[]).map(mapBorrowPositionItem)
             : [],
-          supplyPositions: supplyArr as SupplyPosition[],
+          supplyPositions: mappedSupply,
           secLendingDeals: dealsArr.length > 0
             ? (dealsArr as SecLendingDealItem[]).map(mapSecLendingDealItem)
             : [],

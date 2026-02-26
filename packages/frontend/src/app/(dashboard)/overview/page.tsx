@@ -532,37 +532,41 @@ export default function OverviewPage() {
 
   // ---------- Computed values ----------
 
+  const safeSupply = supplyPositions ?? [];
+  const safeBorrow = borrowPositions ?? [];
+  const safeDeals = secLendingDeals ?? [];
+
   const netWorth = useMemo(
-    () => supplyPositions.reduce((sum, pos) => sum + pos.currentValueUSD, 0),
-    [supplyPositions]
+    () => safeSupply.reduce((sum, pos) => sum + (pos.currentValueUSD ?? 0), 0),
+    [safeSupply]
   );
 
   const totalSupplied = useMemo(
-    () => supplyPositions.reduce((sum, pos) => sum + pos.currentValueUSD, 0),
-    [supplyPositions]
+    () => safeSupply.reduce((sum, pos) => sum + (pos.currentValueUSD ?? 0), 0),
+    [safeSupply]
   );
 
   const totalBorrowed = useMemo(
-    () => borrowPositions.reduce((sum, pos) => sum + pos.currentDebt, 0),
-    [borrowPositions]
+    () => safeBorrow.reduce((sum, pos) => sum + (pos.currentDebt ?? 0), 0),
+    [safeBorrow]
   );
 
   const minHealthFactor = useMemo<number | undefined>(() => {
-    if (borrowPositions.length === 0) return undefined;
-    return borrowPositions.reduce(
-      (min, pos) => Math.min(min, pos.healthFactor),
-      borrowPositions[0]!.healthFactor
+    if (safeBorrow.length === 0) return undefined;
+    return safeBorrow.reduce(
+      (min, pos) => Math.min(min, pos.healthFactor ?? Infinity),
+      safeBorrow[0]?.healthFactor ?? Infinity
     );
-  }, [borrowPositions]);
+  }, [safeBorrow]);
 
   const donutSegments = useMemo<DonutSegment[]>(
     () =>
-      supplyPositions.map((pos) => ({
-        label: pos.symbol,
-        value: pos.currentValueUSD,
-        color: getAssetColor(pos.symbol),
+      safeSupply.map((pos) => ({
+        label: pos.symbol ?? 'Unknown',
+        value: pos.currentValueUSD ?? 0,
+        color: getAssetColor(pos.symbol ?? ''),
       })),
-    [supplyPositions]
+    [safeSupply]
   );
 
   // ---------- Render ----------
@@ -629,13 +633,13 @@ export default function OverviewPage() {
         </div>
 
         {positionTab === 'supply' && (
-          <SupplyPositionsTable positions={supplyPositions} isLoading={positionsLoading} />
+          <SupplyPositionsTable positions={safeSupply} isLoading={positionsLoading} />
         )}
         {positionTab === 'borrow' && (
-          <BorrowPositionsTable positions={borrowPositions} isLoading={positionsLoading} />
+          <BorrowPositionsTable positions={safeBorrow} isLoading={positionsLoading} />
         )}
         {positionTab === 'seclend' && (
-          <SecLendingDealsTable deals={secLendingDeals} isLoading={positionsLoading} />
+          <SecLendingDealsTable deals={safeDeals} isLoading={positionsLoading} />
         )}
       </section>
 
