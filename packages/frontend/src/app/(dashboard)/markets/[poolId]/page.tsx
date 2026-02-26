@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { Input } from '@/components/ui/Input';
+import { TransactionError } from '@/components/feedback/TransactionError';
 import {
   Dialog,
   DialogTrigger,
@@ -25,6 +26,7 @@ import { AreaChart, type TimeRange } from '@/components/charts/AreaChart';
 import { InterestRateChart } from '@/components/charts/InterestRateChart';
 import { useProtocolStore } from '@/stores/useProtocolStore';
 import { useWalletStore } from '@/stores/useWalletStore';
+import { useBalanceStore } from '@/stores/useBalanceStore';
 import { useDeposit, useWithdraw } from '@/hooks/api';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -131,6 +133,7 @@ export default function PoolDetailPage() {
 
   const { pools, isLoading, fetchPools } = useProtocolStore();
   const { isConnected } = useWalletStore();
+  const { fetchBalances } = useBalanceStore();
 
   const [depositAmount, setDepositAmount] = useState('');
   const [withdrawAmount, setWithdrawAmount] = useState('');
@@ -147,6 +150,7 @@ export default function PoolDetailPage() {
 
   useEffect(() => {
     fetchPools();
+    if (isConnected) fetchBalances();
 
     // Fetch pool detail from API for dynamic IR model + collateral params
     import('@/lib/api/client')
@@ -220,20 +224,24 @@ export default function PoolDetailPage() {
     try {
       await depositMutation.execute(poolId, { amount: depositAmount });
       setDepositSuccess(true);
+      // Refresh balances after successful deposit
+      void fetchBalances();
     } catch {
       // error state is captured by depositMutation.error
     }
-  }, [poolId, depositAmount, estimatedShares, depositMutation]);
+  }, [poolId, depositAmount, estimatedShares, depositMutation, fetchBalances]);
 
   const handleWithdraw = useCallback(async () => {
     if (!poolId || !withdrawAmount) return;
     try {
       await withdrawMutation.execute(poolId, { shares: withdrawAmount });
       setWithdrawSuccess(true);
+      // Refresh balances after successful withdrawal
+      void fetchBalances();
     } catch {
       // error state is captured by withdrawMutation.error
     }
-  }, [poolId, withdrawAmount, withdrawMutation]);
+  }, [poolId, withdrawAmount, withdrawMutation, fetchBalances]);
 
   // ─── Loading State ────────────────────────────────────────────────────────
 
@@ -435,7 +443,7 @@ export default function PoolDetailPage() {
                             </div>
 
                             {depositMutation.error && (
-                              <p className="text-sm text-negative">{depositMutation.error}</p>
+                              <TransactionError message={depositMutation.error} onRetry={depositMutation.reset} />
                             )}
                           </div>
 
@@ -518,7 +526,7 @@ export default function PoolDetailPage() {
                             </div>
 
                             {withdrawMutation.error && (
-                              <p className="text-sm text-negative">{withdrawMutation.error}</p>
+                              <TransactionError message={withdrawMutation.error} onRetry={withdrawMutation.reset} />
                             )}
                           </div>
 

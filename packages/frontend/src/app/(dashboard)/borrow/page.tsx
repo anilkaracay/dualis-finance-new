@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Skeleton } from '@/components/ui/Skeleton';
+import { TransactionError } from '@/components/feedback/TransactionError';
 import {
   Dialog,
   DialogContent,
@@ -207,7 +208,7 @@ function RepayDialog({
               </div>
 
               {repayMutation.error && (
-                <p className="text-sm text-negative">{repayMutation.error}</p>
+                <TransactionError message={repayMutation.error} onRetry={repayMutation.reset} />
               )}
             </div>
 
@@ -354,7 +355,7 @@ function AddCollateralDialog({
               )}
 
               {addCollateralMutation.error && (
-                <p className="text-sm text-negative">{addCollateralMutation.error}</p>
+                <TransactionError message={addCollateralMutation.error} onRetry={addCollateralMutation.reset} />
               )}
             </div>
 
@@ -855,7 +856,7 @@ function NewBorrowSection({ pools, collateralAssets, collateralPrices, collatera
 
             {/* Review Button */}
             {borrowMutation.error && (
-              <p className="text-sm text-negative">{borrowMutation.error}</p>
+              <TransactionError message={borrowMutation.error} onRetry={borrowMutation.reset} />
             )}
             <div className="pt-2">
               <Button

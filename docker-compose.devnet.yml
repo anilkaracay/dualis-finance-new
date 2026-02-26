@@ -145,6 +145,8 @@ services:
       timeout: 10s
       retries: 3
       start_period: 30s
+    extra_hosts:
+      - "splice-validator-participant-1:172.18.0.7"
     restart: unless-stopped
     deploy:
       resources:

@@ -2,9 +2,11 @@ import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import type { ApiResponse, ListPoolsParams, PoolListItem, PoolDetail, PoolHistoryPoint, DepositResponse, WithdrawResponse, InterestRateModelConfig } from '@dualis/shared';
 import { calculatePoolAPY } from '@dualis/shared';
+import type { ApiErrorCode } from '@dualis/shared';
 import { AppError } from '../middleware/errorHandler.js';
 import { authMiddleware } from '../middleware/auth.js';
 import * as poolService from '../services/pool.service.js';
+import { mapCantonError } from '../canton/error-mapper.js';
 
 const listPoolsSchema = z.object({
   assetType: z.enum(['stablecoin', 'crypto', 'treasury', 'rwa', 'all']).optional(),
@@ -109,10 +111,11 @@ export async function poolRoutes(fastify: FastifyInstance): Promise<void> {
         return reply.status(201).send(response);
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
-        if (msg.includes('not found')) {
+        if (msg.includes('not found') && !msg.includes('ENOTFOUND')) {
           throw new AppError('POOL_NOT_FOUND', `Pool ${poolId} not found`, 404);
         }
-        throw new AppError('CANTON_ERROR', msg, 502);
+        const mapped = mapCantonError(err);
+        throw new AppError(mapped.code as ApiErrorCode, mapped.userMessage, mapped.httpStatus);
       }
     }
   );
@@ -140,13 +143,14 @@ export async function poolRoutes(fastify: FastifyInstance): Promise<void> {
         return reply.status(200).send(response);
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
-        if (msg.includes('not found')) {
+        if (msg.includes('not found') && !msg.includes('ENOTFOUND')) {
           throw new AppError('POOL_NOT_FOUND', `Pool ${poolId} not found`, 404);
         }
         if (msg.includes('Insufficient liquidity')) {
           throw new AppError('INSUFFICIENT_BALANCE', msg, 400);
         }
-        throw new AppError('CANTON_ERROR', msg, 502);
+        const mapped = mapCantonError(err);
+        throw new AppError(mapped.code as ApiErrorCode, mapped.userMessage, mapped.httpStatus);
       }
     }
   );

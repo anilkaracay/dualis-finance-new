@@ -16,11 +16,14 @@ import {
   getCollateralParams,
 } from '@dualis/shared';
 import { randomUUID } from 'node:crypto';
+import { nanoid } from 'nanoid';
 import { env } from '../config/env.js';
 import { cantonConfig } from '../config/canton-env.js';
 import { CantonClient } from '../canton/client.js';
+import * as cantonQueries from '../canton/queries.js';
 import * as registry from './poolRegistry.js';
 import { trackActivity } from './reward-tracker.service.js';
+import { getDb, schema } from '../db/client.js';
 
 const log = createChildLogger('pool-service');
 
@@ -107,6 +110,33 @@ function generateHistoryPoints(poolId: string, period: string): PoolHistoryPoint
   }
 
   return points;
+}
+
+/** Fire-and-forget Canton transaction log. */
+function logTransaction(opts: {
+  userId?: string | undefined;
+  partyId: string;
+  templateId: string;
+  choiceName: string;
+  amountUsd: number;
+  txHash?: string;
+}): void {
+  const db = getDb();
+  if (!db || !opts.userId) return;
+  db.insert(schema.transactionLogs)
+    .values({
+      transactionLogId: `txl_${nanoid(16)}`,
+      userId: opts.userId,
+      partyId: opts.partyId,
+      templateId: opts.templateId,
+      choiceName: opts.choiceName,
+      routingMode: 'proxy',
+      status: 'confirmed',
+      txHash: opts.txHash ?? null,
+      amountUsd: opts.amountUsd.toFixed(2),
+      confirmedAt: new Date(),
+    })
+    .catch((err: unknown) => log.warn({ err }, 'Failed to log transaction'));
 }
 
 // ─── Public API ─────────────────────────────────────────────────────────────
@@ -209,11 +239,11 @@ export function getPoolHistory(poolId: string, period: string): PoolHistoryPoint
 
 export async function deposit(
   poolId: string,
-  _partyId: string,
+  userPartyId: string,
   amount: string,
   userId?: string | undefined,
 ): Promise<{ data: DepositResponse; transaction: TransactionMeta }> {
-  log.info({ poolId, amount }, 'Processing deposit');
+  log.info({ poolId, userPartyId, amount }, 'Processing deposit');
   const pool = registry.getPool(poolId);
   if (!pool) throw new Error(`Pool ${poolId} not found`);
 
@@ -226,15 +256,19 @@ export async function deposit(
   // ---------- Canton mode: exercise Deposit choice on LendingPool ----------
   if (!env.CANTON_MOCK) {
     const client = CantonClient.getInstance();
+    const operatorParty = cantonConfig().parties.operator;
+
+    // Deposit choice: controller depositor — needs actAs [operator, user]
     const result = await client.exerciseChoice(
       'Dualis.Lending.Pool:LendingPool',
       pool.contractId,
       'Deposit',
       {
-        depositor: cantonConfig().parties.operator,
+        depositor: userPartyId,
         amount: parseFloat(amount).toFixed(10),
         depositTime: new Date().toISOString(),
       },
+      { actAs: [operatorParty, userPartyId] },
     );
 
     // Extract created contract IDs from the response events
@@ -256,8 +290,7 @@ export async function deposit(
     // If events didn't provide a new ID, re-query Canton for the fresh contract
     if (newPoolContractId === pool.contractId) {
       try {
-        const { getPoolByKey } = await import('../canton/queries.js');
-        const fresh = await getPoolByKey(poolId);
+        const fresh = await cantonQueries.getPoolByKey(poolId);
         if (fresh) newPoolContractId = fresh.contractId;
       } catch { /* fallthrough — keep existing ID */ }
     }
@@ -270,10 +303,19 @@ export async function deposit(
     void trackActivity({
       activityType: 'deposit',
       userId,
-      partyId: cantonConfig().parties.operator,
+      partyId: userPartyId,
       poolId,
       asset: pool.asset.symbol,
       amount: amountNum * pool.asset.priceUSD,
+    });
+
+    // Fire-and-forget transaction log
+    logTransaction({
+      userId,
+      partyId: userPartyId,
+      templateId: 'Dualis.Lending.Pool:LendingPool',
+      choiceName: 'Deposit',
+      amountUsd: amountNum * pool.asset.priceUSD,
     });
 
     return {
@@ -314,11 +356,11 @@ export async function deposit(
 
 export async function withdraw(
   poolId: string,
-  partyId: string,
+  userPartyId: string,
   shares: string,
   userId?: string | undefined,
 ): Promise<{ data: WithdrawResponse; transaction: TransactionMeta }> {
-  log.info({ poolId, partyId, shares }, 'Processing withdrawal');
+  log.info({ poolId, userPartyId, shares }, 'Processing withdrawal');
   const pool = registry.getPool(poolId);
   if (!pool) throw new Error(`Pool ${poolId} not found`);
 
@@ -332,12 +374,41 @@ export async function withdraw(
   const available = pool.totalSupply - pool.totalBorrow;
   if (withdrawnAmount > available) throw new Error('Insufficient liquidity for withdrawal');
 
-  // ---------- Canton mode: exercise ProcessWithdraw on LendingPool ----------
+  // ---------- Canton mode: exercise Withdraw on SupplyPosition + ProcessWithdraw on Pool ----------
   if (!env.CANTON_MOCK) {
     const client = CantonClient.getInstance();
+    const operatorParty = cantonConfig().parties.operator;
 
-    // ProcessWithdraw updates the pool's totalSupply on-ledger
-    const result = await client.exerciseChoice(
+    // 1. Find user's SupplyPosition for this pool
+    const positions = await cantonQueries.getSupplyPositions(userPartyId);
+    const userPosition = positions.find(p => {
+      const payload = p.payload as Record<string, unknown>;
+      return payload.poolId === poolId;
+    });
+
+    // 2. Exercise Withdraw on user's SupplyPosition (controller depositor)
+    if (userPosition) {
+      try {
+        await client.exerciseChoice(
+          'Dualis.Lending.Pool:SupplyPosition',
+          userPosition.contractId,
+          'Withdraw',
+          {
+            currentSupplyIndex: pool.supplyIndex.toFixed(10),
+            withdrawAmount: withdrawnAmount.toFixed(10),
+            withdrawTime: new Date().toISOString(),
+          },
+          { actAs: [operatorParty, userPartyId] },
+        );
+      } catch (err) {
+        log.warn({ err, userPartyId, poolId }, 'Failed to exercise Withdraw on SupplyPosition, continuing with pool update');
+      }
+    } else {
+      log.warn({ userPartyId, poolId }, 'No SupplyPosition found for user, proceeding with pool withdrawal only');
+    }
+
+    // 3. Update pool state via ProcessWithdraw (controller operator)
+    const poolResult = await client.exerciseChoice(
       'Dualis.Lending.Pool:LendingPool',
       pool.contractId,
       'ProcessWithdraw',
@@ -346,7 +417,7 @@ export async function withdraw(
 
     // Update local pool contract ID (choice archives old pool, creates new one)
     let newCid = pool.contractId;
-    const events = result.events ?? [];
+    const events = poolResult.events ?? [];
     for (const event of events) {
       const created = (event as Record<string, unknown>).CreatedEvent as Record<string, unknown> | undefined;
       if (!created) continue;
@@ -357,8 +428,7 @@ export async function withdraw(
     }
     if (newCid === pool.contractId) {
       try {
-        const { getPoolByKey } = await import('../canton/queries.js');
-        const fresh = await getPoolByKey(poolId);
+        const fresh = await cantonQueries.getPoolByKey(poolId);
         if (fresh) newCid = fresh.contractId;
       } catch { /* fallthrough */ }
     }
@@ -370,10 +440,19 @@ export async function withdraw(
     void trackActivity({
       activityType: 'withdraw',
       userId,
-      partyId: cantonConfig().parties.operator,
+      partyId: userPartyId,
       poolId,
       asset: pool.asset.symbol,
       amount: withdrawnAmount * pool.asset.priceUSD,
+    });
+
+    // Fire-and-forget transaction log
+    logTransaction({
+      userId,
+      partyId: userPartyId,
+      templateId: 'Dualis.Lending.Pool:LendingPool',
+      choiceName: 'Withdraw',
+      amountUsd: withdrawnAmount * pool.asset.priceUSD,
     });
 
     return {

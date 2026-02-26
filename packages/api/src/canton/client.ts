@@ -542,6 +542,68 @@ export class CantonClient {
   }
 
   /**
+   * Query active contracts visible to a specific party (not just the operator).
+   * Useful for finding per-user positions (SupplyPosition, BorrowPosition).
+   */
+  async queryContractsForParty<T>(
+    templateId: string,
+    party: string,
+    query?: Record<string, unknown>,
+  ): Promise<CantonContract<T>[]> {
+    if (this.isMock) {
+      log.debug({ templateId, party }, 'Returning mock contracts for party');
+      return generateMockContracts<T>(templateId);
+    }
+
+    return pRetry(
+      async () => {
+        const offset = await this.getLatestOffset();
+
+        const response = await this.http.post<ActiveContractEntry[]>(
+          '/v2/state/active-contracts',
+          {
+            filter: {
+              filtersByParty: {
+                [party]: {
+                  templateFilters: [{ templateId: `${templateId}` }],
+                },
+              },
+            },
+            activeAtOffset: offset,
+          },
+        );
+
+        const contracts = parseActiveContractsResponse<T>(response.data, templateId, this.templateIdCache);
+
+        if (query) {
+          return contracts.filter((c) => {
+            const payload = c.payload as Record<string, unknown>;
+            return Object.entries(query).every(([k, v]) => payload[k] === v);
+          });
+        }
+
+        return contracts;
+      },
+      {
+        retries: 3,
+        minTimeout: 500,
+        factor: 2,
+        onFailedAttempt: (err) => {
+          log.warn(
+            { attempt: err.attemptNumber, retriesLeft: err.retriesLeft, templateId, party },
+            'Canton query-for-party retry',
+          );
+        },
+      },
+    );
+  }
+
+  /** Get the operator party ID configured for this client. */
+  getOperatorParty(): string {
+    return this.party;
+  }
+
+  /**
    * Resolve a short template ID (e.g. "Dualis.Lending.Pool:LendingPool")
    * to the full ID with package hash (e.g. "ca705a84...:Dualis.Lending.Pool:LendingPool").
    * If not directly cached, tries to derive the full ID from any cached entry
@@ -583,6 +645,7 @@ export class CantonClient {
     contractId: string,
     choice: string,
     argument: Record<string, unknown>,
+    options?: { actAs?: string[] },
   ): Promise<ExerciseResult> {
     if (this.isMock) {
       log.debug({ templateId, contractId, choice }, 'Mock exercise choice');
@@ -594,11 +657,12 @@ export class CantonClient {
 
     return pRetry(
       async () => {
+        const actAsParties = options?.actAs ?? [this.party];
         const response = await this.http.post<SubmitAndWaitResponse>(
           '/v2/commands/submit-and-wait',
           {
             commandId: `exercise-${choice}-${Date.now()}`,
-            actAs: [this.party],
+            actAs: actAsParties,
             userId: this.userId,
             commands: [
               {
@@ -642,7 +706,7 @@ export class CantonClient {
    *
    * Uses Canton JSON API v2 endpoint: POST /v2/commands/submit-and-wait
    */
-  async createContract<T>(templateId: string, payload: T): Promise<CreateResult> {
+  async createContract<T>(templateId: string, payload: T, options?: { actAs?: string[] }): Promise<CreateResult> {
     if (this.isMock) {
       log.debug({ templateId }, 'Mock create contract');
       return {
@@ -655,11 +719,12 @@ export class CantonClient {
 
     return pRetry(
       async () => {
+        const actAsParties = options?.actAs ?? [this.party];
         const response = await this.http.post<SubmitAndWaitResponse>(
           '/v2/commands/submit-and-wait',
           {
             commandId: `create-${Date.now()}`,
-            actAs: [this.party],
+            actAs: actAsParties,
             userId: this.userId,
             commands: [
               {

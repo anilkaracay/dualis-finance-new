@@ -1,11 +1,12 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
-import type { ApiResponse, BorrowResponse, BorrowPositionItem, RepayResponse, AddCollateralResponse } from '@dualis/shared';
+import type { ApiResponse, ApiErrorCode, BorrowResponse, BorrowPositionItem, RepayResponse, AddCollateralResponse } from '@dualis/shared';
 import { getCollateralParams } from '@dualis/shared';
 import { AppError } from '../middleware/errorHandler.js';
 import { authMiddleware } from '../middleware/auth.js';
 import * as borrowService from '../services/borrow.service.js';
 import * as registry from '../services/poolRegistry.js';
+import { mapCantonError } from '../canton/error-mapper.js';
 
 const positiveAmountString = z.string().min(1).refine((val) => {
   const num = parseFloat(val);
@@ -95,13 +96,14 @@ export async function borrowRoutes(fastify: FastifyInstance): Promise<void> {
         if (msg.includes('HEALTH_FACTOR_TOO_LOW')) {
           throw new AppError('HEALTH_FACTOR_TOO_LOW', msg, 422);
         }
-        if (msg.includes('not found')) {
+        if (msg.includes('not found') && !msg.includes('ENOTFOUND')) {
           throw new AppError('POOL_NOT_FOUND', msg, 404);
         }
         if (msg.includes('CONTRACT_NOT_FOUND') || msg.includes('CONTRACT_NOT_ACTIVE')) {
           throw new AppError('CANTON_CONFLICT', msg, 409);
         }
-        throw new AppError('CANTON_ERROR', msg, 502);
+        const mapped = mapCantonError(err);
+        throw new AppError(mapped.code as ApiErrorCode, mapped.userMessage, mapped.httpStatus);
       }
     }
   );
@@ -145,7 +147,7 @@ export async function borrowRoutes(fastify: FastifyInstance): Promise<void> {
         return reply.status(200).send(response);
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
-        if (msg.includes('not found')) {
+        if (msg.includes('not found') && !msg.includes('ENOTFOUND')) {
           throw new AppError('POSITION_NOT_FOUND', `Position ${positionId} not found`, 404);
         }
         if (msg.includes('exceeds current debt')) {
@@ -154,7 +156,8 @@ export async function borrowRoutes(fastify: FastifyInstance): Promise<void> {
         if (msg.includes('CONTRACT_NOT_FOUND') || msg.includes('CONTRACT_NOT_ACTIVE')) {
           throw new AppError('CANTON_CONFLICT', msg, 409);
         }
-        throw new AppError('CANTON_ERROR', msg, 502);
+        const mapped = mapCantonError(err);
+        throw new AppError(mapped.code as ApiErrorCode, mapped.userMessage, mapped.httpStatus);
       }
     }
   );
@@ -182,13 +185,14 @@ export async function borrowRoutes(fastify: FastifyInstance): Promise<void> {
         return reply.status(200).send(response);
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
-        if (msg.includes('not found')) {
+        if (msg.includes('not found') && !msg.includes('ENOTFOUND')) {
           throw new AppError('POSITION_NOT_FOUND', `Position ${positionId} not found`, 404);
         }
         if (msg.includes('CONTRACT_NOT_FOUND') || msg.includes('CONTRACT_NOT_ACTIVE')) {
           throw new AppError('CANTON_CONFLICT', msg, 409);
         }
-        throw new AppError('CANTON_ERROR', msg, 502);
+        const mapped = mapCantonError(err);
+        throw new AppError(mapped.code as ApiErrorCode, mapped.userMessage, mapped.httpStatus);
       }
     }
   );

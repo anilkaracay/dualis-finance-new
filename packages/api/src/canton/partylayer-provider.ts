@@ -8,8 +8,10 @@
 // to CantonClient. This interface can later wrap @canton-network/dapp-sdk.
 // ============================================================================
 
+import axios from 'axios';
 import { nanoid } from 'nanoid';
 import { createChildLogger } from '../config/logger.js';
+import { cantonConfig } from '../config/canton-env.js';
 import { CantonClient } from './client.js';
 
 const log = createChildLogger('partylayer');
@@ -179,21 +181,35 @@ export class CantonPartyLayerProvider implements IPartyLayerProvider {
   }
 
   async allocateParty(
-    _userId: string,
+    userId: string,
     displayName: string,
   ): Promise<{ partyId: string }> {
-    const canton = CantonClient.getInstance();
+    const config = cantonConfig();
+    const partyIdHint = `dualis-user-${userId.replace(/[^a-zA-Z0-9_-]/g, '')}`;
+
     try {
-      const result = await canton.createContract(
-        'Dualis.Party:PartyAllocation',
-        { displayName },
+      // Canton JSON API v3.4.x: POST /v2/parties with partyIdHint
+      const response = await axios.post(
+        `${config.jsonApiUrl}/v2/parties`,
+        { partyIdHint, displayName },
+        {
+          headers: { 'Content-Type': 'application/json' },
+          timeout: 30_000,
+        },
       );
-      const partyId = result.contractId ?? `party::user_${nanoid(12)}`;
-      log.info({ partyId, displayName }, 'Canton: party allocated');
+      // Response: { partyDetails: { party: "hint::namespace", isLocal: true, ... } }
+      const partyId = (response.data?.partyDetails?.party ?? response.data?.party) as string;
+      log.info({ partyId, displayName, partyIdHint }, 'Canton: party allocated via JSON API');
       return { partyId };
     } catch (err) {
-      log.warn({ err }, 'Canton: party allocation failed, generating local ID');
-      return { partyId: `party::user_${nanoid(12)}` };
+      // 409 = party already exists — idempotent
+      if (axios.isAxiosError(err) && err.response?.status === 409) {
+        const partyId = (err.response.data?.partyDetails?.party ?? partyIdHint) as string;
+        log.info({ partyId, partyIdHint }, 'Canton: party already exists (idempotent)');
+        return { partyId };
+      }
+      log.error({ err, userId, partyIdHint }, 'Canton: party allocation failed');
+      throw new Error(`Failed to allocate Canton party for user ${userId}`);
     }
   }
 

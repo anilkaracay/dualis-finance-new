@@ -95,6 +95,9 @@ import { supplyRoutes } from './routes/supply.js';
 // Rewards routes (MP25)
 import { rewardRoutes } from './routes/rewards.js';
 
+// User balance routes (MP16 — per-user on-chain positions)
+import { userBalanceRoutes } from './routes/user-balances.js';
+
 // Compliance queues & workers (MP21)
 import { initComplianceQueues, closeComplianceQueues } from './compliance/queue.js';
 import { startWalletScreeningWorker, stopWalletScreeningWorker } from './compliance/workers/wallet-screening.worker.js';
@@ -362,6 +365,9 @@ async function main(): Promise<void> {
 
     // Rewards (MP25)
     await app.register(rewardRoutes);
+
+    // User balances (MP16 — per-user on-chain positions)
+    await app.register(userBalanceRoutes);
 
     // Alias: /notification-preferences → /notifications/preferences
     app.get('/notification-preferences', async (_request, reply) => {

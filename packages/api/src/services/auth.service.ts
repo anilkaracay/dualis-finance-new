@@ -10,7 +10,9 @@ import { AppError } from '../middleware/errorHandler.js';
 import type { AuthUser, AuthSession } from '@dualis/shared';
 import * as walletPreferencesService from './walletPreferences.service.js';
 import * as walletService from './wallet.service.js';
+import * as partyMappingService from './partyMapping.service.js';
 import { notificationBus } from '../notification/notification.bus.js';
+import { getPartyLayerProvider } from '../canton/partylayer.js';
 
 const log = createChildLogger('auth-service');
 
@@ -31,6 +33,24 @@ function hashToken(token: string): string {
 function generatePartyId(role: string): string {
   const prefix = role === 'institutional' ? 'inst' : 'user';
   return `party::${prefix}_${nanoid(12)}`;
+}
+
+/**
+ * Allocate a real Canton party for a user.
+ * Falls back to a mock party ID when CANTON_MOCK=true.
+ */
+async function allocateRealParty(role: string, userId: string): Promise<string> {
+  if (env.CANTON_MOCK) {
+    return generatePartyId(role);
+  }
+  try {
+    const provider = getPartyLayerProvider();
+    const { partyId } = await provider.allocateParty(userId, `${role}_${userId}`);
+    return partyId;
+  } catch (err) {
+    log.error({ err, userId, role }, 'Failed to allocate Canton party, falling back to mock');
+    return generatePartyId(role);
+  }
 }
 
 function toAuthUser(row: typeof schema.users.$inferSelect): AuthUser {
@@ -192,7 +212,7 @@ export async function registerRetail(
   }
 
   const userId = nanoid(24);
-  const partyId = generatePartyId('retail');
+  const partyId = await allocateRealParty('retail', userId);
   const passwordHash = await bcrypt.hash(password, env.BCRYPT_ROUNDS);
 
   // Create user
@@ -211,6 +231,13 @@ export async function registerRetail(
   await db.insert(schema.retailProfiles).values({
     userId,
   });
+
+  // Create party mapping for Canton
+  try {
+    await partyMappingService.createPartyMappingDirect(userId, partyId, 'custodial');
+  } catch (err) {
+    log.warn({ err, userId }, 'Failed to create party mapping');
+  }
 
   // Create email verification token
   const verificationToken = randomBytes(32).toString('hex');
@@ -258,7 +285,7 @@ export async function registerInstitutional(
   }
 
   const userId = nanoid(24);
-  const partyId = generatePartyId('institutional');
+  const partyId = await allocateRealParty('institutional', userId);
   const institutionId = `inst_${nanoid(16)}`;
   const passwordHash = await bcrypt.hash(password, env.BCRYPT_ROUNDS);
 
@@ -273,6 +300,13 @@ export async function registerInstitutional(
     partyId,
     displayName: `${repFirstName} ${repLastName}`,
   });
+
+  // Create party mapping for Canton
+  try {
+    await partyMappingService.createPartyMappingDirect(userId, partyId, 'custodial');
+  } catch (err) {
+    log.warn({ err, userId }, 'Failed to create party mapping');
+  }
 
   // Create institution record
   await db.insert(schema.institutions).values({
@@ -458,7 +492,7 @@ export async function loginWithWallet(
 
   // New user — create retail account with wallet
   const userId = nanoid(24);
-  const partyId = generatePartyId('retail');
+  const partyId = await allocateRealParty('retail', userId);
   const tempEmail = `${normalizedAddress.slice(0, 10)}@wallet.dualis.finance`;
 
   await db.insert(schema.users).values({
@@ -473,6 +507,13 @@ export async function loginWithWallet(
   });
 
   await db.insert(schema.retailProfiles).values({ userId });
+
+  // Create party mapping for Canton
+  try {
+    await partyMappingService.createPartyMappingDirect(userId, partyId, 'custodial');
+  } catch (err) {
+    log.warn({ err, userId }, 'Failed to create party mapping for wallet user');
+  }
 
   const session = await createSession(userId, req);
   const user = (await getUserById(userId))!;

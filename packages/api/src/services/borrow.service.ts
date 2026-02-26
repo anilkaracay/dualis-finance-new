@@ -18,6 +18,7 @@ import {
   type HealthFactorResult,
 } from '@dualis/shared';
 import { randomUUID } from 'node:crypto';
+import { nanoid } from 'nanoid';
 import { env } from '../config/env.js';
 import { cantonConfig } from '../config/canton-env.js';
 import { CantonClient } from '../canton/client.js';
@@ -26,6 +27,7 @@ import * as compositeCreditService from './compositeCredit.service.js';
 import * as poolService from './pool.service.js';
 import * as registry from './poolRegistry.js';
 import { trackActivity } from './reward-tracker.service.js';
+import { getDb, schema } from '../db/client.js';
 
 const log = createChildLogger('borrow-service');
 
@@ -35,6 +37,33 @@ function buildTransactionMeta(): TransactionMeta {
     status: 'confirmed',
     timestamp: new Date().toISOString(),
   };
+}
+
+/** Fire-and-forget Canton transaction log. */
+function logTransaction(opts: {
+  userId?: string | undefined;
+  partyId: string;
+  templateId: string;
+  choiceName: string;
+  amountUsd: number;
+  txHash?: string;
+}): void {
+  const db = getDb();
+  if (!db || !opts.userId) return;
+  db.insert(schema.transactionLogs)
+    .values({
+      transactionLogId: `txl_${nanoid(16)}`,
+      userId: opts.userId,
+      partyId: opts.partyId,
+      templateId: opts.templateId,
+      choiceName: opts.choiceName,
+      routingMode: 'proxy',
+      status: 'confirmed',
+      txHash: opts.txHash ?? null,
+      amountUsd: opts.amountUsd.toFixed(2),
+      confirmedAt: new Date(),
+    })
+    .catch((err: unknown) => log.warn({ err }, 'Failed to log transaction'));
 }
 
 /**
@@ -231,22 +260,21 @@ export async function requestBorrow(
     }
     if (newPoolCid === pool.contractId) {
       try {
-        const { getPoolByKey } = await import('../canton/queries.js');
-        const fresh = await getPoolByKey(params.lendingPoolId);
+        const fresh = await cantonQueries.getPoolByKey(params.lendingPoolId);
         if (fresh) newPoolCid = fresh.contractId;
       } catch { /* fallthrough */ }
     }
     pool.contractId = newPoolCid;
     pool.totalBorrow += borrowAmount;
 
-    // Create a BorrowPosition contract on-ledger
+    // Create a BorrowPosition contract on-ledger (user as borrower, dual-signatory)
     const operatorParty = cantonConfig().parties.operator;
     const collateralCfg = getCollateralParams(poolAsset);
     const borrowPosResult = await client.createContract(
       'Dualis.Lending.Borrow:BorrowPosition',
       {
         operator: operatorParty,
-        borrower: operatorParty,
+        borrower: partyId,
         positionId: `borrow-pos-${randomUUID().slice(0, 8)}`,
         poolId: params.lendingPoolId,
         borrowedAsset: {
@@ -287,16 +315,26 @@ export async function requestBorrow(
         isActive: true,
         isLiquidatable: false,
       },
+      { actAs: [operatorParty, partyId] },
     );
 
     // Fire-and-forget reward tracking
     void trackActivity({
       activityType: 'borrow',
       userId,
-      partyId: operatorParty,
+      partyId,
       poolId: params.lendingPoolId,
       asset: poolAsset,
       amount: borrowAmountUSD,
+    });
+
+    // Fire-and-forget transaction log
+    logTransaction({
+      userId,
+      partyId,
+      templateId: 'Dualis.Lending.Borrow:BorrowPosition',
+      choiceName: 'CreateBorrow',
+      amountUsd: borrowAmountUSD,
     });
 
     return {
@@ -355,9 +393,8 @@ export async function getPositions(
   // ---------- Canton mode: query real BorrowPosition contracts ----------
   if (!env.CANTON_MOCK) {
     try {
-      // Use operator party for Canton queries — all positions are created with operator as borrower
-      const operatorParty = cantonConfig().parties.operator;
-      const contracts = await cantonQueries.getUserPositions(operatorParty);
+      // Query positions by user's party — each position has borrower = userPartyId
+      const contracts = await cantonQueries.getUserPositions(partyId);
 
       return contracts.map((c) => {
         const p = c.payload as unknown as Record<string, unknown>;
@@ -418,8 +455,8 @@ export async function repay(
     const client = CantonClient.getInstance();
     const operatorParty = cantonConfig().parties.operator;
 
-    // Find the BorrowPosition contract by querying with operator party
-    const positions = await cantonQueries.getUserPositions(operatorParty);
+    // Find the BorrowPosition contract by querying user's positions
+    const positions = await cantonQueries.getUserPositions(partyId);
     const posContract = positions.find(c => {
       const p = c.payload as unknown as Record<string, unknown>;
       return (p.positionId as string) === positionId || c.contractId === positionId;
@@ -434,7 +471,7 @@ export async function repay(
     const pool = registry.getPool(poolId);
     const currentBorrowIndex = pool ? pool.borrowIndex.toFixed(10) : '1.0000000000';
 
-    // Exercise Repay on BorrowPosition
+    // Exercise Repay on BorrowPosition (controller borrower — needs dual-signatory)
     await client.exerciseChoice(
       'Dualis.Lending.Borrow:BorrowPosition',
       posContract.contractId,
@@ -444,6 +481,7 @@ export async function repay(
         currentBorrowIndex,
         repayTime: new Date().toISOString(),
       },
+      { actAs: [operatorParty, partyId] },
     );
 
     // Also exercise RecordRepay on the LendingPool to update totalBorrow
@@ -468,8 +506,7 @@ export async function repay(
       }
       if (newPoolCid === pool.contractId) {
         try {
-          const { getPoolByKey } = await import('../canton/queries.js');
-          const fresh = await getPoolByKey(poolId);
+          const fresh = await cantonQueries.getPoolByKey(poolId);
           if (fresh) newPoolCid = fresh.contractId;
         } catch { /* fallthrough */ }
       }
@@ -491,10 +528,19 @@ export async function repay(
     void trackActivity({
       activityType: 'repay',
       userId,
-      partyId: operatorParty,
+      partyId,
       poolId,
       asset: repayAsset,
       amount: repayAmount * repayPriceUSD,
+    });
+
+    // Fire-and-forget transaction log
+    logTransaction({
+      userId,
+      partyId,
+      templateId: 'Dualis.Lending.Borrow:BorrowPosition',
+      choiceName: 'Repay',
+      amountUsd: repayAmount * repayPriceUSD,
     });
 
     return {
@@ -551,8 +597,8 @@ export async function addCollateral(
     const client = CantonClient.getInstance();
     const operatorParty = cantonConfig().parties.operator;
 
-    // Find the BorrowPosition contract using operator party
-    const positions = await cantonQueries.getUserPositions(operatorParty);
+    // Find the BorrowPosition contract by querying user's positions
+    const positions = await cantonQueries.getUserPositions(partyId);
     const posContract = positions.find(c => {
       const p = c.payload as unknown as Record<string, unknown>;
       return (p.positionId as string) === positionId || c.contractId === positionId;
@@ -564,7 +610,7 @@ export async function addCollateral(
 
     const addedValueUSD = parseFloat(asset.amount) * getAssetPrice(asset.symbol);
 
-    // Exercise AddCollateral on BorrowPosition
+    // Exercise AddCollateral on BorrowPosition (controller borrower — dual-signatory)
     await client.exerciseChoice(
       'Dualis.Lending.Borrow:BorrowPosition',
       posContract.contractId,
@@ -578,6 +624,7 @@ export async function addCollateral(
         },
         updateTime: new Date().toISOString(),
       },
+      { actAs: [operatorParty, partyId] },
     );
 
     const payload = posContract.payload as unknown as Record<string, unknown>;
@@ -590,9 +637,18 @@ export async function addCollateral(
     void trackActivity({
       activityType: 'add_collateral',
       userId,
-      partyId: operatorParty,
+      partyId,
       asset: asset.symbol,
       amount: addedValueUSD,
+    });
+
+    // Fire-and-forget transaction log
+    logTransaction({
+      userId,
+      partyId,
+      templateId: 'Dualis.Lending.Borrow:BorrowPosition',
+      choiceName: 'AddCollateral',
+      amountUsd: addedValueUSD,
     });
 
     return {

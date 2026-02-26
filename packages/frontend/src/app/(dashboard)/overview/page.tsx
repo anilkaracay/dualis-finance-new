@@ -15,6 +15,7 @@ import { Factory, Building2, ShieldCheck, Fingerprint, ArrowRight } from 'lucide
 import { useWalletStore } from '@/stores/useWalletStore';
 import { usePositionStore } from '@/stores/usePositionStore';
 import { useProtocolStore } from '@/stores/useProtocolStore';
+import { useBalanceStore } from '@/stores/useBalanceStore';
 import type { CreditTier } from '@dualis/shared';
 
 // ---------------------------------------------------------------------------
@@ -522,13 +523,15 @@ export default function OverviewPage() {
     fetchPositions,
   } = usePositionStore();
   const { fetchPools, isDemo: poolsDemo } = useProtocolStore();
+  const { fetchBalances } = useBalanceStore();
 
   const [positionTab, setPositionTab] = useState<'supply' | 'borrow' | 'seclend'>('supply');
 
   useEffect(() => {
     fetchPositions();
     fetchPools();
-  }, [fetchPositions, fetchPools]);
+    fetchBalances();
+  }, [fetchPositions, fetchPools, fetchBalances]);
 
   // ---------- Computed values ----------
 

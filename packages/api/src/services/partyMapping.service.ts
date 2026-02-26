@@ -79,6 +79,39 @@ export async function createPartyMapping(
 }
 
 /**
+ * Create a party mapping with an already-known partyId (skips allocation).
+ * Used during registration when the party was allocated separately.
+ */
+export async function createPartyMappingDirect(
+  userId: string,
+  partyId: string,
+  custodyMode: CustodyMode,
+): Promise<PartyMapping> {
+  const db = requireDb();
+  const mappingId = `pm_${nanoid(16)}`;
+
+  const inserted = await db
+    .insert(schema.partyMappings)
+    .values({
+      mappingId,
+      userId,
+      partyId,
+      walletConnectionId: null,
+      custodyMode,
+      isActive: true,
+    })
+    .returning();
+
+  const row = inserted[0];
+  if (!row) {
+    throw new AppError('INTERNAL_ERROR', 'Failed to create party mapping', 500);
+  }
+
+  log.info({ userId, mappingId, partyId, custodyMode }, 'Direct party mapping created');
+  return toPartyMapping(row);
+}
+
+/**
  * Get all party mappings for a user.
  */
 export async function getPartyMappings(

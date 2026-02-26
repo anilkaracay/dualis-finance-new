@@ -218,20 +218,41 @@ apiClient.interceptors.response.use(
 // ---------------------------------------------------------------------------
 // Error parser – safely extract a displayable message from any error shape
 // ---------------------------------------------------------------------------
+const TECHNICAL_ERROR_PATTERNS = [
+  /getaddrinfo\s+\w+/i,
+  /ECONNREFUSED/i,
+  /ETIMEDOUT/i,
+  /ECONNRESET/i,
+  /socket hang up/i,
+  /ERR_NETWORK/i,
+  /Network Error/i,
+  /Request failed with status code 5\d{2}/i,
+];
+
 export function parseError(err: unknown): string {
+  let message: string;
+
   if (err instanceof Error) {
-    return err.message;
-  }
-  if (typeof err === 'string') {
-    return err;
-  }
-  if (
+    message = err.message;
+  } else if (typeof err === 'string') {
+    message = err;
+  } else if (
     err !== null &&
     typeof err === 'object' &&
     'message' in err &&
     typeof (err as { message: unknown }).message === 'string'
   ) {
-    return (err as { message: string }).message;
+    message = (err as { message: string }).message;
+  } else {
+    return 'An unexpected error occurred';
   }
-  return 'An unexpected error occurred';
+
+  // Sanitize any raw technical messages that slip through
+  for (const pattern of TECHNICAL_ERROR_PATTERNS) {
+    if (pattern.test(message)) {
+      return 'Service temporarily unavailable. Please try again.';
+    }
+  }
+
+  return message;
 }

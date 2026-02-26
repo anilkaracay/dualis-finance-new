@@ -82,6 +82,37 @@ preflight() {
     ok "Pre-flight checks passed"
 }
 
+# ─── Step 0.5: Ensure Canton network + discover participant IP ────────────
+ensure_canton_network() {
+    log "Ensuring Canton network connectivity..."
+
+    ssh_cmd bash <<'SSHEOF'
+        set -euo pipefail
+
+        # Check if the external network exists
+        if docker network ls --format '{{.Name}}' | grep -q 'splice-validator_splice_validator'; then
+            echo "[✓] Canton network 'splice-validator_splice_validator' exists"
+        else
+            echo "[!] Canton network not found — will rely on extra_hosts"
+        fi
+
+        # Discover the Canton participant container IP
+        PARTICIPANT_IP=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' splice-validator-participant-1 2>/dev/null | tr -d ' ' || echo "")
+        if [ -n "$PARTICIPANT_IP" ]; then
+            echo "[✓] Canton participant IP: $PARTICIPANT_IP"
+            # Update ONLY the extra_hosts line (not URLs that contain the hostname)
+            if grep -q 'splice-validator-participant-1:' /root/dualis/docker-compose.devnet.yml; then
+                sed -i "/extra_hosts/,/restart/{s/splice-validator-participant-1:[0-9.]*/splice-validator-participant-1:${PARTICIPANT_IP}/}" /root/dualis/docker-compose.devnet.yml
+                echo "[✓] Updated extra_hosts with IP: $PARTICIPANT_IP"
+            fi
+        else
+            echo "[!] Cannot find participant container — using existing extra_hosts"
+        fi
+SSHEOF
+
+    ok "Canton network setup complete"
+}
+
 # ─── Step 1: Sync files to remote ──────────────────────────────────────────
 sync_files() {
     log "Syncing project files to ${REMOTE_HOST}:${REMOTE_DIR}..."
@@ -323,6 +354,7 @@ main() {
     # Full deployment
     preflight
     sync_files
+    ensure_canton_network
     setup_ssl
     deploy_services
     run_migrations
