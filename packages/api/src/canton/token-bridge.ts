@@ -413,148 +413,83 @@ export class CIP56TokenBridge implements ITokenBridge {
 // ---------------------------------------------------------------------------
 
 /**
- * Queries the Canton participant for Splice ecosystem token contracts
- * (CC/Amulet, CBTC, USDCx) to read real wallet balances.
+ * Queries the Splice Wallet REST API for real CC/Amulet balances.
  *
- * Wallet-agnostic: reads from Canton ledger regardless of which PartyLayer
- * wallet the user connected through (Console, Loop, Cantor8, Nightly, Bron).
+ * Uses the validator's Splice Wallet API (`/api/validator/v0/wallet/balance`)
+ * with HS256 JWT auth. Returns the operator (validator) party's CC balance.
+ *
+ * Requires SPLICE_WALLET_API_URL env var to be set (e.g. http://172.18.0.2:5003).
  */
 export class SpliceBalanceBridge implements ITokenBridge {
-  private readonly config: CantonConfig;
+  private readonly walletApiUrl: string | null;
+  private readonly jwtSecret: string;
+  private readonly jwtAudience: string;
 
-  constructor(config: CantonConfig) {
-    this.config = config;
-    log.info('SpliceBalanceBridge initialized (real Canton balance queries)');
+  constructor(_config: CantonConfig) {
+    this.walletApiUrl = process.env.SPLICE_WALLET_API_URL ?? null;
+    this.jwtSecret = process.env.SPLICE_WALLET_JWT_SECRET ?? 'unsafe';
+    this.jwtAudience = process.env.SPLICE_WALLET_JWT_AUDIENCE ?? 'https://validator.example.com';
+    log.info({ walletApiUrl: this.walletApiUrl ? 'configured' : 'not-set' }, 'SpliceBalanceBridge initialized');
+  }
+
+  private generateJwt(sub: string): string {
+    const { createHmac } = require('crypto') as typeof import('crypto');
+    const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url');
+    const now = Math.floor(Date.now() / 1000);
+    const payload = Buffer.from(JSON.stringify({
+      sub,
+      aud: this.jwtAudience,
+      scope: 'daml_ledger_api',
+      iat: now,
+      exp: now + 3600,
+    })).toString('base64url');
+    const signature = createHmac('sha256', this.jwtSecret)
+      .update(`${header}.${payload}`)
+      .digest('base64url');
+    return `${header}.${payload}.${signature}`;
   }
 
   async getBalance(party: string, symbol?: string): Promise<BalanceResult> {
-    const { default: axios } = await import('axios');
-
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-    };
-    if (this.config.jwtToken) {
-      headers['Authorization'] = `Bearer ${this.config.jwtToken}`;
+    if (!this.walletApiUrl) {
+      log.debug('SPLICE_WALLET_API_URL not configured, skipping Splice balance query');
+      return { party, balances: [] };
     }
 
+    const { default: axios } = await import('axios');
+
     try {
-      // First get the latest offset (required by Canton 3.4.x)
-      let offset = 0;
-      try {
-        const offsetRes = await axios.get<{ offset: number }>(
-          `${this.config.jsonApiUrl}/v2/state/ledger-end`,
-          { headers, timeout: 5000 },
-        );
-        offset = offsetRes.data.offset;
-      } catch {
-        log.debug('Could not fetch ledger-end offset, using 0');
+      // Query Splice Wallet API as administrator (validator)
+      const jwt = this.generateJwt('administrator');
+      const response = await axios.get<{
+        round: number;
+        effective_unlocked_qty: string;
+        effective_locked_qty: string;
+      }>(`${this.walletApiUrl}/api/validator/v0/wallet/balance`, {
+        headers: { Authorization: `Bearer ${jwt}` },
+        timeout: 10000,
+      });
+
+      const unlocked = parseFloat(response.data.effective_unlocked_qty) || 0;
+      const locked = parseFloat(response.data.effective_locked_qty) || 0;
+      const total = unlocked + locked;
+
+      if (total <= 0) {
+        return { party, balances: [] };
       }
 
-      // Query active contracts for this party using a wildcard template filter.
-      // Canton 3.4.x requires non-empty templateFilters — use includeCreatedEventBlob
-      // to get all contracts visible to this party.
-      const response = await axios.post(
-        `${this.config.jsonApiUrl}/v2/state/active-contracts`,
-        {
-          filter: {
-            filtersByParty: {
-              [party]: {
-                templateFilters: [{ includeCreatedEventBlob: false }],
-              },
-            },
-          },
-          activeAtOffset: offset,
-        },
-        { headers, timeout: this.config.commandTimeoutMs },
-      );
-
-      const entries = Array.isArray(response.data) ? response.data : [];
-      const balanceMap = new Map<string, number>();
-
-      // Parse each active contract, looking for token-like payloads
-      for (const entry of entries) {
-        const ac = entry?.contractEntry?.JsActiveContract;
-        if (!ac) continue;
-        const ev = ac.createdEvent;
-        if (!ev) continue;
-
-        const templateId: string = ev.templateId ?? '';
-        const payload = ev.createArgument ?? {};
-
-        // Detect Splice Amulet (CC / Canton Coin)
-        if (templateId.includes('Amulet') && !templateId.includes('Locked')) {
-          const amount = this.extractAmount(payload);
-          if (amount > 0) {
-            balanceMap.set('CC', (balanceMap.get('CC') ?? 0) + amount);
-          }
-          continue;
-        }
-
-        // Detect wrapped tokens (CBTC, USDCx) by template or payload fields
-        if (templateId.includes('TransferInProgress') || templateId.includes('AmuletRules')) {
-          continue; // Skip non-balance contracts
-        }
-
-        // Generic token detection: look for amount/balance fields with symbol
-        const sym = this.extractSymbol(payload, templateId);
-        if (sym) {
-          const amount = this.extractAmount(payload);
-          if (amount > 0) {
-            balanceMap.set(sym, (balanceMap.get(sym) ?? 0) + amount);
-          }
-        }
-      }
-
-      // Build result
       const balances: TokenAmount[] = [];
-      for (const [sym, amount] of balanceMap) {
-        if (symbol && sym !== symbol) continue;
-        balances.push({ symbol: sym, amount: String(amount) });
+      if (!symbol || symbol === 'CC') {
+        balances.push({ symbol: 'CC', amount: String(Math.floor(total)) });
       }
 
-      if (balances.length > 0) {
-        log.info({ party: party.slice(0, 20), balances: balances.length }, 'Splice balances found');
-      }
-
+      log.info({ party: party.slice(0, 20), cc: total.toFixed(2) }, 'Splice wallet balance queried');
       return { party, balances };
     } catch (error) {
-      log.debug({ error: error instanceof Error ? error.message : 'unknown', party: party.slice(0, 20) }, 'Splice balance query failed');
+      log.debug({ error: error instanceof Error ? error.message : 'unknown' }, 'Splice Wallet API balance query failed');
       return { party, balances: [] };
     }
   }
 
-  /** Extract a numeric amount from a contract payload. */
-  private extractAmount(payload: Record<string, unknown>): number {
-    // Splice Amulet uses nested amount structure
-    if (payload.amount && typeof payload.amount === 'object') {
-      const amt = payload.amount as Record<string, unknown>;
-      if ('initialAmount' in amt) return Number(amt.initialAmount) || 0;
-      if ('amount' in amt) return Number(amt.amount) || 0;
-    }
-    if (typeof payload.amount === 'string' || typeof payload.amount === 'number') {
-      return Number(payload.amount) || 0;
-    }
-    if (typeof payload.balance === 'string' || typeof payload.balance === 'number') {
-      return Number(payload.balance) || 0;
-    }
-    return 0;
-  }
-
-  /** Extract a token symbol from payload or template ID. */
-  private extractSymbol(payload: Record<string, unknown>, templateId: string): string | null {
-    // Check payload for explicit symbol field
-    if (payload.symbol && typeof payload.symbol === 'string') return payload.symbol;
-    if (payload.asset && typeof payload.asset === 'object') {
-      const asset = payload.asset as Record<string, unknown>;
-      if (asset.symbol && typeof asset.symbol === 'string') return asset.symbol;
-    }
-    // Infer from template ID
-    if (templateId.includes('WrappedBTC') || templateId.includes('CBTC')) return 'CBTC';
-    if (templateId.includes('WrappedUSDC') || templateId.includes('USDCx')) return 'USDCx';
-    return null;
-  }
-
-  // SpliceBalanceBridge cannot transfer/mint/burn Splice tokens — not our contracts
   async transfer(): Promise<TransferResult> {
     return { transactionId: `splice-unsupported-${Date.now()}`, status: 'failed', timestamp: new Date().toISOString(), details: { error: 'Splice token transfers not supported via this bridge' } };
   }
@@ -566,9 +501,14 @@ export class SpliceBalanceBridge implements ITokenBridge {
   }
 
   async isHealthy(): Promise<boolean> {
+    if (!this.walletApiUrl) return false;
     const { default: axios } = await import('axios');
     try {
-      await axios.get(`${this.config.jsonApiUrl}/readyz`, { timeout: 5000 });
+      const jwt = this.generateJwt('administrator');
+      await axios.get(`${this.walletApiUrl}/api/validator/v0/wallet/balance`, {
+        headers: { Authorization: `Bearer ${jwt}` },
+        timeout: 5000,
+      });
       return true;
     } catch {
       return false;

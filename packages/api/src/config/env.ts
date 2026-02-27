@@ -24,6 +24,11 @@ const envSchema = z.object({
   CANTON_OPERATOR_PARTY: z.string().default('party::operator'),
   CANTON_ORACLE_PARTY: z.string().default('party::oracle'),
 
+  // Splice Wallet API (validator wallet REST API for CC balance queries)
+  SPLICE_WALLET_API_URL: z.string().optional(),
+  SPLICE_WALLET_JWT_SECRET: z.string().default('unsafe'),
+  SPLICE_WALLET_JWT_AUDIENCE: z.string().default('https://validator.example.com'),
+
   // Database
   DATABASE_URL: z.string().default('postgresql://localhost:5432/dualis'),
   DB_POOL_MIN: z.coerce.number().default(2),
