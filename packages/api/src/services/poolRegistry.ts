@@ -82,7 +82,7 @@ const INITIAL_POOLS: PoolState[] = [
   },
   {
     poolId: 'cc-main',
-    asset: { symbol: 'CC', type: 'CryptoCurrency', priceUSD: 1.00 },
+    asset: { symbol: 'CC', type: 'CryptoCurrency', priceUSD: 0.1756 },
     totalSupply: 89_000_000,
     totalBorrow: 34_200_000,
     totalReserves: 890_000,

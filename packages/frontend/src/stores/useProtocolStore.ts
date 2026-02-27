@@ -80,7 +80,7 @@ const MOCK_POOLS: PoolData[] = [
     utilization: 0.3843,
     supplyAPY: 0.0156,
     borrowAPY: 0.0378,
-    priceUSD: 1.00,
+    priceUSD: 0.1756,
     isActive: true,
   },
   {

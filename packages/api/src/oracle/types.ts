@@ -86,7 +86,7 @@ export const COINGECKO_ID_MAP: Record<string, string> = {
   ETH: 'ethereum',
   USDC: 'usd-coin',
   USDT: 'tether',
-  // CC and DUAL have no CoinGecko listing — priced via TIFA internal feed
+  CC: 'canton-network',
 };
 
 /** Asset symbol to Binance trade symbol mapping */
@@ -116,7 +116,6 @@ export const DEFAULT_NAV_PRICES: Record<string, number> = {
 /** TIFA internal feed prices (tokens without public market listings) */
 export const DEFAULT_TIFA_PRICES: Record<string, number> = {
   DUAL: 2.45,
-  CC: 1.00, // Canton Coin — devnet price, updateable via POST /oracle/manual/CC
 };
 
 /** Supported oracle assets (union of all sources) */
