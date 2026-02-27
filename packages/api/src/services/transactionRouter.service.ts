@@ -111,6 +111,8 @@ export async function routeTransaction(
     compoundOp?: string;
     /** Metadata passed to the post-sign callback */
     compoundMeta?: Record<string, unknown>;
+    /** Override actAs party — use the connected wallet's party instead of the user's DB party */
+    walletParty?: string;
   },
 ): Promise<TransactionResult> {
   const db = requireDb();
@@ -119,8 +121,8 @@ export async function routeTransaction(
   // Load user preferences
   const prefs = await walletPreferencesService.getPreferences(userId);
 
-  // Resolve party
-  const partyId = await partyMappingService.resolvePartyId(userId);
+  // Resolve party — prefer connected wallet's party when provided (wallet-sign mode)
+  const partyId = params.walletParty || await partyMappingService.resolvePartyId(userId);
 
   // Determine routing
   const routingMode = determineRoutingMode(

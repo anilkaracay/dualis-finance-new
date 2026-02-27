@@ -199,8 +199,13 @@ export function usePartyLayer(): UsePartyLayerReturn {
    * For wallet-sign mode, uses PartyLayer to sign the payload.
    */
   const submitTransaction = useCallback(async (params: SubmitTransactionRequest): Promise<TransactionResult> => {
+    // Inject the connected wallet's party so backend uses it as actAs in signing payloads
+    const walletParty = params.walletParty || (session ? String(session.partyId) : store.party) || undefined;
     // Route through our backend first (determines proxy vs wallet-sign)
-    const { data: result } = await walletApi.submitTransaction(params);
+    const { data: result } = await walletApi.submitTransaction({
+      ...params,
+      ...(walletParty ? { walletParty } : {}),
+    });
 
     // If backend says we need a wallet signature, use PartyLayer to sign
     if (result.requiresWalletSign && result.signingPayload) {
@@ -226,7 +231,8 @@ export function usePartyLayer(): UsePartyLayerReturn {
     }
 
     return result;
-  }, [plSignTx]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [plSignTx, session?.sessionId, store.party]);
 
   /**
    * Sign and submit a pending transaction (for wallet-sign mode).

@@ -178,6 +178,7 @@ export async function requestBorrow(
   params: BorrowRequest,
   userId?: string | undefined,
   routingMode?: TransactionRoutingMode,
+  walletParty?: string,
 ): Promise<{ data: BorrowResponse; transaction: TransactionMeta } | TransactionResult> {
   log.info({ partyId, params }, 'Processing borrow request');
 
@@ -330,6 +331,7 @@ export async function requestBorrow(
         commandType: 'create',
         forceRoutingMode: 'wallet-sign',
         amountUsd: String(borrowAmountUSD),
+        ...(walletParty ? { walletParty } : {}),
       });
       return txResult;
     }
@@ -471,6 +473,7 @@ export async function repay(
   amount: string,
   userId?: string | undefined,
   routingMode?: TransactionRoutingMode,
+  walletParty?: string,
 ): Promise<{ data: RepayResponse; transaction: TransactionMeta } | TransactionResult> {
   log.info({ partyId, positionId, amount }, 'Processing repayment');
 
@@ -528,6 +531,7 @@ export async function repay(
         amountUsd: String(repayAmountNum * (parseFloat(((payload.borrowedAsset as Record<string, unknown>)?.priceUSD as string) ?? '1'))),
         compoundOp: 'repay',
         compoundMeta: { poolId, amount, partyId },
+        ...(walletParty ? { walletParty } : {}),
       });
       return txResult;
     }
@@ -651,6 +655,7 @@ export async function addCollateral(
   asset: { symbol: string; amount: string },
   userId?: string | undefined,
   routingMode?: TransactionRoutingMode,
+  walletParty?: string,
 ): Promise<{ data: AddCollateralResponse; transaction: TransactionMeta } | TransactionResult> {
   log.info({ partyId, positionId, asset }, 'Adding collateral');
 
@@ -700,6 +705,7 @@ export async function addCollateral(
         contractId: posContract.contractId,
         forceRoutingMode: 'wallet-sign',
         amountUsd: String(addedValueUSD),
+        ...(walletParty ? { walletParty } : {}),
       });
       return txResult;
     }

@@ -1,9 +1,10 @@
 'use client';
 
 import { useCallback, useState } from 'react';
-import { useSignTransaction } from '@partylayer/react';
+import { useSignTransaction, useSession } from '@partylayer/react';
 import { walletApi } from '@/lib/api/wallet';
 import { apiClient, parseError } from '@/lib/api/client';
+import { useWalletStore } from '@/stores/useWalletStore';
 import type { TransactionResult } from '@dualis/shared';
 
 export type WalletOpStatus = 'idle' | 'preparing' | 'signing' | 'submitting' | 'success' | 'failed';
@@ -20,6 +21,8 @@ export type WalletOpStatus = 'idle' | 'preparing' | 'signing' | 'submitting' | '
  */
 export function useWalletOperation<TResponse = unknown>() {
   const { signTransaction: plSignTx } = useSignTransaction();
+  const session = useSession();
+  const storeParty = useWalletStore((s) => s.party);
   const [status, setStatus] = useState<WalletOpStatus>('idle');
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<TResponse | null>(null);
@@ -32,10 +35,12 @@ export function useWalletOperation<TResponse = unknown>() {
     setError(null);
 
     try {
+      // Inject the connected wallet's party so backend uses it as actAs in signing payloads
+      const walletParty = (session ? String(session.partyId) : storeParty) || undefined;
       // Step 1: POST to existing endpoint with wallet-sign routing
       const { data: result } = await apiClient.post<{ data: TResponse | TransactionResult }>(
         apiUrl,
-        { ...body, routingMode: 'wallet-sign' },
+        { ...body, routingMode: 'wallet-sign', walletParty },
       );
 
       const responseData = result.data;
@@ -79,7 +84,8 @@ export function useWalletOperation<TResponse = unknown>() {
       setStatus('failed');
       throw err;
     }
-  }, [plSignTx]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [plSignTx, session?.sessionId, storeParty]);
 
   const reset = useCallback(() => {
     setStatus('idle');

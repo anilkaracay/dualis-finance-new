@@ -37,6 +37,7 @@ export const walletApi = {
     walletConnectionId?: string;
     forceRoutingMode?: string;
     amountUsd?: string;
+    walletParty?: string;
   }) => apiClient.post<TransactionResult>(ENDPOINTS.WALLET_TRANSACTION_SUBMIT, data),
 
   signTransaction: (transactionLogId: string, signature: string) =>

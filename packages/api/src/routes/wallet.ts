@@ -44,6 +44,8 @@ const submitTransactionSchema = z.object({
   walletConnectionId: z.string().optional(),
   forceRoutingMode: z.enum(['proxy', 'wallet-sign', 'auto']).optional(),
   amountUsd: z.string().optional(),
+  /** Connected wallet's Canton party — used as actAs in wallet-sign mode */
+  walletParty: z.string().optional(),
 });
 
 const signTransactionSchema = z.object({
@@ -204,6 +206,7 @@ export async function walletRoutes(fastify: FastifyInstance): Promise<void> {
       if (parsed.data.walletConnectionId != null) txParams.walletConnectionId = parsed.data.walletConnectionId;
       if (parsed.data.forceRoutingMode != null) txParams.forceRoutingMode = parsed.data.forceRoutingMode;
       if (parsed.data.amountUsd != null) txParams.amountUsd = parsed.data.amountUsd;
+      if (parsed.data.walletParty != null) txParams.walletParty = parsed.data.walletParty;
 
       const result = await transactionRouterService.routeTransaction(userId, txParams);
 

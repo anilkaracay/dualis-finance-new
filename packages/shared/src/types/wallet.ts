@@ -106,6 +106,8 @@ export interface SubmitTransactionRequest {
   walletConnectionId?: string;
   forceRoutingMode?: TransactionRoutingMode;
   amountUsd?: string;
+  /** Connected wallet's Canton party — used as actAs in wallet-sign mode */
+  walletParty?: string;
 }
 
 export interface SignTransactionRequest {

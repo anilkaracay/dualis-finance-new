@@ -28,6 +28,7 @@ const borrowRequestSchema = z.object({
     })
   ).min(1),
   routingMode: routingModeSchema,
+  walletParty: z.string().optional(),
 });
 
 const repaySchema = z.object({
@@ -39,6 +40,7 @@ const repaySchema = z.object({
     return num <= 1_000_000_000;
   }, { message: 'Amount exceeds maximum allowed value' }),
   routingMode: routingModeSchema,
+  walletParty: z.string().optional(),
 });
 
 const addCollateralSchema = z.object({
@@ -53,6 +55,7 @@ const addCollateralSchema = z.object({
     }, { message: 'Amount exceeds maximum allowed value' }),
   }),
   routingMode: routingModeSchema,
+  walletParty: z.string().optional(),
 });
 
 export async function borrowRoutes(fastify: FastifyInstance): Promise<void> {
@@ -83,11 +86,11 @@ export async function borrowRoutes(fastify: FastifyInstance): Promise<void> {
         throw new AppError('VALIDATION_ERROR', 'Invalid borrow request', 400, parsed.error.flatten());
       }
 
-      const partyId = request.user!.partyId;
+      const partyId = parsed.data.walletParty || request.user!.partyId;
       const userId = request.user?.userId;
 
       try {
-        const result = await borrowService.requestBorrow(partyId, parsed.data, userId, parsed.data.routingMode);
+        const result = await borrowService.requestBorrow(partyId, parsed.data, userId, parsed.data.routingMode, parsed.data.walletParty);
         // Wallet-sign mode returns TransactionResult directly
         if ('requiresWalletSign' in result) {
           return reply.status(200).send({ data: result });
@@ -144,11 +147,11 @@ export async function borrowRoutes(fastify: FastifyInstance): Promise<void> {
         throw new AppError('VALIDATION_ERROR', 'Invalid repay request', 400, parsed.error.flatten());
       }
 
-      const partyId = request.user!.partyId;
+      const partyId = parsed.data.walletParty || request.user!.partyId;
       const userId = request.user?.userId;
 
       try {
-        const result = await borrowService.repay(partyId, positionId, parsed.data.amount, userId, parsed.data.routingMode);
+        const result = await borrowService.repay(partyId, positionId, parsed.data.amount, userId, parsed.data.routingMode, parsed.data.walletParty);
         if ('requiresWalletSign' in result) {
           return reply.status(200).send({ data: result });
         }
@@ -188,11 +191,11 @@ export async function borrowRoutes(fastify: FastifyInstance): Promise<void> {
         throw new AppError('VALIDATION_ERROR', 'Invalid add collateral request', 400, parsed.error.flatten());
       }
 
-      const partyId = request.user!.partyId;
+      const partyId = parsed.data.walletParty || request.user!.partyId;
       const userId = request.user?.userId;
 
       try {
-        const result = await borrowService.addCollateral(partyId, positionId, parsed.data.asset, userId, parsed.data.routingMode);
+        const result = await borrowService.addCollateral(partyId, positionId, parsed.data.asset, userId, parsed.data.routingMode, parsed.data.walletParty);
         if ('requiresWalletSign' in result) {
           return reply.status(200).send({ data: result });
         }
