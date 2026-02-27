@@ -412,39 +412,55 @@ export class CIP56TokenBridge implements ITokenBridge {
 // SpliceBalanceBridge — queries real Splice/Amulet token balances (wallet-agnostic)
 // ---------------------------------------------------------------------------
 
-/** Response from /v0/admin/external-party/balance */
-interface ExternalPartyBalanceResponse {
+/** Response from Splice Scan API /v0/holdings/summary */
+interface ScanHoldingsSummary {
   party_id: string;
   total_unlocked_coin: string;
   total_locked_coin: string;
   total_coin_holdings: string;
   total_available_coin: string;
+}
+
+interface ScanHoldingsResponse {
+  record_time: string;
+  migration_id: number;
   computed_as_of_round: number;
+  summaries: ScanHoldingsSummary[];
 }
 
 /**
  * Wallet-agnostic Splice balance bridge.
  *
- * - For the validator's own party: queries `/api/validator/v0/wallet/balance`
+ * - For the validator's own party: queries Splice Wallet API `/wallet/balance`
  * - For ANY connected wallet (Console, Loop, Cantor8, Nightly, Bron, etc.):
- *   queries `/api/validator/v0/admin/external-party/balance?party_id=<party>`
+ *   queries the global Splice Scan API `POST /api/scan/v0/holdings/summary`
  *
- * Works across participants — the Splice network indexes global state.
- * Any wallet added to PartyLayer in the future works automatically.
+ * The Scan API indexes the entire Canton network — works for any party on
+ * any participant. No auth required. Any wallet added to PartyLayer in the
+ * future works automatically — zero code changes needed.
  */
 export class SpliceBalanceBridge implements ITokenBridge {
   private readonly walletApiUrl: string | null;
+  private readonly scanApiUrl: string;
   private readonly jwtSecret: string;
   private readonly jwtAudience: string;
   private readonly operatorParty: string;
-  private externalPartyEndpointAvailable = true;
+
+  /** Canton domain migration ID (1 for devnet global domain) */
+  private readonly migrationId: number;
 
   constructor(config: CantonConfig) {
     this.walletApiUrl = process.env.SPLICE_WALLET_API_URL ?? null;
+    this.scanApiUrl = process.env.SPLICE_SCAN_API_URL
+      ?? 'https://scan.sv-1.dev.global.canton.network.sync.global';
     this.jwtSecret = process.env.SPLICE_WALLET_JWT_SECRET ?? 'unsafe';
     this.jwtAudience = process.env.SPLICE_WALLET_JWT_AUDIENCE ?? 'https://validator.example.com';
     this.operatorParty = config.parties.operator;
-    log.info({ walletApiUrl: this.walletApiUrl ? 'configured' : 'not-set' }, 'SpliceBalanceBridge initialized');
+    this.migrationId = parseInt(process.env.SPLICE_MIGRATION_ID ?? '1', 10);
+    log.info({
+      walletApiUrl: this.walletApiUrl ? 'configured' : 'not-set',
+      scanApiUrl: this.scanApiUrl,
+    }, 'SpliceBalanceBridge initialized');
   }
 
   private generateJwt(sub: string): string {
@@ -467,22 +483,13 @@ export class SpliceBalanceBridge implements ITokenBridge {
   // ── Balance query (wallet-agnostic) ──────────────────────────────────────
 
   async getBalance(party: string, symbol?: string): Promise<BalanceResult> {
-    if (!this.walletApiUrl) {
-      log.debug('SPLICE_WALLET_API_URL not configured, skipping Splice balance query');
-      return { party, balances: [] };
-    }
-
-    // Validator's own balance → /wallet/balance
-    if (party === this.operatorParty) {
+    // Validator's own balance → Splice Wallet API (fast, no Scan roundtrip)
+    if (party === this.operatorParty && this.walletApiUrl) {
       return this.getValidatorBalance(party, symbol);
     }
 
-    // Any connected wallet → /admin/external-party/balance (wallet-agnostic)
-    if (this.externalPartyEndpointAvailable) {
-      return this.getExternalPartyBalance(party, symbol);
-    }
-
-    return { party, balances: [] };
+    // ANY party (including validator) → Scan API (wallet-agnostic, global view)
+    return this.getScanBalance(party, symbol);
   }
 
   /** Query validator's own CC balance via Splice Wallet API */
@@ -514,27 +521,52 @@ export class SpliceBalanceBridge implements ITokenBridge {
       log.info({ party: party.slice(0, 20), cc: total.toFixed(2), source: 'validator-self' }, 'Splice balance queried');
       return { party, balances };
     } catch (error) {
-      log.debug({ error: error instanceof Error ? error.message : 'unknown' }, 'Validator balance query failed');
-      return { party, balances: [] };
+      log.debug({ error: error instanceof Error ? error.message : 'unknown' }, 'Validator balance query failed, falling back to Scan API');
+      // Fall back to Scan API
+      return this.getScanBalance(party, symbol);
     }
   }
 
-  /** Query any connected wallet's CC balance via admin external-party endpoint (wallet-agnostic) */
-  private async getExternalPartyBalance(party: string, symbol?: string): Promise<BalanceResult> {
+  /**
+   * Query any party's CC balance via the global Splice Scan API.
+   * Works for ANY wallet — Console, Loop, Cantor8, Nightly, Bron, or future wallets.
+   * No auth required. Uses POST /api/scan/v0/holdings/summary.
+   */
+  private async getScanBalance(party: string, symbol?: string): Promise<BalanceResult> {
     const { default: axios } = await import('axios');
 
     try {
-      const jwt = this.generateJwt('administrator');
-      const response = await axios.get<ExternalPartyBalanceResponse>(
-        `${this.walletApiUrl}/api/validator/v0/admin/external-party/balance`,
+      // First, find the latest available ACS snapshot timestamp.
+      // Scan API takes periodic snapshots (~every 6 hours). We need the most recent one.
+      const snapshotResp = await axios.get<{ record_time: string }>(
+        `${this.scanApiUrl}/api/scan/v0/state/acs/snapshot-timestamp`,
         {
-          params: { party_id: party },
-          headers: { Authorization: `Bearer ${jwt}` },
+          params: { before: new Date().toISOString(), migration_id: this.migrationId },
           timeout: 10000,
         },
       );
+      const recordTime = snapshotResp.data.record_time;
 
-      const total = parseFloat(response.data.total_available_coin) || 0;
+      const response = await axios.post<ScanHoldingsResponse>(
+        `${this.scanApiUrl}/api/scan/v0/holdings/summary`,
+        {
+          migration_id: this.migrationId,
+          record_time: recordTime,
+          owner_party_ids: [party],
+        },
+        {
+          headers: { 'Content-Type': 'application/json' },
+          timeout: 15000,
+        },
+      );
+
+      const summary = response.data.summaries.find((s) => s.party_id === party);
+      if (!summary) {
+        log.debug({ party: party.slice(0, 20) }, 'No holdings found in Scan API');
+        return { party, balances: [] };
+      }
+
+      const total = parseFloat(summary.total_available_coin) || 0;
       if (total <= 0) return { party, balances: [] };
 
       const balances: TokenAmount[] = [];
@@ -542,15 +574,15 @@ export class SpliceBalanceBridge implements ITokenBridge {
         balances.push({ symbol: 'CC', amount: String(Math.floor(total)) });
       }
 
-      log.info({ party: party.slice(0, 20), cc: total.toFixed(2), source: 'external-party' }, 'Splice balance queried');
+      log.info({
+        party: party.slice(0, 20),
+        cc: total.toFixed(2),
+        round: response.data.computed_as_of_round,
+        source: 'scan-api',
+      }, 'Splice balance queried');
       return { party, balances };
     } catch (error) {
-      const axiosErr = error as { response?: { status: number } };
-      if (axiosErr.response?.status === 404) {
-        log.warn('External-party balance endpoint not available (404) — disabling');
-        this.externalPartyEndpointAvailable = false;
-      }
-      log.debug({ error: error instanceof Error ? error.message : 'unknown', party: party.slice(0, 20) }, 'External party balance query failed');
+      log.debug({ error: error instanceof Error ? error.message : 'unknown', party: party.slice(0, 20) }, 'Scan API balance query failed');
       return { party, balances: [] };
     }
   }
@@ -568,35 +600,40 @@ export class SpliceBalanceBridge implements ITokenBridge {
   }
 
   async isHealthy(): Promise<boolean> {
-    if (!this.walletApiUrl) return false;
     const { default: axios } = await import('axios');
-    try {
-      const jwt = this.generateJwt('administrator');
-      await axios.get(`${this.walletApiUrl}/api/validator/v0/wallet/balance`, {
-        headers: { Authorization: `Bearer ${jwt}` },
-        timeout: 5000,
-      });
 
-      // Also probe external-party endpoint availability
+    // Check Splice Wallet API if configured
+    if (this.walletApiUrl) {
       try {
-        await axios.get(
-          `${this.walletApiUrl}/api/validator/v0/admin/external-party/balance`,
-          {
-            params: { party_id: this.operatorParty },
-            headers: { Authorization: `Bearer ${jwt}` },
-            timeout: 5000,
-          },
-        );
-        this.externalPartyEndpointAvailable = true;
-      } catch (err) {
-        const axiosErr = err as { response?: { status: number } };
-        if (axiosErr.response?.status === 404) {
-          this.externalPartyEndpointAvailable = false;
-          log.warn('External-party balance endpoint not available on this validator');
-        }
-        // Other errors (timeout, 500) don't mean it's permanently unavailable
+        const jwt = this.generateJwt('administrator');
+        await axios.get(`${this.walletApiUrl}/api/validator/v0/wallet/balance`, {
+          headers: { Authorization: `Bearer ${jwt}` },
+          timeout: 5000,
+        });
+        return true;
+      } catch {
+        // Wallet API down — check Scan API as fallback
       }
+    }
 
+    // Check Scan API — use dynamic snapshot timestamp
+    try {
+      const snapshotResp = await axios.get<{ record_time: string }>(
+        `${this.scanApiUrl}/api/scan/v0/state/acs/snapshot-timestamp`,
+        {
+          params: { before: new Date().toISOString(), migration_id: this.migrationId },
+          timeout: 5000,
+        },
+      );
+      await axios.post(
+        `${this.scanApiUrl}/api/scan/v0/holdings/summary`,
+        {
+          migration_id: this.migrationId,
+          record_time: snapshotResp.data.record_time,
+          owner_party_ids: [this.operatorParty],
+        },
+        { headers: { 'Content-Type': 'application/json' }, timeout: 5000 },
+      );
       return true;
     } catch {
       return false;
