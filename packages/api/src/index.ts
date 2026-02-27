@@ -220,9 +220,12 @@ async function main(): Promise<void> {
       max: env.RATE_LIMIT_MAX,
       timeWindow: env.RATE_LIMIT_WINDOW_MS,
       allowList: (req) => {
-        // Skip rate limiting for health/metrics endpoints
         const url = req.url ?? '';
-        return url.startsWith('/health') || url === '/metrics';
+        // Skip rate limiting for health/metrics and public read-heavy endpoints
+        return url.startsWith('/health') ||
+               url === '/metrics' ||
+               url.startsWith('/v1/pools') ||
+               url.startsWith('/v1/oracle/');
       },
       onExceeded: async (req) => {
         try {
@@ -238,7 +241,13 @@ async function main(): Promise<void> {
   }
 
   // Ban check: reject requests from banned IPs before any processing
+  // Authenticated users (with valid Bearer token) are exempt — the auth
+  // middleware handles per-user authorization.
   server.addHook('onRequest', async (request, reply) => {
+    const authHeader = request.headers.authorization;
+    if (authHeader?.startsWith('Bearer ')) {
+      return; // Authenticated — skip IP ban check
+    }
     if (await isBanned(request.ip)) {
       return reply.status(403).send({
         error: {

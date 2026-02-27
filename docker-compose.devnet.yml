@@ -121,8 +121,10 @@ services:
       CORS_ORIGIN: ${CORS_ORIGIN:-https://dualis.finance}
       FRONTEND_URL: ${FRONTEND_URL:-https://dualis.finance}
       # Rate limiting
-      RATE_LIMIT_MAX: 120
+      RATE_LIMIT_MAX: 300
       RATE_LIMIT_WINDOW_MS: 60000
+      BAN_THRESHOLD: 10
+      BAN_DURATION_SECONDS: 300
       # Oracle
       ORACLE_UPDATE_INTERVAL_MS: 30000
       ORACLE_CANTON_SYNC_ENABLED: "true"

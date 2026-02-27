@@ -58,7 +58,7 @@ const INITIAL_POOLS: PoolState[] = [
   },
   {
     poolId: 'wbtc-main',
-    asset: { symbol: 'wBTC', type: 'CryptoCurrency', priceUSD: 62_450 },
+    asset: { symbol: 'wBTC', type: 'CryptoCurrency', priceUSD: 67_710 },
     totalSupply: 1_850,
     totalBorrow: 920,
     totalReserves: 12.5,
@@ -70,7 +70,7 @@ const INITIAL_POOLS: PoolState[] = [
   },
   {
     poolId: 'eth-main',
-    asset: { symbol: 'ETH', type: 'CryptoCurrency', priceUSD: 3_420 },
+    asset: { symbol: 'ETH', type: 'CryptoCurrency', priceUSD: 2_041 },
     totalSupply: 45_200,
     totalBorrow: 28_900,
     totalReserves: 340,
@@ -82,7 +82,7 @@ const INITIAL_POOLS: PoolState[] = [
   },
   {
     poolId: 'cc-main',
-    asset: { symbol: 'CC', type: 'CryptoCurrency', priceUSD: 2.30 },
+    asset: { symbol: 'CC', type: 'CryptoCurrency', priceUSD: 1.00 },
     totalSupply: 89_000_000,
     totalBorrow: 34_200_000,
     totalReserves: 890_000,

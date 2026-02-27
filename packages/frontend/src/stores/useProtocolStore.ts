@@ -54,7 +54,7 @@ const MOCK_POOLS: PoolData[] = [
     utilization: 0.4973,
     supplyAPY: 0.0234,
     borrowAPY: 0.0456,
-    priceUSD: 97_234.56,
+    priceUSD: 67_710,
     isActive: true,
   },
   {
@@ -67,7 +67,7 @@ const MOCK_POOLS: PoolData[] = [
     utilization: 0.6283,
     supplyAPY: 0.0356,
     borrowAPY: 0.0589,
-    priceUSD: 3_456.78,
+    priceUSD: 2_041,
     isActive: true,
   },
   {
@@ -80,7 +80,7 @@ const MOCK_POOLS: PoolData[] = [
     utilization: 0.3843,
     supplyAPY: 0.0156,
     borrowAPY: 0.0378,
-    priceUSD: 2.30,
+    priceUSD: 1.00,
     isActive: true,
   },
   {
