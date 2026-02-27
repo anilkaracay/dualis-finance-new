@@ -409,6 +409,270 @@ export class CIP56TokenBridge implements ITokenBridge {
 }
 
 // ---------------------------------------------------------------------------
+// SpliceBalanceBridge — queries real Splice/Amulet token balances from Canton
+// ---------------------------------------------------------------------------
+
+/**
+ * Queries the Canton participant for Splice ecosystem token contracts
+ * (CC/Amulet, CBTC, USDCx) to read real wallet balances.
+ *
+ * Wallet-agnostic: reads from Canton ledger regardless of which PartyLayer
+ * wallet the user connected through (Console, Loop, Cantor8, Nightly, Bron).
+ */
+export class SpliceBalanceBridge implements ITokenBridge {
+  private readonly config: CantonConfig;
+
+  constructor(config: CantonConfig) {
+    this.config = config;
+    log.info('SpliceBalanceBridge initialized (real Canton balance queries)');
+  }
+
+  async getBalance(party: string, symbol?: string): Promise<BalanceResult> {
+    const { default: axios } = await import('axios');
+
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    if (this.config.jwtToken) {
+      headers['Authorization'] = `Bearer ${this.config.jwtToken}`;
+    }
+
+    try {
+      // First get the latest offset (required by Canton 3.4.x)
+      let offset = 0;
+      try {
+        const offsetRes = await axios.get<{ offset: number }>(
+          `${this.config.jsonApiUrl}/v2/state/ledger-end`,
+          { headers, timeout: 5000 },
+        );
+        offset = offsetRes.data.offset;
+      } catch {
+        log.debug('Could not fetch ledger-end offset, using 0');
+      }
+
+      // Query active contracts for this party using a wildcard template filter.
+      // Canton 3.4.x requires non-empty templateFilters — use includeCreatedEventBlob
+      // to get all contracts visible to this party.
+      const response = await axios.post(
+        `${this.config.jsonApiUrl}/v2/state/active-contracts`,
+        {
+          filter: {
+            filtersByParty: {
+              [party]: {
+                templateFilters: [{ includeCreatedEventBlob: false }],
+              },
+            },
+          },
+          activeAtOffset: offset,
+        },
+        { headers, timeout: this.config.commandTimeoutMs },
+      );
+
+      const entries = Array.isArray(response.data) ? response.data : [];
+      const balanceMap = new Map<string, number>();
+
+      // Parse each active contract, looking for token-like payloads
+      for (const entry of entries) {
+        const ac = entry?.contractEntry?.JsActiveContract;
+        if (!ac) continue;
+        const ev = ac.createdEvent;
+        if (!ev) continue;
+
+        const templateId: string = ev.templateId ?? '';
+        const payload = ev.createArgument ?? {};
+
+        // Detect Splice Amulet (CC / Canton Coin)
+        if (templateId.includes('Amulet') && !templateId.includes('Locked')) {
+          const amount = this.extractAmount(payload);
+          if (amount > 0) {
+            balanceMap.set('CC', (balanceMap.get('CC') ?? 0) + amount);
+          }
+          continue;
+        }
+
+        // Detect wrapped tokens (CBTC, USDCx) by template or payload fields
+        if (templateId.includes('TransferInProgress') || templateId.includes('AmuletRules')) {
+          continue; // Skip non-balance contracts
+        }
+
+        // Generic token detection: look for amount/balance fields with symbol
+        const sym = this.extractSymbol(payload, templateId);
+        if (sym) {
+          const amount = this.extractAmount(payload);
+          if (amount > 0) {
+            balanceMap.set(sym, (balanceMap.get(sym) ?? 0) + amount);
+          }
+        }
+      }
+
+      // Build result
+      const balances: TokenAmount[] = [];
+      for (const [sym, amount] of balanceMap) {
+        if (symbol && sym !== symbol) continue;
+        balances.push({ symbol: sym, amount: String(amount) });
+      }
+
+      if (balances.length > 0) {
+        log.info({ party: party.slice(0, 20), balances: balances.length }, 'Splice balances found');
+      }
+
+      return { party, balances };
+    } catch (error) {
+      log.debug({ error: error instanceof Error ? error.message : 'unknown', party: party.slice(0, 20) }, 'Splice balance query failed');
+      return { party, balances: [] };
+    }
+  }
+
+  /** Extract a numeric amount from a contract payload. */
+  private extractAmount(payload: Record<string, unknown>): number {
+    // Splice Amulet uses nested amount structure
+    if (payload.amount && typeof payload.amount === 'object') {
+      const amt = payload.amount as Record<string, unknown>;
+      if ('initialAmount' in amt) return Number(amt.initialAmount) || 0;
+      if ('amount' in amt) return Number(amt.amount) || 0;
+    }
+    if (typeof payload.amount === 'string' || typeof payload.amount === 'number') {
+      return Number(payload.amount) || 0;
+    }
+    if (typeof payload.balance === 'string' || typeof payload.balance === 'number') {
+      return Number(payload.balance) || 0;
+    }
+    return 0;
+  }
+
+  /** Extract a token symbol from payload or template ID. */
+  private extractSymbol(payload: Record<string, unknown>, templateId: string): string | null {
+    // Check payload for explicit symbol field
+    if (payload.symbol && typeof payload.symbol === 'string') return payload.symbol;
+    if (payload.asset && typeof payload.asset === 'object') {
+      const asset = payload.asset as Record<string, unknown>;
+      if (asset.symbol && typeof asset.symbol === 'string') return asset.symbol;
+    }
+    // Infer from template ID
+    if (templateId.includes('WrappedBTC') || templateId.includes('CBTC')) return 'CBTC';
+    if (templateId.includes('WrappedUSDC') || templateId.includes('USDCx')) return 'USDCx';
+    return null;
+  }
+
+  // SpliceBalanceBridge cannot transfer/mint/burn Splice tokens — not our contracts
+  async transfer(): Promise<TransferResult> {
+    return { transactionId: `splice-unsupported-${Date.now()}`, status: 'failed', timestamp: new Date().toISOString(), details: { error: 'Splice token transfers not supported via this bridge' } };
+  }
+  async mint(): Promise<TransferResult> {
+    return { transactionId: `splice-unsupported-${Date.now()}`, status: 'failed', timestamp: new Date().toISOString(), details: { error: 'Splice token minting not supported' } };
+  }
+  async burn(): Promise<TransferResult> {
+    return { transactionId: `splice-unsupported-${Date.now()}`, status: 'failed', timestamp: new Date().toISOString(), details: { error: 'Splice token burning not supported' } };
+  }
+
+  async isHealthy(): Promise<boolean> {
+    const { default: axios } = await import('axios');
+    try {
+      await axios.get(`${this.config.jsonApiUrl}/readyz`, { timeout: 5000 });
+      return true;
+    } catch {
+      return false;
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// FallbackTokenBridge — tries Splice → CIP56 → MockTokenBridge
+// ---------------------------------------------------------------------------
+
+/**
+ * Cascading token bridge: SpliceBalanceBridge → CIP56TokenBridge → MockTokenBridge.
+ *
+ * For balance queries: tries Splice (real Canton wallet) first, then CIP56 (DUALToken),
+ * then MockTokenBridge (in-memory sandbox).
+ *
+ * For transfers/mint/burn: tries CIP56 first, falls back to mock.
+ * (Splice tokens can't be transferred via our bridge — they're managed by Splice ecosystem.)
+ *
+ * Wallet-agnostic: works with any Canton wallet connected via PartyLayer.
+ */
+export class FallbackTokenBridge implements ITokenBridge {
+  private readonly splice: SpliceBalanceBridge;
+  private readonly primary: CIP56TokenBridge;
+  private readonly fallback: MockTokenBridge;
+  private balanceSource: 'splice' | 'cip56' | 'mock' = 'splice';
+  private transferSource: 'cip56' | 'mock' = 'cip56';
+
+  constructor(config: CantonConfig) {
+    this.splice = new SpliceBalanceBridge(config);
+    this.primary = new CIP56TokenBridge(config);
+    this.fallback = new MockTokenBridge();
+    log.info('FallbackTokenBridge initialized (Splice → CIP56 → Mock)');
+  }
+
+  async transfer(request: TransferRequest): Promise<TransferResult> {
+    if (this.transferSource === 'cip56') {
+      const result = await this.primary.transfer(request);
+      if (result.status !== 'failed') return result;
+      log.warn('CIP56 transfer failed, switching to mock bridge');
+      this.transferSource = 'mock';
+    }
+    return this.fallback.transfer(request);
+  }
+
+  async getBalance(party: string, symbol?: string): Promise<BalanceResult> {
+    // Always try Splice first (real Canton wallet balances).
+    // Don't cache balanceSource for balance queries — user might get tokens any time.
+    try {
+      const spliceResult = await this.splice.getBalance(party, symbol);
+      if (spliceResult.balances.length > 0) {
+        this.balanceSource = 'splice';
+        return spliceResult;
+      }
+    } catch {
+      log.debug('Splice balance query threw, trying CIP56');
+    }
+
+    // Try CIP56 (DUALToken)
+    try {
+      const cip56Result = await this.primary.getBalance(party, symbol);
+      if (cip56Result.balances.length > 0) {
+        this.balanceSource = 'cip56';
+        return cip56Result;
+      }
+    } catch {
+      log.debug('CIP56 balance query threw, falling back to mock');
+    }
+
+    // Return empty balances on devnet (real 0 balance — no fake tokens)
+    this.balanceSource = 'mock';
+    return { party, balances: [] };
+  }
+
+  async mint(to: string, token: TokenAmount): Promise<TransferResult> {
+    if (this.transferSource === 'cip56') {
+      const result = await this.primary.mint(to, token);
+      if (result.status !== 'failed') return result;
+      log.warn('CIP56 mint failed, switching to mock bridge');
+      this.transferSource = 'mock';
+    }
+    return this.fallback.mint(to, token);
+  }
+
+  async burn(from: string, token: TokenAmount): Promise<TransferResult> {
+    if (this.transferSource === 'cip56') {
+      const result = await this.primary.burn(from, token);
+      if (result.status !== 'failed') return result;
+      log.warn('CIP56 burn failed, switching to mock bridge');
+      this.transferSource = 'mock';
+    }
+    return this.fallback.burn(from, token);
+  }
+
+  async isHealthy(): Promise<boolean> {
+    // If using mock for everything, always healthy
+    if (this.balanceSource === 'mock' && this.transferSource === 'mock') return true;
+    // Try Splice health first (same Canton participant)
+    return this.splice.isHealthy();
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Factory
 // ---------------------------------------------------------------------------
 
@@ -416,5 +680,7 @@ export function createTokenBridge(config: CantonConfig): ITokenBridge {
   if (config.tokenBridgeMode === 'mock') {
     return new MockTokenBridge();
   }
-  return new CIP56TokenBridge(config);
+  // Use FallbackTokenBridge — tries CIP56 first, falls back to mock
+  // when DUALToken contracts aren't deployed on Canton yet
+  return new FallbackTokenBridge(config);
 }

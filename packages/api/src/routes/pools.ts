@@ -20,12 +20,16 @@ const poolHistorySchema = z.object({
   period: z.enum(['7d', '30d', '90d', '1y', 'all']).optional(),
 });
 
+const routingModeSchema = z.enum(['proxy', 'wallet-sign', 'auto']).optional();
+
 const depositSchema = z.object({
   amount: z.string().min(1),
+  routingMode: routingModeSchema,
 });
 
 const withdrawSchema = z.object({
   shares: z.string().min(1),
+  routingMode: routingModeSchema,
 });
 
 export async function poolRoutes(fastify: FastifyInstance): Promise<void> {
@@ -103,7 +107,13 @@ export async function poolRoutes(fastify: FastifyInstance): Promise<void> {
       const userId = request.user?.userId;
 
       try {
-        const result = await poolService.deposit(poolId, partyId, parsed.data.amount, userId);
+        const result = await poolService.deposit(poolId, partyId, parsed.data.amount, userId, parsed.data.routingMode);
+
+        // If the service returns a wallet-sign result, send it directly
+        if ('requiresWalletSign' in result) {
+          return reply.status(200).send({ data: result });
+        }
+
         const response: ApiResponse<DepositResponse> = {
           data: result.data,
           transaction: result.transaction,
@@ -138,7 +148,13 @@ export async function poolRoutes(fastify: FastifyInstance): Promise<void> {
       const userId = request.user?.userId;
 
       try {
-        const result = await poolService.withdraw(poolId, partyId, parsed.data.shares, userId);
+        const result = await poolService.withdraw(poolId, partyId, parsed.data.shares, userId, parsed.data.routingMode);
+
+        // If the service returns a wallet-sign result, send it directly
+        if ('requiresWalletSign' in result) {
+          return reply.status(200).send({ data: result });
+        }
+
         const response: ApiResponse<WithdrawResponse> = {
           data: result.data,
           transaction: result.transaction,
@@ -234,7 +250,12 @@ export async function poolRoutes(fastify: FastifyInstance): Promise<void> {
       const userId = request.user?.userId;
 
       try {
-        const result = await poolService.deposit(poolId, partyId, parsed.data.amount, userId);
+        const result = await poolService.deposit(poolId, partyId, parsed.data.amount, userId, parsed.data.routingMode);
+
+        if ('requiresWalletSign' in result) {
+          return reply.status(200).send({ data: result });
+        }
+
         const response: ApiResponse<DepositResponse> = {
           data: result.data,
           transaction: result.transaction,

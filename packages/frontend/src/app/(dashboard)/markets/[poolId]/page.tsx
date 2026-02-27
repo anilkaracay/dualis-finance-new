@@ -24,11 +24,12 @@ import { AssetIcon } from '@/components/data-display/AssetIcon';
 import { UtilizationBar } from '@/components/data-display/UtilizationBar';
 import { AreaChart, type TimeRange } from '@/components/charts/AreaChart';
 import { InterestRateChart } from '@/components/charts/InterestRateChart';
+import { Loader2 } from 'lucide-react';
 import { useProtocolStore } from '@/stores/useProtocolStore';
 import { useWalletStore } from '@/stores/useWalletStore';
 import { useBalanceStore } from '@/stores/useBalanceStore';
 import { useTokenBalanceStore } from '@/stores/useTokenBalanceStore';
-import { useDeposit, useWithdraw } from '@/hooks/api';
+import { usePartyLayer } from '@/hooks/usePartyLayer';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -141,11 +142,14 @@ export default function PoolDetailPage() {
   const [withdrawAmount, setWithdrawAmount] = useState('');
   const [chartTab, setChartTab] = useState<ChartTab>('supplyAPY');
   const [timeRange, setTimeRange] = useState<TimeRange>('30d');
-  const [depositStep, setDepositStep] = useState<'input' | 'confirm' | 'success'>('input');
-  const [withdrawStep, setWithdrawStep] = useState<'input' | 'confirm' | 'success'>('input');
+  const [depositStep, setDepositStep] = useState<'input' | 'confirm' | 'signing' | 'success'>('input');
+  const [withdrawStep, setWithdrawStep] = useState<'input' | 'confirm' | 'signing' | 'success'>('input');
+  const [depositError, setDepositError] = useState<string | null>(null);
+  const [withdrawError, setWithdrawError] = useState<string | null>(null);
+  const [depositLoading, setDepositLoading] = useState(false);
+  const [withdrawLoading, setWithdrawLoading] = useState(false);
 
-  const depositMutation = useDeposit();
-  const withdrawMutation = useWithdraw();
+  const { submitTransaction, party } = usePartyLayer();
 
   // Pool-specific params from API (dynamic per pool)
   const [detailParams, setDetailParams] = useState<PoolDetailParams>(DEFAULT_DETAIL_PARAMS);
@@ -231,30 +235,66 @@ export default function PoolDetailPage() {
   }, []);
 
   const handleDeposit = useCallback(async () => {
-    if (!poolId || estimatedShares <= 0) return;
+    if (!poolId || estimatedShares <= 0 || !pool) return;
+    setDepositError(null);
+    setDepositLoading(true);
+    setDepositStep('signing');
+
     try {
-      await depositMutation.execute(poolId, { amount: depositAmount });
+      await submitTransaction({
+        templateId: 'Dualis.Lending.Pool:LendingPool',
+        choiceName: 'Deposit',
+        argument: {
+          depositor: party,
+          amount: parseFloat(depositAmount).toFixed(10),
+          poolId,
+        },
+        contractId: pool.contractId,
+        forceRoutingMode: 'wallet-sign',
+        amountUsd: String(parseFloat(depositAmount) * pool.priceUSD),
+      });
       setDepositStep('success');
       // Refresh both protocol positions + wallet token balances
       void fetchBalances();
       void fetchTokenBalances();
-    } catch {
-      // error state is captured by depositMutation.error — stays on confirm step
+    } catch (err) {
+      // User rejected in wallet or tx failed — go back to confirm step
+      setDepositStep('confirm');
+      setDepositError(err instanceof Error ? err.message : 'Transaction failed');
+    } finally {
+      setDepositLoading(false);
     }
-  }, [poolId, depositAmount, estimatedShares, depositMutation, fetchBalances, fetchTokenBalances]);
+  }, [poolId, depositAmount, estimatedShares, pool, party, submitTransaction, fetchBalances, fetchTokenBalances]);
 
   const handleWithdraw = useCallback(async () => {
-    if (!poolId || !withdrawAmount) return;
+    if (!poolId || !withdrawAmount || !pool) return;
+    setWithdrawError(null);
+    setWithdrawLoading(true);
+    setWithdrawStep('signing');
+
     try {
-      await withdrawMutation.execute(poolId, { shares: withdrawAmount });
+      await submitTransaction({
+        templateId: 'Dualis.Lending.Pool:LendingPool',
+        choiceName: 'ProcessWithdraw',
+        argument: {
+          withdrawAmount: parseFloat(withdrawAmount).toFixed(10),
+        },
+        contractId: pool.contractId,
+        forceRoutingMode: 'wallet-sign',
+        amountUsd: String(parseFloat(withdrawAmount) * pool.priceUSD),
+      });
       setWithdrawStep('success');
       // Refresh both protocol positions + wallet token balances
       void fetchBalances();
       void fetchTokenBalances();
-    } catch {
-      // error state is captured by withdrawMutation.error
+    } catch (err) {
+      // User rejected in wallet or tx failed — go back to confirm step
+      setWithdrawStep('confirm');
+      setWithdrawError(err instanceof Error ? err.message : 'Transaction failed');
+    } finally {
+      setWithdrawLoading(false);
     }
-  }, [poolId, withdrawAmount, withdrawMutation, fetchBalances, fetchTokenBalances]);
+  }, [poolId, withdrawAmount, pool, submitTransaction, fetchBalances, fetchTokenBalances]);
 
   // ─── Loading State ────────────────────────────────────────────────────────
 
@@ -396,7 +436,7 @@ export default function PoolDetailPage() {
                 </p>
                 <div className="flex items-center gap-3">
                   {/* Deposit Dialog */}
-                  <Dialog onOpenChange={(open) => { if (!open) { setDepositStep('input'); setDepositAmount(''); depositMutation.reset(); } }}>
+                  <Dialog onOpenChange={(open) => { if (!open) { setDepositStep('input'); setDepositAmount(''); setDepositError(null); setDepositLoading(false); } }}>
                     <DialogTrigger asChild>
                       <Button
                         variant="primary"
@@ -507,8 +547,8 @@ export default function PoolDetailPage() {
                               Your wallet will be debited {depositAmount} {pool.symbol}. This transaction will be submitted to the Canton ledger.
                             </p>
 
-                            {depositMutation.error && (
-                              <TransactionError message={depositMutation.error} onRetry={depositMutation.reset} />
+                            {depositError && (
+                              <TransactionError message={depositError} onRetry={() => setDepositError(null)} />
                             )}
                           </div>
 
@@ -517,13 +557,31 @@ export default function PoolDetailPage() {
                             <Button
                               variant="primary"
                               size="sm"
-                              disabled={depositMutation.isLoading}
+                              disabled={depositLoading}
                               onClick={handleDeposit}
                             >
-                              {depositMutation.isLoading ? 'Submitting...' : 'Approve & Submit'}
+                              {depositLoading ? 'Submitting...' : 'Approve & Submit'}
                             </Button>
                           </DialogFooter>
                         </>
+                      )}
+
+                      {/* Step 2.5: Signing — Wallet approval popup is open */}
+                      {depositStep === 'signing' && (
+                        <div className="flex flex-col items-center gap-4 py-8">
+                          <Loader2 className="h-8 w-8 animate-spin text-accent-teal" />
+                          <p className="font-semibold text-text-primary">Waiting for wallet approval...</p>
+                          <p className="text-sm text-text-secondary text-center">
+                            Please approve this transaction in your connected wallet.
+                          </p>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => { setDepositStep('confirm'); setDepositLoading(false); }}
+                          >
+                            Cancel
+                          </Button>
+                        </div>
                       )}
 
                       {/* Step 3: Success */}
@@ -539,7 +597,7 @@ export default function PoolDetailPage() {
                             Deposited {depositAmount} {pool.symbol}
                           </p>
                           <DialogClose asChild>
-                            <Button variant="secondary" size="sm" onClick={() => { setDepositAmount(''); setDepositStep('input'); depositMutation.reset(); }}>Close</Button>
+                            <Button variant="secondary" size="sm" onClick={() => { setDepositAmount(''); setDepositStep('input'); setDepositError(null); }}>Close</Button>
                           </DialogClose>
                         </div>
                       )}
@@ -547,7 +605,7 @@ export default function PoolDetailPage() {
                   </Dialog>
 
                   {/* Withdraw Dialog */}
-                  <Dialog onOpenChange={(open) => { if (!open) { setWithdrawStep('input'); setWithdrawAmount(''); withdrawMutation.reset(); } }}>
+                  <Dialog onOpenChange={(open) => { if (!open) { setWithdrawStep('input'); setWithdrawAmount(''); setWithdrawError(null); setWithdrawLoading(false); } }}>
                     <DialogTrigger asChild>
                       <Button
                         variant="secondary"
@@ -643,8 +701,8 @@ export default function PoolDetailPage() {
                               Your supply position will be reduced and tokens will be returned to your wallet.
                             </p>
 
-                            {withdrawMutation.error && (
-                              <TransactionError message={withdrawMutation.error} onRetry={withdrawMutation.reset} />
+                            {withdrawError && (
+                              <TransactionError message={withdrawError} onRetry={() => setWithdrawError(null)} />
                             )}
                           </div>
 
@@ -653,13 +711,31 @@ export default function PoolDetailPage() {
                             <Button
                               variant="primary"
                               size="sm"
-                              disabled={withdrawMutation.isLoading}
+                              disabled={withdrawLoading}
                               onClick={handleWithdraw}
                             >
-                              {withdrawMutation.isLoading ? 'Submitting...' : 'Approve & Withdraw'}
+                              {withdrawLoading ? 'Submitting...' : 'Approve & Withdraw'}
                             </Button>
                           </DialogFooter>
                         </>
+                      )}
+
+                      {/* Step 2.5: Signing — Wallet approval popup is open */}
+                      {withdrawStep === 'signing' && (
+                        <div className="flex flex-col items-center gap-4 py-8">
+                          <Loader2 className="h-8 w-8 animate-spin text-accent-teal" />
+                          <p className="font-semibold text-text-primary">Waiting for wallet approval...</p>
+                          <p className="text-sm text-text-secondary text-center">
+                            Please approve this withdrawal in your connected wallet.
+                          </p>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => { setWithdrawStep('confirm'); setWithdrawLoading(false); }}
+                          >
+                            Cancel
+                          </Button>
+                        </div>
                       )}
 
                       {/* Step 3: Success */}
@@ -675,7 +751,7 @@ export default function PoolDetailPage() {
                             Withdrawing {withdrawAmount} shares of {pool.symbol}
                           </p>
                           <DialogClose asChild>
-                            <Button variant="secondary" size="sm" onClick={() => { setWithdrawAmount(''); setWithdrawStep('input'); withdrawMutation.reset(); }}>Close</Button>
+                            <Button variant="secondary" size="sm" onClick={() => { setWithdrawAmount(''); setWithdrawStep('input'); setWithdrawError(null); }}>Close</Button>
                           </DialogClose>
                         </div>
                       )}

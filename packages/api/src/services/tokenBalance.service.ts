@@ -8,6 +8,8 @@
 
 import { createChildLogger } from '../config/logger.js';
 import { getTokenBridge } from '../canton/startup.js';
+import { env } from '../config/env.js';
+import { mapCantonToPool } from '@dualis/shared';
 import * as registry from './poolRegistry.js';
 
 const log = createChildLogger('token-balance-service');
@@ -50,26 +52,31 @@ export async function getWalletTokenBalances(partyId: string): Promise<WalletTok
     const priceMap = registry.getAssetPriceMap();
 
     const balances: WalletTokenBalance[] = result.balances.map((b) => {
+      // Map Canton/Splice symbols to pool symbols (e.g. USDCx → USDC)
+      const poolSymbol = mapCantonToPool(b.symbol);
       const amount = Number(b.amount);
-      const price = priceMap[b.symbol] ?? 0;
+      const price = priceMap[poolSymbol] ?? priceMap[b.symbol] ?? 0;
       return {
-        symbol: b.symbol,
+        symbol: poolSymbol,
         amount,
         valueUSD: amount * price,
       };
     });
 
-    // If user has zero balances for all known assets, auto-seed (devnet)
     const totalAmount = balances.reduce((sum, b) => sum + b.amount, 0);
-    if (totalAmount === 0) {
-      log.info({ partyId }, 'New user detected — seeding initial balances');
+
+    // Only auto-seed in sandbox mode (CANTON_MOCK=true).
+    // On devnet/mainnet, return real (possibly 0) balances — tokens come from the wallet.
+    if (totalAmount === 0 && env.CANTON_MOCK) {
+      log.info({ partyId }, 'Sandbox user — seeding initial balances');
       await ensureInitialBalances(partyId);
       // Re-fetch after seeding
       const seeded = await bridge.getBalance(partyId);
       return seeded.balances.map((b) => {
+        const poolSymbol = mapCantonToPool(b.symbol);
         const amount = Number(b.amount);
-        const price = priceMap[b.symbol] ?? 0;
-        return { symbol: b.symbol, amount, valueUSD: amount * price };
+        const price = priceMap[poolSymbol] ?? priceMap[b.symbol] ?? 0;
+        return { symbol: poolSymbol, amount, valueUSD: amount * price };
       });
     }
 

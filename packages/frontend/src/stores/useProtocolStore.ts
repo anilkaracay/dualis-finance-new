@@ -15,6 +15,7 @@ interface PoolData {
   borrowAPY: number;
   priceUSD: number;
   isActive: boolean;
+  contractId: string;
 }
 
 interface ProtocolState {
@@ -43,6 +44,7 @@ const MOCK_POOLS: PoolData[] = [
     borrowAPY: 0.1056,
     priceUSD: 1.0,
     isActive: true,
+    contractId: '',
   },
   {
     poolId: 'wbtc-main',
@@ -56,6 +58,7 @@ const MOCK_POOLS: PoolData[] = [
     borrowAPY: 0.0456,
     priceUSD: 67_710,
     isActive: true,
+    contractId: '',
   },
   {
     poolId: 'eth-main',
@@ -69,6 +72,7 @@ const MOCK_POOLS: PoolData[] = [
     borrowAPY: 0.0589,
     priceUSD: 2_041,
     isActive: true,
+    contractId: '',
   },
   {
     poolId: 'cc-main',
@@ -82,6 +86,7 @@ const MOCK_POOLS: PoolData[] = [
     borrowAPY: 0.0378,
     priceUSD: 0.1756,
     isActive: true,
+    contractId: '',
   },
   {
     poolId: 'tbill-2026',
@@ -95,6 +100,7 @@ const MOCK_POOLS: PoolData[] = [
     borrowAPY: 0.0678,
     priceUSD: 99.87,
     isActive: true,
+    contractId: '',
   },
   {
     poolId: 'spy-2026',
@@ -108,6 +114,7 @@ const MOCK_POOLS: PoolData[] = [
     borrowAPY: 0.0712,
     priceUSD: 512.45,
     isActive: true,
+    contractId: '',
   },
 ];
 
@@ -125,6 +132,7 @@ function mapPoolListItemToPoolData(p: PoolListItem): PoolData {
     borrowAPY: p.borrowAPY,
     priceUSD: p.asset.priceUSD,
     isActive: p.isActive,
+    contractId: p.contractId,
   };
 }
 

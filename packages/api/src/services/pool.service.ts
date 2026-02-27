@@ -26,6 +26,8 @@ import { trackActivity } from './reward-tracker.service.js';
 import { getDb, schema } from '../db/client.js';
 import * as tokenBalanceService from './tokenBalance.service.js';
 import { getTokenBridge } from '../canton/startup.js';
+import * as transactionRouterService from './transactionRouter.service.js';
+import type { TransactionResult, TransactionRoutingMode } from '@dualis/shared';
 
 const log = createChildLogger('pool-service');
 
@@ -244,8 +246,9 @@ export async function deposit(
   userPartyId: string,
   amount: string,
   userId?: string | undefined,
-): Promise<{ data: DepositResponse; transaction: TransactionMeta }> {
-  log.info({ poolId, userPartyId, amount }, 'Processing deposit');
+  routingMode?: TransactionRoutingMode,
+): Promise<{ data: DepositResponse; transaction: TransactionMeta } | TransactionResult> {
+  log.info({ poolId, userPartyId, amount, routingMode }, 'Processing deposit');
   const pool = registry.getPool(poolId);
   if (!pool) throw new Error(`Pool ${poolId} not found`);
 
@@ -261,6 +264,23 @@ export async function deposit(
     throw new Error(
       `Insufficient ${pool.asset.symbol} balance: you have ${walletBalance.toFixed(4)} but tried to deposit ${amountNum.toFixed(4)}`,
     );
+  }
+
+  // ── Wallet-sign mode: prepare signing payload, return to frontend ──
+  if (routingMode === 'wallet-sign' && userId) {
+    const txResult = await transactionRouterService.routeTransaction(userId, {
+      templateId: 'Dualis.Lending.Pool:LendingPool',
+      choiceName: 'Deposit',
+      argument: {
+        depositor: userPartyId,
+        amount: amountNum.toFixed(10),
+        depositTime: new Date().toISOString(),
+      },
+      contractId: pool.contractId,
+      forceRoutingMode: 'wallet-sign',
+      amountUsd: String(amountNum * pool.asset.priceUSD),
+    });
+    return txResult;
   }
 
   // ---------- Canton mode: exercise Deposit choice on LendingPool ----------
@@ -399,8 +419,9 @@ export async function withdraw(
   userPartyId: string,
   shares: string,
   userId?: string | undefined,
-): Promise<{ data: WithdrawResponse; transaction: TransactionMeta }> {
-  log.info({ poolId, userPartyId, shares }, 'Processing withdrawal');
+  routingMode?: TransactionRoutingMode,
+): Promise<{ data: WithdrawResponse; transaction: TransactionMeta } | TransactionResult> {
+  log.info({ poolId, userPartyId, shares, routingMode }, 'Processing withdrawal');
   const pool = registry.getPool(poolId);
   if (!pool) throw new Error(`Pool ${poolId} not found`);
 
@@ -413,6 +434,21 @@ export async function withdraw(
   const withdrawnAmount = sharesNum * (pool.supplyIndex || 1);
   const available = pool.totalSupply - pool.totalBorrow;
   if (withdrawnAmount > available) throw new Error('Insufficient liquidity for withdrawal');
+
+  // ── Wallet-sign mode: prepare signing payload, return to frontend ──
+  if (routingMode === 'wallet-sign' && userId) {
+    const txResult = await transactionRouterService.routeTransaction(userId, {
+      templateId: 'Dualis.Lending.Pool:LendingPool',
+      choiceName: 'ProcessWithdraw',
+      argument: {
+        withdrawAmount: withdrawnAmount.toFixed(10),
+      },
+      contractId: pool.contractId,
+      forceRoutingMode: 'wallet-sign',
+      amountUsd: String(withdrawnAmount * pool.asset.priceUSD),
+    });
+    return txResult;
+  }
 
   // ---------- Canton mode: exercise Withdraw on SupplyPosition + ProcessWithdraw on Pool ----------
   if (!env.CANTON_MOCK) {

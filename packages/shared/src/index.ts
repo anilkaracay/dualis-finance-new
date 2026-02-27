@@ -463,6 +463,10 @@ export {
   HF_COLORS,
   getEffectiveLTV,
   getAlertLevel,
+  mapCantonToPool,
+  mapPoolToCanton,
+  getKnownCantonSymbols,
+  SPLICE_TEMPLATE_HINTS,
 } from './config';
 
 export type {

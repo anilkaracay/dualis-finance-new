@@ -15,3 +15,10 @@ export {
   getAlertLevel,
 } from './creditTiers';
 export type { CreditTierMathConfig } from './creditTiers';
+
+export {
+  mapCantonToPool,
+  mapPoolToCanton,
+  getKnownCantonSymbols,
+  SPLICE_TEMPLATE_HINTS,
+} from './tokenMapping';
