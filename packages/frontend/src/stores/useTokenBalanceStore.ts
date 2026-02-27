@@ -19,10 +19,11 @@ interface TokenBalanceState {
   isLoading: boolean;
   error: string | null;
   lastFetched: number | null;
+  lastParty: string | null;
 }
 
 interface TokenBalanceActions {
-  fetchTokenBalances: () => Promise<void>;
+  fetchTokenBalances: (walletParty?: string) => Promise<void>;
   getBalanceForSymbol: (symbol: string) => number;
   requestFaucet: () => Promise<void>;
   reset: () => void;
@@ -38,18 +39,23 @@ export const useTokenBalanceStore = create<TokenBalanceState & TokenBalanceActio
     isLoading: false,
     error: null,
     lastFetched: null,
+    lastParty: null,
 
-    fetchTokenBalances: async () => {
-      // Skip if fetched within last 15 seconds
-      const { lastFetched } = get();
-      if (lastFetched && Date.now() - lastFetched < 15_000) return;
+    fetchTokenBalances: async (walletParty?: string) => {
+      // Skip if fetched within last 15 seconds AND party hasn't changed
+      const { lastFetched, lastParty } = get();
+      const partyChanged = walletParty && walletParty !== lastParty;
+      if (!partyChanged && lastFetched && Date.now() - lastFetched < 15_000) return;
 
       set({ isLoading: true, error: null });
       try {
-        const response = await apiClient.get(ENDPOINTS.USER_TOKEN_BALANCES);
+        const url = walletParty
+          ? `${ENDPOINTS.USER_TOKEN_BALANCES}?walletParty=${encodeURIComponent(walletParty)}`
+          : ENDPOINTS.USER_TOKEN_BALANCES;
+        const response = await apiClient.get(url);
         const raw = response.data;
         const balances: WalletTokenBalance[] = Array.isArray(raw) ? raw : [];
-        set({ balances, isLoading: false, lastFetched: Date.now() });
+        set({ balances, isLoading: false, lastFetched: Date.now(), lastParty: walletParty ?? null });
       } catch (err) {
         set({
           isLoading: false,
@@ -76,6 +82,6 @@ export const useTokenBalanceStore = create<TokenBalanceState & TokenBalanceActio
       }
     },
 
-    reset: () => set({ balances: [], isLoading: false, error: null, lastFetched: null }),
+    reset: () => set({ balances: [], isLoading: false, error: null, lastFetched: null, lastParty: null }),
   }),
 );

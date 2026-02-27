@@ -158,7 +158,8 @@ export default function PoolDetailPage() {
     fetchPools();
     if (isConnected) {
       fetchBalances();
-      fetchTokenBalances();
+      // Pass connected wallet party so backend queries the real Canton wallet balance
+      fetchTokenBalances(party ?? undefined);
     }
 
     // Fetch pool detail from API for dynamic IR model + collateral params
@@ -256,7 +257,7 @@ export default function PoolDetailPage() {
       setDepositStep('success');
       // Refresh both protocol positions + wallet token balances
       void fetchBalances();
-      void fetchTokenBalances();
+      void fetchTokenBalances(party ?? undefined);
     } catch (err) {
       // User rejected in wallet or tx failed — go back to confirm step
       setDepositStep('confirm');
@@ -286,7 +287,7 @@ export default function PoolDetailPage() {
       setWithdrawStep('success');
       // Refresh both protocol positions + wallet token balances
       void fetchBalances();
-      void fetchTokenBalances();
+      void fetchTokenBalances(party ?? undefined);
     } catch (err) {
       // User rejected in wallet or tx failed — go back to confirm step
       setWithdrawStep('confirm');

@@ -40,11 +40,15 @@ export async function userBalanceRoutes(fastify: FastifyInstance): Promise<void>
   // ── Token Balances (wallet-level holdings, separate from protocol positions) ──
 
   // GET /user/token-balances — all wallet token balances (auth required)
+  // Accepts optional ?walletParty= query param to query the connected wallet's
+  // party instead of the logged-in user's party (needed when user connects
+  // an external Canton wallet like Console, Loop, etc.)
   fastify.get(
     '/user/token-balances',
     { preHandler: [authMiddleware] },
     async (request, reply) => {
-      const partyId = request.user!.partyId;
+      const { walletParty } = request.query as { walletParty?: string };
+      const partyId = walletParty || request.user!.partyId;
       const balances = await tokenBalanceService.getWalletTokenBalances(partyId);
       return reply.status(200).send({ data: balances });
     },
