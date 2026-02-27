@@ -35,10 +35,11 @@ interface AuthActions {
 
 function setAuthCookie(hasToken: boolean) {
   if (typeof document === 'undefined') return;
+  const secure = window.location.protocol === 'https:' ? '; Secure' : '';
   if (hasToken) {
-    document.cookie = 'dualis-auth-token=1; path=/; max-age=604800; SameSite=Lax';
+    document.cookie = `dualis-auth-token=1; path=/; max-age=604800; SameSite=Lax${secure}`;
   } else {
-    document.cookie = 'dualis-auth-token=; path=/; max-age=0; SameSite=Lax';
+    document.cookie = `dualis-auth-token=; path=/; max-age=0; SameSite=Lax${secure}`;
   }
 }
 

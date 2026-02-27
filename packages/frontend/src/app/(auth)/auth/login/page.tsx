@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Eye, EyeOff, Wallet, AlertCircle, X, Loader2 } from 'lucide-react';
@@ -14,7 +14,6 @@ import { useConnect, useWallets } from '@partylayer/react';
 import type { WalletId } from '@partylayer/sdk';
 
 export default function LoginPage() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const redirect = searchParams.get('redirect') || '/overview';
   const { loginWithEmail, isLoading, error, clearError } = useAuthStore();
@@ -52,11 +51,11 @@ export default function LoginPage() {
 
     try {
       await loginWithEmail(email, password);
-      router.push(redirect);
+      window.location.href = redirect;
     } catch {
       // Error handled by store
     }
-  }, [email, password, loginWithEmail, router, redirect, clearError]);
+  }, [email, password, loginWithEmail, redirect, clearError]);
 
   // Connect to a specific wallet using useConnect() — returns Session directly
   const handleWalletSelect = useCallback(async (walletId: string) => {
@@ -87,14 +86,14 @@ export default function LoginPage() {
       await useAuthStore.getState().loginWithWallet(walletAddress, signature, nonceData.nonce);
       useWalletStore.getState().setConnected(walletAddress, connectedWalletId, 'canton-native');
 
-      router.push(redirect);
+      window.location.href = redirect;
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Wallet connection failed.';
       setFormError(msg);
       setWalletConnecting(false);
       setConnectingWalletId(null);
     }
-  }, [connect, redirect, router, clearError]);
+  }, [connect, redirect, clearError]);
 
   const displayError = formError || error;
 
@@ -224,7 +223,7 @@ export default function LoginPage() {
               clearError();
               setTimeout(() => {
                 loginWithEmail(demoEmail, demoPass)
-                  .then(() => router.push(redirect))
+                  .then(() => { window.location.href = redirect; })
                   .catch(() => {});
               }, 300);
             }}
