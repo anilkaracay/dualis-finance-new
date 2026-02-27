@@ -114,6 +114,9 @@ export async function poolRoutes(fastify: FastifyInstance): Promise<void> {
         if (msg.includes('not found') && !msg.includes('ENOTFOUND')) {
           throw new AppError('POOL_NOT_FOUND', `Pool ${poolId} not found`, 404);
         }
+        if (msg.includes('Insufficient') && msg.includes('balance')) {
+          throw new AppError('INSUFFICIENT_BALANCE' as ApiErrorCode, msg, 400);
+        }
         const mapped = mapCantonError(err);
         throw new AppError(mapped.code as ApiErrorCode, mapped.userMessage, mapped.httpStatus);
       }

@@ -24,6 +24,8 @@ import * as cantonQueries from '../canton/queries.js';
 import * as registry from './poolRegistry.js';
 import { trackActivity } from './reward-tracker.service.js';
 import { getDb, schema } from '../db/client.js';
+import * as tokenBalanceService from './tokenBalance.service.js';
+import { getTokenBridge } from '../canton/startup.js';
 
 const log = createChildLogger('pool-service');
 
@@ -253,6 +255,14 @@ export async function deposit(
   const amountNum = parseFloat(amount);
   if (isNaN(amountNum) || amountNum <= 0) throw new Error('Invalid deposit amount');
 
+  // ── Balance check: ensure user has enough tokens to deposit ──
+  const walletBalance = await tokenBalanceService.getWalletTokenBalance(userPartyId, pool.asset.symbol);
+  if (walletBalance < amountNum) {
+    throw new Error(
+      `Insufficient ${pool.asset.symbol} balance: you have ${walletBalance.toFixed(4)} but tried to deposit ${amountNum.toFixed(4)}`,
+    );
+  }
+
   // ---------- Canton mode: exercise Deposit choice on LendingPool ----------
   if (!env.CANTON_MOCK) {
     const client = CantonClient.getInstance();
@@ -299,6 +309,21 @@ export async function deposit(
 
     const shares = amountNum / (pool.supplyIndex || 1);
 
+    // Debit user wallet: tokens move from user to pool operator
+    const bridge = getTokenBridge();
+    if (bridge) {
+      try {
+        await bridge.transfer({
+          from: userPartyId,
+          to: operatorParty,
+          token: { symbol: pool.asset.symbol, amount: amount },
+          reference: `deposit-${poolId}-${Date.now()}`,
+        });
+      } catch (err) {
+        log.warn({ err, userPartyId, poolId }, 'Token bridge transfer failed after deposit');
+      }
+    }
+
     // Fire-and-forget reward tracking (never fails the main operation)
     void trackActivity({
       activityType: 'deposit',
@@ -332,6 +357,21 @@ export async function deposit(
   // ---------- Mock mode: in-memory state update ----------
   pool.totalSupply += amountNum;
   const shares = amountNum / (pool.supplyIndex || 1);
+
+  // Debit user wallet (mock mode)
+  const mockBridge = getTokenBridge();
+  if (mockBridge) {
+    try {
+      await mockBridge.transfer({
+        from: userPartyId,
+        to: cantonConfig().parties.operator,
+        token: { symbol: pool.asset.symbol, amount: amount },
+        reference: `deposit-${poolId}-${Date.now()}`,
+      });
+    } catch (err) {
+      log.warn({ err }, 'Mock token transfer failed after deposit');
+    }
+  }
 
   // Fire-and-forget reward tracking (mock mode)
   void trackActivity({
@@ -436,6 +476,21 @@ export async function withdraw(
 
     pool.totalSupply -= withdrawnAmount;
 
+    // Credit user wallet: tokens return from pool to user
+    const withdrawBridge = getTokenBridge();
+    if (withdrawBridge) {
+      try {
+        await withdrawBridge.transfer({
+          from: operatorParty,
+          to: userPartyId,
+          token: { symbol: pool.asset.symbol, amount: withdrawnAmount.toFixed(10) },
+          reference: `withdraw-${poolId}-${Date.now()}`,
+        });
+      } catch (err) {
+        log.warn({ err, userPartyId, poolId }, 'Token bridge transfer failed after withdrawal');
+      }
+    }
+
     // Fire-and-forget reward tracking (never fails the main operation)
     void trackActivity({
       activityType: 'withdraw',
@@ -466,6 +521,21 @@ export async function withdraw(
 
   // ---------- Mock mode: in-memory state update ----------
   pool.totalSupply -= withdrawnAmount;
+
+  // Credit user wallet (mock mode)
+  const mockWithdrawBridge = getTokenBridge();
+  if (mockWithdrawBridge) {
+    try {
+      await mockWithdrawBridge.transfer({
+        from: cantonConfig().parties.operator,
+        to: userPartyId,
+        token: { symbol: pool.asset.symbol, amount: withdrawnAmount.toFixed(10) },
+        reference: `withdraw-${poolId}-${Date.now()}`,
+      });
+    } catch (err) {
+      log.warn({ err }, 'Mock token transfer failed after withdrawal');
+    }
+  }
 
   // Fire-and-forget reward tracking (mock mode)
   void trackActivity({

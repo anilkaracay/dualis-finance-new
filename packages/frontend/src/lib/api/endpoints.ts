@@ -149,4 +149,8 @@ export const ENDPOINTS = {
   ADMIN_ANALYTICS_REVENUE: '/admin/analytics/revenue',
   ADMIN_ANALYTICS_POOLS: '/admin/analytics/pools',
   ADMIN_ANALYTICS_USERS: '/admin/analytics/users',
+  // Token Balances (wallet-level holdings)
+  USER_TOKEN_BALANCES: '/user/token-balances',
+  USER_TOKEN_BALANCE: (symbol: string) => `/user/token-balances/${symbol}`,
+  USER_FAUCET: '/user/faucet',
 } as const;

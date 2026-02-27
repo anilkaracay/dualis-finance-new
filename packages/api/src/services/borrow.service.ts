@@ -28,6 +28,7 @@ import * as poolService from './pool.service.js';
 import * as registry from './poolRegistry.js';
 import { trackActivity } from './reward-tracker.service.js';
 import { getDb, schema } from '../db/client.js';
+import * as tokenBalanceService from './tokenBalance.service.js';
 
 const log = createChildLogger('borrow-service');
 
@@ -450,6 +451,14 @@ export async function repay(
 ): Promise<{ data: RepayResponse; transaction: TransactionMeta }> {
   log.info({ partyId, positionId, amount }, 'Processing repayment');
 
+  const repayAmountNum = parseFloat(amount);
+  if (isNaN(repayAmountNum) || repayAmountNum <= 0) throw new Error('Invalid repay amount');
+
+  // ── Balance check: ensure user has enough tokens to repay ──
+  // Determine the borrow asset from the position's pool
+  // We'll look up pool after finding the position, but can do a preliminary check if pool known
+  // For now, defer full check until after position lookup (need poolId to find symbol)
+
   // ---------- Canton mode ----------
   if (!env.CANTON_MOCK) {
     const client = CantonClient.getInstance();
@@ -470,6 +479,16 @@ export async function repay(
     const poolId = (payload.poolId as string) ?? '';
     const pool = registry.getPool(poolId);
     const currentBorrowIndex = pool ? pool.borrowIndex.toFixed(10) : '1.0000000000';
+
+    // Balance check: ensure user has enough tokens to repay
+    if (pool) {
+      const walletBalance = await tokenBalanceService.getWalletTokenBalance(partyId, pool.asset.symbol);
+      if (walletBalance < repayAmountNum) {
+        throw new Error(
+          `Insufficient ${pool.asset.symbol} balance for repayment: you have ${walletBalance.toFixed(4)} but need ${repayAmountNum.toFixed(4)}`,
+        );
+      }
+    }
 
     // Exercise Repay on BorrowPosition (controller borrower — needs dual-signatory)
     await client.exerciseChoice(
@@ -591,6 +610,17 @@ export async function addCollateral(
   userId?: string | undefined,
 ): Promise<{ data: AddCollateralResponse; transaction: TransactionMeta }> {
   log.info({ partyId, positionId, asset }, 'Adding collateral');
+
+  // ── Balance check: ensure user has enough collateral tokens ──
+  const collateralAmount = parseFloat(asset.amount);
+  if (isNaN(collateralAmount) || collateralAmount <= 0) throw new Error('Invalid collateral amount');
+
+  const walletBalance = await tokenBalanceService.getWalletTokenBalance(partyId, asset.symbol);
+  if (walletBalance < collateralAmount) {
+    throw new Error(
+      `Insufficient ${asset.symbol} balance for collateral: you have ${walletBalance.toFixed(4)} but need ${collateralAmount.toFixed(4)}`,
+    );
+  }
 
   // ---------- Canton mode ----------
   if (!env.CANTON_MOCK) {

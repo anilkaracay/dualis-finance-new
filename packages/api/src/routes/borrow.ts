@@ -150,6 +150,9 @@ export async function borrowRoutes(fastify: FastifyInstance): Promise<void> {
         if (msg.includes('not found') && !msg.includes('ENOTFOUND')) {
           throw new AppError('POSITION_NOT_FOUND', `Position ${positionId} not found`, 404);
         }
+        if (msg.includes('Insufficient') && msg.includes('balance')) {
+          throw new AppError('INSUFFICIENT_BALANCE' as ApiErrorCode, msg, 400);
+        }
         if (msg.includes('exceeds current debt')) {
           throw new AppError('REPAY_EXCEEDS_DEBT', msg, 422);
         }
@@ -187,6 +190,9 @@ export async function borrowRoutes(fastify: FastifyInstance): Promise<void> {
         const msg = err instanceof Error ? err.message : String(err);
         if (msg.includes('not found') && !msg.includes('ENOTFOUND')) {
           throw new AppError('POSITION_NOT_FOUND', `Position ${positionId} not found`, 404);
+        }
+        if (msg.includes('Insufficient') && msg.includes('balance')) {
+          throw new AppError('INSUFFICIENT_BALANCE' as ApiErrorCode, msg, 400);
         }
         if (msg.includes('CONTRACT_NOT_FOUND') || msg.includes('CONTRACT_NOT_ACTIVE')) {
           throw new AppError('CANTON_CONFLICT', msg, 409);

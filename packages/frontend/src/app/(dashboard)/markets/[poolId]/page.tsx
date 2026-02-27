@@ -27,6 +27,7 @@ import { InterestRateChart } from '@/components/charts/InterestRateChart';
 import { useProtocolStore } from '@/stores/useProtocolStore';
 import { useWalletStore } from '@/stores/useWalletStore';
 import { useBalanceStore } from '@/stores/useBalanceStore';
+import { useTokenBalanceStore } from '@/stores/useTokenBalanceStore';
 import { useDeposit, useWithdraw } from '@/hooks/api';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -134,13 +135,14 @@ export default function PoolDetailPage() {
   const { pools, isLoading, fetchPools } = useProtocolStore();
   const { isConnected } = useWalletStore();
   const { fetchBalances } = useBalanceStore();
+  const { fetchTokenBalances, getBalanceForSymbol } = useTokenBalanceStore();
 
   const [depositAmount, setDepositAmount] = useState('');
   const [withdrawAmount, setWithdrawAmount] = useState('');
   const [chartTab, setChartTab] = useState<ChartTab>('supplyAPY');
   const [timeRange, setTimeRange] = useState<TimeRange>('30d');
-  const [depositSuccess, setDepositSuccess] = useState(false);
-  const [withdrawSuccess, setWithdrawSuccess] = useState(false);
+  const [depositStep, setDepositStep] = useState<'input' | 'confirm' | 'success'>('input');
+  const [withdrawStep, setWithdrawStep] = useState<'input' | 'confirm' | 'success'>('input');
 
   const depositMutation = useDeposit();
   const withdrawMutation = useWithdraw();
@@ -150,7 +152,10 @@ export default function PoolDetailPage() {
 
   useEffect(() => {
     fetchPools();
-    if (isConnected) fetchBalances();
+    if (isConnected) {
+      fetchBalances();
+      fetchTokenBalances();
+    }
 
     // Fetch pool detail from API for dynamic IR model + collateral params
     import('@/lib/api/client')
@@ -215,6 +220,12 @@ export default function PoolDetailPage() {
     return parsed;
   }, [depositAmount, pool]);
 
+  // Wallet balance for the current pool asset
+  const walletBalance = pool ? getBalanceForSymbol(pool.symbol) : 0;
+  const depositAmountNum = parseFloat(depositAmount || '0');
+  const hasInsufficientBalance = depositAmountNum > 0 && depositAmountNum > walletBalance;
+  const remainingAfterDeposit = walletBalance - depositAmountNum;
+
   const handleTimeRangeChange = useCallback((range: TimeRange) => {
     setTimeRange(range);
   }, []);
@@ -223,25 +234,27 @@ export default function PoolDetailPage() {
     if (!poolId || estimatedShares <= 0) return;
     try {
       await depositMutation.execute(poolId, { amount: depositAmount });
-      setDepositSuccess(true);
-      // Refresh balances after successful deposit
+      setDepositStep('success');
+      // Refresh both protocol positions + wallet token balances
       void fetchBalances();
+      void fetchTokenBalances();
     } catch {
-      // error state is captured by depositMutation.error
+      // error state is captured by depositMutation.error — stays on confirm step
     }
-  }, [poolId, depositAmount, estimatedShares, depositMutation, fetchBalances]);
+  }, [poolId, depositAmount, estimatedShares, depositMutation, fetchBalances, fetchTokenBalances]);
 
   const handleWithdraw = useCallback(async () => {
     if (!poolId || !withdrawAmount) return;
     try {
       await withdrawMutation.execute(poolId, { shares: withdrawAmount });
-      setWithdrawSuccess(true);
-      // Refresh balances after successful withdrawal
+      setWithdrawStep('success');
+      // Refresh both protocol positions + wallet token balances
       void fetchBalances();
+      void fetchTokenBalances();
     } catch {
       // error state is captured by withdrawMutation.error
     }
-  }, [poolId, withdrawAmount, withdrawMutation, fetchBalances]);
+  }, [poolId, withdrawAmount, withdrawMutation, fetchBalances, fetchTokenBalances]);
 
   // ─── Loading State ────────────────────────────────────────────────────────
 
@@ -383,7 +396,7 @@ export default function PoolDetailPage() {
                 </p>
                 <div className="flex items-center gap-3">
                   {/* Deposit Dialog */}
-                  <Dialog>
+                  <Dialog onOpenChange={(open) => { if (!open) { setDepositStep('input'); setDepositAmount(''); depositMutation.reset(); } }}>
                     <DialogTrigger asChild>
                       <Button
                         variant="primary"
@@ -397,28 +410,24 @@ export default function PoolDetailPage() {
                       <DialogHeader>
                         <DialogTitle>Deposit {pool.symbol}</DialogTitle>
                         <DialogDescription>
-                          Supply {pool.symbol} to earn {(pool.supplyAPY * 100).toFixed(2)}% APY.
+                          {depositStep === 'confirm'
+                            ? 'Review your transaction before submitting.'
+                            : `Supply ${pool.symbol} to earn ${(pool.supplyAPY * 100).toFixed(2)}% APY.`}
                         </DialogDescription>
                       </DialogHeader>
 
-                      {depositSuccess ? (
-                        <div className="flex flex-col items-center gap-4 py-8">
-                          <div className="h-12 w-12 rounded-full bg-positive/20 flex items-center justify-center">
-                            <svg className="h-6 w-6 text-positive" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                            </svg>
-                          </div>
-                          <p className="text-text-primary font-semibold">Deposit submitted!</p>
-                          <p className="text-text-secondary text-sm">
-                            Deposited {depositAmount} {pool.symbol}
-                          </p>
-                          <DialogClose asChild>
-                            <Button variant="secondary" size="sm" onClick={() => { setDepositAmount(''); setDepositSuccess(false); depositMutation.reset(); }}>Close</Button>
-                          </DialogClose>
-                        </div>
-                      ) : (
+                      {/* Step 1: Input */}
+                      {depositStep === 'input' && (
                         <>
                           <div className="flex flex-col gap-4">
+                            {/* Wallet balance */}
+                            <div className="flex items-center justify-between text-sm">
+                              <span className="text-text-tertiary">Wallet Balance</span>
+                              <span className="font-mono tabular-nums text-text-primary">
+                                {walletBalance.toLocaleString('en-US', { maximumFractionDigits: 4 })} {pool.symbol}
+                              </span>
+                            </div>
+
                             <Input
                               label="Amount"
                               type="number"
@@ -427,7 +436,7 @@ export default function PoolDetailPage() {
                               onChange={(e) => setDepositAmount(e.target.value)}
                               iconRight={
                                 <button
-                                  onClick={() => setDepositAmount('10000')}
+                                  onClick={() => setDepositAmount(walletBalance > 0 ? walletBalance.toString() : '0')}
                                   className="text-xs font-medium text-accent-teal hover:text-accent-teal-hover"
                                 >
                                   Max
@@ -442,8 +451,11 @@ export default function PoolDetailPage() {
                               </span>
                             </div>
 
-                            {depositMutation.error && (
-                              <TransactionError message={depositMutation.error} onRetry={depositMutation.reset} />
+                            {/* Insufficient balance warning */}
+                            {hasInsufficientBalance && (
+                              <div className="flex items-center gap-2 rounded-md border border-red-500/20 bg-red-500/5 px-3 py-2 text-sm text-red-400">
+                                Insufficient balance. You have {walletBalance.toLocaleString('en-US', { maximumFractionDigits: 4 })} {pool.symbol}
+                              </div>
                             )}
                           </div>
 
@@ -454,19 +466,88 @@ export default function PoolDetailPage() {
                             <Button
                               variant="primary"
                               size="sm"
-                              disabled={estimatedShares <= 0 || depositMutation.isLoading}
-                              onClick={handleDeposit}
+                              disabled={estimatedShares <= 0 || hasInsufficientBalance}
+                              onClick={() => setDepositStep('confirm')}
                             >
-                              {depositMutation.isLoading ? 'Processing...' : 'Confirm Deposit'}
+                              Review Transaction
                             </Button>
                           </DialogFooter>
                         </>
+                      )}
+
+                      {/* Step 2: Confirm */}
+                      {depositStep === 'confirm' && (
+                        <>
+                          <div className="flex flex-col gap-4">
+                            <div className="rounded-lg bg-bg-tertiary p-4 space-y-3">
+                              <h4 className="text-sm font-semibold text-text-primary">Transaction Summary</h4>
+                              <div className="flex justify-between text-sm">
+                                <span className="text-text-tertiary">Asset</span>
+                                <span className="text-text-primary">{pool.symbol}</span>
+                              </div>
+                              <div className="flex justify-between text-sm">
+                                <span className="text-text-tertiary">Deposit Amount</span>
+                                <span className="font-mono text-text-primary">{parseFloat(depositAmount).toLocaleString('en-US', { maximumFractionDigits: 4 })} {pool.symbol}</span>
+                              </div>
+                              <div className="flex justify-between text-sm">
+                                <span className="text-text-tertiary">Estimated Shares</span>
+                                <span className="font-mono text-text-primary">~{estimatedShares.toLocaleString('en-US', { maximumFractionDigits: 2 })}</span>
+                              </div>
+                              <div className="border-t border-border-subtle pt-2 flex justify-between text-sm">
+                                <span className="text-text-tertiary">Current Balance</span>
+                                <span className="font-mono text-text-primary">{walletBalance.toLocaleString('en-US', { maximumFractionDigits: 4 })} {pool.symbol}</span>
+                              </div>
+                              <div className="flex justify-between text-sm">
+                                <span className="text-text-tertiary">Remaining After</span>
+                                <span className="font-mono text-text-primary">{remainingAfterDeposit.toLocaleString('en-US', { maximumFractionDigits: 4 })} {pool.symbol}</span>
+                              </div>
+                            </div>
+
+                            <p className="text-xs text-text-tertiary">
+                              Your wallet will be debited {depositAmount} {pool.symbol}. This transaction will be submitted to the Canton ledger.
+                            </p>
+
+                            {depositMutation.error && (
+                              <TransactionError message={depositMutation.error} onRetry={depositMutation.reset} />
+                            )}
+                          </div>
+
+                          <DialogFooter>
+                            <Button variant="ghost" size="sm" onClick={() => setDepositStep('input')}>Back</Button>
+                            <Button
+                              variant="primary"
+                              size="sm"
+                              disabled={depositMutation.isLoading}
+                              onClick={handleDeposit}
+                            >
+                              {depositMutation.isLoading ? 'Submitting...' : 'Approve & Submit'}
+                            </Button>
+                          </DialogFooter>
+                        </>
+                      )}
+
+                      {/* Step 3: Success */}
+                      {depositStep === 'success' && (
+                        <div className="flex flex-col items-center gap-4 py-8">
+                          <div className="h-12 w-12 rounded-full bg-positive/20 flex items-center justify-center">
+                            <svg className="h-6 w-6 text-positive" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                            </svg>
+                          </div>
+                          <p className="text-text-primary font-semibold">Deposit submitted!</p>
+                          <p className="text-text-secondary text-sm">
+                            Deposited {depositAmount} {pool.symbol}
+                          </p>
+                          <DialogClose asChild>
+                            <Button variant="secondary" size="sm" onClick={() => { setDepositAmount(''); setDepositStep('input'); depositMutation.reset(); }}>Close</Button>
+                          </DialogClose>
+                        </div>
                       )}
                     </DialogContent>
                   </Dialog>
 
                   {/* Withdraw Dialog */}
-                  <Dialog>
+                  <Dialog onOpenChange={(open) => { if (!open) { setWithdrawStep('input'); setWithdrawAmount(''); withdrawMutation.reset(); } }}>
                     <DialogTrigger asChild>
                       <Button
                         variant="secondary"
@@ -480,11 +561,109 @@ export default function PoolDetailPage() {
                       <DialogHeader>
                         <DialogTitle>Withdraw {pool.symbol}</DialogTitle>
                         <DialogDescription>
-                          Withdraw your supplied {pool.symbol} from this pool.
+                          {withdrawStep === 'confirm'
+                            ? 'Review your withdrawal before submitting.'
+                            : `Withdraw your supplied ${pool.symbol} from this pool.`}
                         </DialogDescription>
                       </DialogHeader>
 
-                      {withdrawSuccess ? (
+                      {/* Step 1: Input */}
+                      {withdrawStep === 'input' && (
+                        <>
+                          <div className="flex flex-col gap-4">
+                            {/* Available to withdraw */}
+                            <div className="flex items-center justify-between text-sm">
+                              <span className="text-text-tertiary">Available to withdraw</span>
+                              <span className="font-mono tabular-nums text-text-primary">
+                                {Math.max(0, availableLiquidity).toLocaleString('en-US', { maximumFractionDigits: 4 })} {pool.symbol}
+                              </span>
+                            </div>
+
+                            <Input
+                              label="Amount (shares)"
+                              type="number"
+                              placeholder="0.00"
+                              value={withdrawAmount}
+                              onChange={(e) => setWithdrawAmount(e.target.value)}
+                              iconRight={
+                                <button
+                                  onClick={() => setWithdrawAmount(Math.max(0, availableLiquidity).toString())}
+                                  className="text-xs font-medium text-accent-teal hover:text-accent-teal-hover"
+                                >
+                                  Max
+                                </button>
+                              }
+                            />
+
+                            <div className="flex items-center justify-between rounded-md bg-bg-tertiary px-3 py-2 text-sm">
+                              <span className="text-text-tertiary">Estimated receive</span>
+                              <span className="font-mono tabular-nums text-text-primary">
+                                ~{parseFloat(withdrawAmount || '0').toLocaleString('en-US', { maximumFractionDigits: 4 })} {pool.symbol}
+                              </span>
+                            </div>
+                          </div>
+
+                          <DialogFooter>
+                            <DialogClose asChild>
+                              <Button variant="ghost" size="sm">Cancel</Button>
+                            </DialogClose>
+                            <Button
+                              variant="primary"
+                              size="sm"
+                              disabled={!withdrawAmount || parseFloat(withdrawAmount) <= 0}
+                              onClick={() => setWithdrawStep('confirm')}
+                            >
+                              Review Withdrawal
+                            </Button>
+                          </DialogFooter>
+                        </>
+                      )}
+
+                      {/* Step 2: Confirm */}
+                      {withdrawStep === 'confirm' && (
+                        <>
+                          <div className="flex flex-col gap-4">
+                            <div className="rounded-lg bg-bg-tertiary p-4 space-y-3">
+                              <h4 className="text-sm font-semibold text-text-primary">Withdrawal Summary</h4>
+                              <div className="flex justify-between text-sm">
+                                <span className="text-text-tertiary">Asset</span>
+                                <span className="text-text-primary">{pool.symbol}</span>
+                              </div>
+                              <div className="flex justify-between text-sm">
+                                <span className="text-text-tertiary">Withdraw Amount</span>
+                                <span className="font-mono text-text-primary">{parseFloat(withdrawAmount).toLocaleString('en-US', { maximumFractionDigits: 4 })} shares</span>
+                              </div>
+                              <div className="border-t border-border-subtle pt-2 flex justify-between text-sm">
+                                <span className="text-text-tertiary">Tokens returned to wallet</span>
+                                <span className="font-mono text-text-primary">~{parseFloat(withdrawAmount).toLocaleString('en-US', { maximumFractionDigits: 4 })} {pool.symbol}</span>
+                              </div>
+                            </div>
+
+                            <p className="text-xs text-text-tertiary">
+                              Your supply position will be reduced and tokens will be returned to your wallet.
+                            </p>
+
+                            {withdrawMutation.error && (
+                              <TransactionError message={withdrawMutation.error} onRetry={withdrawMutation.reset} />
+                            )}
+                          </div>
+
+                          <DialogFooter>
+                            <Button variant="ghost" size="sm" onClick={() => setWithdrawStep('input')}>Back</Button>
+                            <Button
+                              variant="primary"
+                              size="sm"
+                              disabled={withdrawMutation.isLoading}
+                              onClick={handleWithdraw}
+                            >
+                              {withdrawMutation.isLoading ? 'Submitting...' : 'Approve & Withdraw'}
+                            </Button>
+                          </DialogFooter>
+                        </>
+                      )}
+
+                      {/* Step 3: Success */}
+                      {withdrawStep === 'success' && (
                         <div className="flex flex-col items-center gap-4 py-8">
                           <div className="h-12 w-12 rounded-full bg-positive/20 flex items-center justify-center">
                             <svg className="h-6 w-6 text-positive" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -496,54 +675,9 @@ export default function PoolDetailPage() {
                             Withdrawing {withdrawAmount} shares of {pool.symbol}
                           </p>
                           <DialogClose asChild>
-                            <Button variant="secondary" size="sm" onClick={() => { setWithdrawAmount(''); setWithdrawSuccess(false); withdrawMutation.reset(); }}>Close</Button>
+                            <Button variant="secondary" size="sm" onClick={() => { setWithdrawAmount(''); setWithdrawStep('input'); withdrawMutation.reset(); }}>Close</Button>
                           </DialogClose>
                         </div>
-                      ) : (
-                        <>
-                          <div className="flex flex-col gap-4">
-                            <Input
-                              label="Amount"
-                              type="number"
-                              placeholder="0.00"
-                              value={withdrawAmount}
-                              onChange={(e) => setWithdrawAmount(e.target.value)}
-                              iconRight={
-                                <button
-                                  onClick={() => setWithdrawAmount('0')}
-                                  className="text-xs font-medium text-accent-teal hover:text-accent-teal-hover"
-                                >
-                                  Max
-                                </button>
-                              }
-                            />
-
-                            <div className="flex items-center justify-between rounded-md bg-bg-tertiary px-3 py-2 text-sm">
-                              <span className="text-text-tertiary">Available to withdraw</span>
-                              <span className="font-mono tabular-nums text-text-primary">
-                                0.00 {pool.symbol}
-                              </span>
-                            </div>
-
-                            {withdrawMutation.error && (
-                              <TransactionError message={withdrawMutation.error} onRetry={withdrawMutation.reset} />
-                            )}
-                          </div>
-
-                          <DialogFooter>
-                            <DialogClose asChild>
-                              <Button variant="ghost" size="sm">Cancel</Button>
-                            </DialogClose>
-                            <Button
-                              variant="primary"
-                              size="sm"
-                              disabled={!withdrawAmount || parseFloat(withdrawAmount) <= 0 || withdrawMutation.isLoading}
-                              onClick={handleWithdraw}
-                            >
-                              {withdrawMutation.isLoading ? 'Processing...' : 'Confirm Withdraw'}
-                            </Button>
-                          </DialogFooter>
-                        </>
                       )}
                     </DialogContent>
                   </Dialog>
