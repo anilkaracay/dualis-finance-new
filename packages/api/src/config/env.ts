@@ -28,6 +28,7 @@ const envSchema = z.object({
   SPLICE_WALLET_API_URL: z.string().optional(),
   SPLICE_WALLET_JWT_SECRET: z.string().default('unsafe'),
   SPLICE_WALLET_JWT_AUDIENCE: z.string().default('https://validator.example.com'),
+  SPLICE_SCAN_API_URL: z.string().optional(),
 
   // Database
   DATABASE_URL: z.string().default('postgresql://localhost:5432/dualis'),

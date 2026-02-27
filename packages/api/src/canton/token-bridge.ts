@@ -409,26 +409,41 @@ export class CIP56TokenBridge implements ITokenBridge {
 }
 
 // ---------------------------------------------------------------------------
-// SpliceBalanceBridge — queries real Splice/Amulet token balances from Canton
+// SpliceBalanceBridge — queries real Splice/Amulet token balances (wallet-agnostic)
 // ---------------------------------------------------------------------------
 
+/** Response from /v0/admin/external-party/balance */
+interface ExternalPartyBalanceResponse {
+  party_id: string;
+  total_unlocked_coin: string;
+  total_locked_coin: string;
+  total_coin_holdings: string;
+  total_available_coin: string;
+  computed_as_of_round: number;
+}
+
 /**
- * Queries the Splice Wallet REST API for real CC/Amulet balances.
+ * Wallet-agnostic Splice balance bridge.
  *
- * Uses the validator's Splice Wallet API (`/api/validator/v0/wallet/balance`)
- * with HS256 JWT auth. Returns the operator (validator) party's CC balance.
+ * - For the validator's own party: queries `/api/validator/v0/wallet/balance`
+ * - For ANY connected wallet (Console, Loop, Cantor8, Nightly, Bron, etc.):
+ *   queries `/api/validator/v0/admin/external-party/balance?party_id=<party>`
  *
- * Requires SPLICE_WALLET_API_URL env var to be set (e.g. http://172.18.0.2:5003).
+ * Works across participants — the Splice network indexes global state.
+ * Any wallet added to PartyLayer in the future works automatically.
  */
 export class SpliceBalanceBridge implements ITokenBridge {
   private readonly walletApiUrl: string | null;
   private readonly jwtSecret: string;
   private readonly jwtAudience: string;
+  private readonly operatorParty: string;
+  private externalPartyEndpointAvailable = true;
 
-  constructor(_config: CantonConfig) {
+  constructor(config: CantonConfig) {
     this.walletApiUrl = process.env.SPLICE_WALLET_API_URL ?? null;
     this.jwtSecret = process.env.SPLICE_WALLET_JWT_SECRET ?? 'unsafe';
     this.jwtAudience = process.env.SPLICE_WALLET_JWT_AUDIENCE ?? 'https://validator.example.com';
+    this.operatorParty = config.parties.operator;
     log.info({ walletApiUrl: this.walletApiUrl ? 'configured' : 'not-set' }, 'SpliceBalanceBridge initialized');
   }
 
@@ -449,16 +464,32 @@ export class SpliceBalanceBridge implements ITokenBridge {
     return `${header}.${payload}.${signature}`;
   }
 
+  // ── Balance query (wallet-agnostic) ──────────────────────────────────────
+
   async getBalance(party: string, symbol?: string): Promise<BalanceResult> {
     if (!this.walletApiUrl) {
       log.debug('SPLICE_WALLET_API_URL not configured, skipping Splice balance query');
       return { party, balances: [] };
     }
 
+    // Validator's own balance → /wallet/balance
+    if (party === this.operatorParty) {
+      return this.getValidatorBalance(party, symbol);
+    }
+
+    // Any connected wallet → /admin/external-party/balance (wallet-agnostic)
+    if (this.externalPartyEndpointAvailable) {
+      return this.getExternalPartyBalance(party, symbol);
+    }
+
+    return { party, balances: [] };
+  }
+
+  /** Query validator's own CC balance via Splice Wallet API */
+  private async getValidatorBalance(party: string, symbol?: string): Promise<BalanceResult> {
     const { default: axios } = await import('axios');
 
     try {
-      // Query Splice Wallet API as administrator (validator)
       const jwt = this.generateJwt('administrator');
       const response = await axios.get<{
         round: number;
@@ -473,22 +504,58 @@ export class SpliceBalanceBridge implements ITokenBridge {
       const locked = parseFloat(response.data.effective_locked_qty) || 0;
       const total = unlocked + locked;
 
-      if (total <= 0) {
-        return { party, balances: [] };
-      }
+      if (total <= 0) return { party, balances: [] };
 
       const balances: TokenAmount[] = [];
       if (!symbol || symbol === 'CC') {
         balances.push({ symbol: 'CC', amount: String(Math.floor(total)) });
       }
 
-      log.info({ party: party.slice(0, 20), cc: total.toFixed(2) }, 'Splice wallet balance queried');
+      log.info({ party: party.slice(0, 20), cc: total.toFixed(2), source: 'validator-self' }, 'Splice balance queried');
       return { party, balances };
     } catch (error) {
-      log.debug({ error: error instanceof Error ? error.message : 'unknown' }, 'Splice Wallet API balance query failed');
+      log.debug({ error: error instanceof Error ? error.message : 'unknown' }, 'Validator balance query failed');
       return { party, balances: [] };
     }
   }
+
+  /** Query any connected wallet's CC balance via admin external-party endpoint (wallet-agnostic) */
+  private async getExternalPartyBalance(party: string, symbol?: string): Promise<BalanceResult> {
+    const { default: axios } = await import('axios');
+
+    try {
+      const jwt = this.generateJwt('administrator');
+      const response = await axios.get<ExternalPartyBalanceResponse>(
+        `${this.walletApiUrl}/api/validator/v0/admin/external-party/balance`,
+        {
+          params: { party_id: party },
+          headers: { Authorization: `Bearer ${jwt}` },
+          timeout: 10000,
+        },
+      );
+
+      const total = parseFloat(response.data.total_available_coin) || 0;
+      if (total <= 0) return { party, balances: [] };
+
+      const balances: TokenAmount[] = [];
+      if (!symbol || symbol === 'CC') {
+        balances.push({ symbol: 'CC', amount: String(Math.floor(total)) });
+      }
+
+      log.info({ party: party.slice(0, 20), cc: total.toFixed(2), source: 'external-party' }, 'Splice balance queried');
+      return { party, balances };
+    } catch (error) {
+      const axiosErr = error as { response?: { status: number } };
+      if (axiosErr.response?.status === 404) {
+        log.warn('External-party balance endpoint not available (404) — disabling');
+        this.externalPartyEndpointAvailable = false;
+      }
+      log.debug({ error: error instanceof Error ? error.message : 'unknown', party: party.slice(0, 20) }, 'External party balance query failed');
+      return { party, balances: [] };
+    }
+  }
+
+  // ── Unsupported operations (Splice tokens are managed by Splice) ─────────
 
   async transfer(): Promise<TransferResult> {
     return { transactionId: `splice-unsupported-${Date.now()}`, status: 'failed', timestamp: new Date().toISOString(), details: { error: 'Splice token transfers not supported via this bridge' } };
@@ -509,6 +576,27 @@ export class SpliceBalanceBridge implements ITokenBridge {
         headers: { Authorization: `Bearer ${jwt}` },
         timeout: 5000,
       });
+
+      // Also probe external-party endpoint availability
+      try {
+        await axios.get(
+          `${this.walletApiUrl}/api/validator/v0/admin/external-party/balance`,
+          {
+            params: { party_id: this.operatorParty },
+            headers: { Authorization: `Bearer ${jwt}` },
+            timeout: 5000,
+          },
+        );
+        this.externalPartyEndpointAvailable = true;
+      } catch (err) {
+        const axiosErr = err as { response?: { status: number } };
+        if (axiosErr.response?.status === 404) {
+          this.externalPartyEndpointAvailable = false;
+          log.warn('External-party balance endpoint not available on this validator');
+        }
+        // Other errors (timeout, 500) don't mean it's permanently unavailable
+      }
+
       return true;
     } catch {
       return false;
