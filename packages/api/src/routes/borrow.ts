@@ -16,6 +16,8 @@ const positiveAmountString = z.string().min(1).refine((val) => {
   return num <= 1_000_000_000;
 }, { message: 'Amount exceeds maximum allowed value' });
 
+const routingModeSchema = z.enum(['proxy', 'wallet-sign', 'auto']).optional();
+
 const borrowRequestSchema = z.object({
   lendingPoolId: z.string().min(1),
   borrowAmount: positiveAmountString,
@@ -25,6 +27,7 @@ const borrowRequestSchema = z.object({
       amount: positiveAmountString,
     })
   ).min(1),
+  routingMode: routingModeSchema,
 });
 
 const repaySchema = z.object({
@@ -35,6 +38,7 @@ const repaySchema = z.object({
     const num = parseFloat(val);
     return num <= 1_000_000_000;
   }, { message: 'Amount exceeds maximum allowed value' }),
+  routingMode: routingModeSchema,
 });
 
 const addCollateralSchema = z.object({
@@ -48,6 +52,7 @@ const addCollateralSchema = z.object({
       return num <= 1_000_000_000;
     }, { message: 'Amount exceeds maximum allowed value' }),
   }),
+  routingMode: routingModeSchema,
 });
 
 export async function borrowRoutes(fastify: FastifyInstance): Promise<void> {
@@ -82,7 +87,11 @@ export async function borrowRoutes(fastify: FastifyInstance): Promise<void> {
       const userId = request.user?.userId;
 
       try {
-        const result = await borrowService.requestBorrow(partyId, parsed.data, userId);
+        const result = await borrowService.requestBorrow(partyId, parsed.data, userId, parsed.data.routingMode);
+        // Wallet-sign mode returns TransactionResult directly
+        if ('requiresWalletSign' in result) {
+          return reply.status(200).send({ data: result });
+        }
         const response: ApiResponse<BorrowResponse> = {
           data: result.data,
           transaction: result.transaction,
@@ -139,7 +148,10 @@ export async function borrowRoutes(fastify: FastifyInstance): Promise<void> {
       const userId = request.user?.userId;
 
       try {
-        const result = await borrowService.repay(partyId, positionId, parsed.data.amount, userId);
+        const result = await borrowService.repay(partyId, positionId, parsed.data.amount, userId, parsed.data.routingMode);
+        if ('requiresWalletSign' in result) {
+          return reply.status(200).send({ data: result });
+        }
         const response: ApiResponse<RepayResponse> = {
           data: result.data,
           transaction: result.transaction,
@@ -180,7 +192,10 @@ export async function borrowRoutes(fastify: FastifyInstance): Promise<void> {
       const userId = request.user?.userId;
 
       try {
-        const result = await borrowService.addCollateral(partyId, positionId, parsed.data.asset, userId);
+        const result = await borrowService.addCollateral(partyId, positionId, parsed.data.asset, userId, parsed.data.routingMode);
+        if ('requiresWalletSign' in result) {
+          return reply.status(200).send({ data: result });
+        }
         const response: ApiResponse<AddCollateralResponse> = {
           data: result.data,
           transaction: result.transaction,

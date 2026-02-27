@@ -6,6 +6,8 @@ import type {
   RepayResponse,
   AddCollateralResponse,
   TransactionMeta,
+  TransactionResult,
+  TransactionRoutingMode,
   CreditTier,
 } from '@dualis/shared';
 import {
@@ -29,6 +31,8 @@ import * as registry from './poolRegistry.js';
 import { trackActivity } from './reward-tracker.service.js';
 import { getDb, schema } from '../db/client.js';
 import * as tokenBalanceService from './tokenBalance.service.js';
+import * as transactionRouterService from './transactionRouter.service.js';
+import { registerPostSignCallback } from './transactionRouter.service.js';
 
 const log = createChildLogger('borrow-service');
 
@@ -173,7 +177,8 @@ export async function requestBorrow(
   partyId: string,
   params: BorrowRequest,
   userId?: string | undefined,
-): Promise<{ data: BorrowResponse; transaction: TransactionMeta }> {
+  routingMode?: TransactionRoutingMode,
+): Promise<{ data: BorrowResponse; transaction: TransactionMeta } | TransactionResult> {
   log.info({ partyId, params }, 'Processing borrow request');
 
   // 1. Get composite credit score for tier-based adjustments
@@ -268,54 +273,71 @@ export async function requestBorrow(
     pool.contractId = newPoolCid;
     pool.totalBorrow += borrowAmount;
 
-    // Create a BorrowPosition contract on-ledger (user as borrower, dual-signatory)
     const operatorParty = cantonConfig().parties.operator;
     const collateralCfg = getCollateralParams(poolAsset);
+
+    // Build the full BorrowPosition create payload
+    const borrowPositionPayload = {
+      operator: operatorParty,
+      borrower: partyId,
+      positionId: `borrow-pos-${randomUUID().slice(0, 8)}`,
+      poolId: params.lendingPoolId,
+      borrowedAsset: {
+        symbol: poolAsset,
+        instrumentType: pool.asset.type,
+        priceUSD: Number(borrowPrice).toFixed(10),
+        decimals: 6,
+      },
+      borrowedAmountPrincipal: params.borrowAmount,
+      borrowIndexAtEntry: pool.borrowIndex.toFixed(10),
+      collateralRefs: params.collateralAssets.map(a => ({
+        vaultId: `vault-${randomUUID().slice(0, 8)}`,
+        symbol: a.symbol,
+        amount: a.amount,
+        valueUSD: (parseFloat(a.amount) * getAssetPrice(a.symbol)).toFixed(10),
+      })),
+      creditTier: tier,
+      tierParams: {
+        maxLTV: Number(tierMaxLTV).toFixed(10),
+        rateDiscount: Number(rateDiscount).toFixed(10),
+        minCollateralRatio: Number(collateralCfg?.liquidationThreshold ?? 1.25).toFixed(10),
+        liquidationBuffer: Number(collateralCfg?.liquidationPenalty ?? 0.05).toFixed(10),
+      },
+      lastHealthFactor: {
+        value: previewHF.value.toFixed(10),
+        collateralValueUSD: previewHF.collateralValueUSD.toFixed(10),
+        weightedCollateralUSD: (previewHF.weightedCollateralValueUSD ?? previewHF.collateralValueUSD).toFixed(10),
+        borrowValueUSD: previewHF.borrowValueUSD.toFixed(10),
+        weightedLTV: previewHF.weightedLTV.toFixed(10),
+        status: previewHF.value <= 1.0 ? 'HFLiquidatable'
+          : previewHF.value <= 1.2 ? 'HFDanger'
+          : previewHF.value <= 1.5 ? 'HFCaution'
+          : previewHF.value <= 2.0 ? 'HFHealthy'
+          : 'HFSafe',
+      },
+      borrowTimestamp: new Date().toISOString(),
+      lastUpdateTimestamp: new Date().toISOString(),
+      isActive: true,
+      isLiquidatable: false,
+    };
+
+    // ── Wallet-sign mode: return signing payload for wallet approval ──
+    if (routingMode === 'wallet-sign' && userId) {
+      const txResult = await transactionRouterService.routeTransaction(userId, {
+        templateId: 'Dualis.Lending.Borrow:BorrowPosition',
+        choiceName: 'CreateBorrow',
+        argument: borrowPositionPayload,
+        commandType: 'create',
+        forceRoutingMode: 'wallet-sign',
+        amountUsd: String(borrowAmountUSD),
+      });
+      return txResult;
+    }
+
+    // ── Proxy mode: create contract directly ──
     const borrowPosResult = await client.createContract(
       'Dualis.Lending.Borrow:BorrowPosition',
-      {
-        operator: operatorParty,
-        borrower: partyId,
-        positionId: `borrow-pos-${randomUUID().slice(0, 8)}`,
-        poolId: params.lendingPoolId,
-        borrowedAsset: {
-          symbol: poolAsset,
-          instrumentType: pool.asset.type,
-          priceUSD: Number(borrowPrice).toFixed(10),
-          decimals: 6, // DAML AssetInfo requires decimals : Int
-        },
-        borrowedAmountPrincipal: params.borrowAmount,
-        borrowIndexAtEntry: pool.borrowIndex.toFixed(10),
-        collateralRefs: params.collateralAssets.map(a => ({
-          vaultId: `vault-${randomUUID().slice(0, 8)}`,
-          symbol: a.symbol,
-          amount: a.amount,
-          valueUSD: (parseFloat(a.amount) * getAssetPrice(a.symbol)).toFixed(10),
-        })),
-        creditTier: tier,
-        tierParams: {
-          maxLTV: Number(tierMaxLTV).toFixed(10),
-          rateDiscount: Number(rateDiscount).toFixed(10),
-          minCollateralRatio: Number(collateralCfg?.liquidationThreshold ?? 1.25).toFixed(10),
-          liquidationBuffer: Number(collateralCfg?.liquidationPenalty ?? 0.05).toFixed(10),
-        },
-        lastHealthFactor: {
-          value: previewHF.value.toFixed(10),
-          collateralValueUSD: previewHF.collateralValueUSD.toFixed(10),
-          weightedCollateralUSD: (previewHF.weightedCollateralValueUSD ?? previewHF.collateralValueUSD).toFixed(10),
-          borrowValueUSD: previewHF.borrowValueUSD.toFixed(10),
-          weightedLTV: previewHF.weightedLTV.toFixed(10),
-          status: previewHF.value <= 1.0 ? 'HFLiquidatable'
-            : previewHF.value <= 1.2 ? 'HFDanger'
-            : previewHF.value <= 1.5 ? 'HFCaution'
-            : previewHF.value <= 2.0 ? 'HFHealthy'
-            : 'HFSafe',
-        },
-        borrowTimestamp: new Date().toISOString(),
-        lastUpdateTimestamp: new Date().toISOString(),
-        isActive: true,
-        isLiquidatable: false,
-      },
+      borrowPositionPayload,
       { actAs: [operatorParty, partyId] },
     );
 
@@ -448,7 +470,8 @@ export async function repay(
   positionId: string,
   amount: string,
   userId?: string | undefined,
-): Promise<{ data: RepayResponse; transaction: TransactionMeta }> {
+  routingMode?: TransactionRoutingMode,
+): Promise<{ data: RepayResponse; transaction: TransactionMeta } | TransactionResult> {
   log.info({ partyId, positionId, amount }, 'Processing repayment');
 
   const repayAmountNum = parseFloat(amount);
@@ -490,7 +513,26 @@ export async function repay(
       }
     }
 
-    // Exercise Repay on BorrowPosition (controller borrower — needs dual-signatory)
+    // ── Wallet-sign mode: return signing payload for wallet approval ──
+    if (routingMode === 'wallet-sign' && userId) {
+      const txResult = await transactionRouterService.routeTransaction(userId, {
+        templateId: 'Dualis.Lending.Borrow:BorrowPosition',
+        choiceName: 'Repay',
+        argument: {
+          repayAmount: parseFloat(amount).toFixed(10),
+          currentBorrowIndex,
+          repayTime: new Date().toISOString(),
+        },
+        contractId: posContract.contractId,
+        forceRoutingMode: 'wallet-sign',
+        amountUsd: String(repayAmountNum * (parseFloat(((payload.borrowedAsset as Record<string, unknown>)?.priceUSD as string) ?? '1'))),
+        compoundOp: 'repay',
+        compoundMeta: { poolId, amount, partyId },
+      });
+      return txResult;
+    }
+
+    // ── Proxy mode: exercise choice directly ──
     await client.exerciseChoice(
       'Dualis.Lending.Borrow:BorrowPosition',
       posContract.contractId,
@@ -608,7 +650,8 @@ export async function addCollateral(
   positionId: string,
   asset: { symbol: string; amount: string },
   userId?: string | undefined,
-): Promise<{ data: AddCollateralResponse; transaction: TransactionMeta }> {
+  routingMode?: TransactionRoutingMode,
+): Promise<{ data: AddCollateralResponse; transaction: TransactionMeta } | TransactionResult> {
   log.info({ partyId, positionId, asset }, 'Adding collateral');
 
   // ── Balance check: ensure user has enough collateral tokens ──
@@ -640,7 +683,28 @@ export async function addCollateral(
 
     const addedValueUSD = parseFloat(asset.amount) * getAssetPrice(asset.symbol);
 
-    // Exercise AddCollateral on BorrowPosition (controller borrower — dual-signatory)
+    // ── Wallet-sign mode: return signing payload for wallet approval ──
+    if (routingMode === 'wallet-sign' && userId) {
+      const txResult = await transactionRouterService.routeTransaction(userId, {
+        templateId: 'Dualis.Lending.Borrow:BorrowPosition',
+        choiceName: 'AddCollateral',
+        argument: {
+          newCollateralRef: {
+            vaultId: `vault-${randomUUID().slice(0, 8)}`,
+            symbol: asset.symbol,
+            amount: asset.amount,
+            valueUSD: addedValueUSD.toFixed(10),
+          },
+          updateTime: new Date().toISOString(),
+        },
+        contractId: posContract.contractId,
+        forceRoutingMode: 'wallet-sign',
+        amountUsd: String(addedValueUSD),
+      });
+      return txResult;
+    }
+
+    // ── Proxy mode: exercise choice directly ──
     await client.exerciseChoice(
       'Dualis.Lending.Borrow:BorrowPosition',
       posContract.contractId,
@@ -720,3 +784,50 @@ export async function addCollateral(
     transaction: buildTransactionMeta(),
   };
 }
+
+// ---------------------------------------------------------------------------
+// Post-Sign Callbacks — execute server-side logic after user signs
+// ---------------------------------------------------------------------------
+
+registerPostSignCallback('repay', async (_txLogId, metadata) => {
+  const compoundMeta = metadata.compoundMeta as { poolId: string; amount: string; partyId: string } | undefined;
+  if (!compoundMeta) return;
+
+  const { poolId, amount } = compoundMeta;
+  const pool = registry.getPool(poolId);
+  if (!pool) return;
+
+  try {
+    const client = CantonClient.getInstance();
+    const poolResult = await client.exerciseChoice(
+      'Dualis.Lending.Pool:LendingPool',
+      pool.contractId,
+      'RecordRepay',
+      { repayAmount: amount },
+    );
+
+    // Update local pool contract ID
+    let newPoolCid = pool.contractId;
+    const events = poolResult.events ?? [];
+    for (const event of events) {
+      const created = (event as Record<string, unknown>).CreatedEvent as Record<string, unknown> | undefined;
+      if (!created) continue;
+      const tid = (created.templateId as string) ?? '';
+      if (tid.includes('LendingPool')) {
+        newPoolCid = (created.contractId as string) ?? newPoolCid;
+      }
+    }
+    if (newPoolCid === pool.contractId) {
+      try {
+        const fresh = await cantonQueries.getPoolByKey(poolId);
+        if (fresh) newPoolCid = fresh.contractId;
+      } catch { /* fallthrough */ }
+    }
+    pool.contractId = newPoolCid;
+    pool.totalBorrow = Math.max(0, pool.totalBorrow - parseFloat(amount));
+
+    log.info({ poolId, amount }, 'Post-sign RecordRepay executed on pool');
+  } catch (err) {
+    log.warn({ poolId, amount, err: err instanceof Error ? err.message : 'unknown' }, 'Post-sign RecordRepay failed');
+  }
+});

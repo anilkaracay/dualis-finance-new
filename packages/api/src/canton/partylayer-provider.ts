@@ -36,6 +36,8 @@ export interface CommandParams {
   choice: string;
   argument: Record<string, unknown>;
   contractId?: string;
+  /** 'exercise' (default) or 'create' for contract creation (e.g. BorrowPosition) */
+  commandType?: 'exercise' | 'create';
 }
 
 // ---------------------------------------------------------------------------
@@ -118,7 +120,7 @@ export class MockPartyLayerProvider implements IPartyLayerProvider {
     const transactionId = `tx_${nanoid(16)}`;
     const commandId = `cmd_${nanoid(12)}`;
     log.debug(
-      { transactionId, commandId, actAs: params.actAs, choice: params.choice },
+      { transactionId, commandId, actAs: params.actAs, choice: params.choice, commandType: params.commandType ?? 'exercise' },
       'Mock: command submitted',
     );
     return { transactionId, commandId };
@@ -130,6 +132,7 @@ export class MockPartyLayerProvider implements IPartyLayerProvider {
   }> {
     const payload = Buffer.from(
       JSON.stringify({
+        commandType: params.commandType ?? 'exercise',
         actAs: params.actAs,
         templateId: params.templateId,
         choice: params.choice,
@@ -223,8 +226,21 @@ export class CantonPartyLayerProvider implements IPartyLayerProvider {
     commandId: string;
   }> {
     const canton = CantonClient.getInstance();
-    const contractId = params.contractId ?? '';
 
+    if (params.commandType === 'create') {
+      // Contract creation (e.g. BorrowPosition)
+      const result = await canton.createContract(
+        params.templateId,
+        params.argument,
+      );
+      return {
+        transactionId: result.contractId ?? `tx_${nanoid(16)}`,
+        commandId: `cmd_${nanoid(12)}`,
+      };
+    }
+
+    // Default: exercise choice on existing contract
+    const contractId = params.contractId ?? '';
     const result = await canton.exerciseChoice(
       params.templateId,
       contractId,
@@ -232,7 +248,6 @@ export class CantonPartyLayerProvider implements IPartyLayerProvider {
       params.argument,
     );
 
-    // ExerciseResult has { exerciseResult, events } — extract a tx ID or generate one
     const exerciseData = result.exerciseResult as Record<string, unknown> | null;
     const txId = (exerciseData?.transactionId as string) ?? `tx_${nanoid(16)}`;
 
@@ -249,6 +264,7 @@ export class CantonPartyLayerProvider implements IPartyLayerProvider {
     // Build a canonical payload to be signed by the client wallet
     const payload = Buffer.from(
       JSON.stringify({
+        commandType: params.commandType ?? 'exercise',
         actAs: params.actAs,
         templateId: params.templateId,
         choice: params.choice,

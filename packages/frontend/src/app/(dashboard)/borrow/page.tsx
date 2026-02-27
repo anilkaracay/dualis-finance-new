@@ -25,7 +25,9 @@ import { usePositionStore } from '@/stores/usePositionStore';
 import { useProtocolStore } from '@/stores/useProtocolStore';
 import { useWalletStore } from '@/stores/useWalletStore';
 import type { CreditTier } from '@dualis/shared';
-import { useRepay, useAddCollateral, useBorrow } from '@/hooks/api';
+import { ENDPOINTS } from '@/lib/api/endpoints';
+import { useWalletOperation } from '@/hooks/useWalletOperation';
+import { Loader2 } from 'lucide-react';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -111,8 +113,7 @@ function RepayDialog({
   onOpenChange: (open: boolean) => void;
 }) {
   const [repayAmount, setRepayAmount] = useState('');
-  const [submitted, setSubmitted] = useState(false);
-  const repayMutation = useRepay();
+  const repayOp = useWalletOperation();
 
   const repayValue = parseFloat(repayAmount) || 0;
   const repayPercent = position.currentDebt > 0 ? repayValue / position.currentDebt : 0;
@@ -124,23 +125,24 @@ function RepayDialog({
 
   const handleConfirm = useCallback(async () => {
     try {
-      await repayMutation.execute(position.positionId, { amount: repayAmount });
-      setSubmitted(true);
+      await repayOp.execute(
+        ENDPOINTS.BORROW_REPAY(position.positionId),
+        { amount: repayAmount },
+      );
     } catch {
-      // error captured by repayMutation.error
+      // error captured by repayOp.error
     }
-  }, [position.positionId, repayAmount, repayMutation]);
+  }, [position.positionId, repayAmount, repayOp]);
 
   const handleOpenChange = useCallback(
     (value: boolean) => {
       if (!value) {
         setRepayAmount('');
-        setSubmitted(false);
-        repayMutation.reset();
+        repayOp.reset();
       }
       onOpenChange(value);
     },
-    [onOpenChange, repayMutation]
+    [onOpenChange, repayOp]
   );
 
   return (
@@ -153,7 +155,18 @@ function RepayDialog({
           </DialogDescription>
         </DialogHeader>
 
-        {submitted ? (
+        {/* Signing — wallet approval popup */}
+        {(repayOp.status === 'signing' || repayOp.status === 'submitting') ? (
+          <div className="flex flex-col items-center gap-4 py-8">
+            <Loader2 className="h-8 w-8 animate-spin text-accent-teal" />
+            <p className="font-semibold text-text-primary">
+              {repayOp.status === 'signing' ? 'Waiting for wallet approval...' : 'Submitting transaction...'}
+            </p>
+            <p className="text-text-secondary text-sm text-center">
+              {repayOp.status === 'signing' ? 'Please confirm the transaction in your wallet' : 'Processing on Canton...'}
+            </p>
+          </div>
+        ) : repayOp.status === 'success' ? (
           <div className="flex flex-col items-center gap-4 py-8">
             <div className="h-12 w-12 rounded-full bg-positive/20 flex items-center justify-center">
               <svg className="h-6 w-6 text-positive" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -207,8 +220,8 @@ function RepayDialog({
                 </div>
               </div>
 
-              {repayMutation.error && (
-                <TransactionError message={repayMutation.error} onRetry={repayMutation.reset} />
+              {repayOp.error && (
+                <TransactionError message={repayOp.error} onRetry={repayOp.reset} />
               )}
             </div>
 
@@ -219,9 +232,9 @@ function RepayDialog({
               <Button
                 variant="primary"
                 onClick={handleConfirm}
-                disabled={repayValue <= 0 || repayValue > position.currentDebt || repayMutation.isLoading}
+                disabled={repayValue <= 0 || repayValue > position.currentDebt || repayOp.isLoading}
               >
-                {repayMutation.isLoading ? 'Processing...' : 'Confirm Repay'}
+                {repayOp.status === 'preparing' ? 'Preparing...' : 'Approve & Repay'}
               </Button>
             </DialogFooter>
           </>
@@ -251,8 +264,7 @@ function AddCollateralDialog({
   const assets = collateralAssets.length > 0 ? collateralAssets : FALLBACK_COLLATERAL_ASSETS;
   const [selectedAsset, setSelectedAsset] = useState<string>(assets[0] ?? 'USDC');
   const [amount, setAmount] = useState('');
-  const [submitted, setSubmitted] = useState(false);
-  const addCollateralMutation = useAddCollateral();
+  const addCollateralOp = useWalletOperation();
 
   const amountValue = parseFloat(amount) || 0;
   const priceUSD = collateralPrices[selectedAsset] ?? FALLBACK_COLLATERAL_PRICES[selectedAsset] ?? 1;
@@ -269,26 +281,25 @@ function AddCollateralDialog({
 
   const handleConfirm = useCallback(async () => {
     try {
-      await addCollateralMutation.execute(position.positionId, {
-        asset: { symbol: selectedAsset, amount },
-      });
-      setSubmitted(true);
+      await addCollateralOp.execute(
+        ENDPOINTS.BORROW_ADD_COLLATERAL(position.positionId),
+        { asset: { symbol: selectedAsset, amount } },
+      );
     } catch {
-      // error captured by addCollateralMutation.error
+      // error captured by addCollateralOp.error
     }
-  }, [position.positionId, selectedAsset, amount, addCollateralMutation]);
+  }, [position.positionId, selectedAsset, amount, addCollateralOp]);
 
   const handleOpenChange = useCallback(
     (value: boolean) => {
       if (!value) {
         setSelectedAsset(assets[0] ?? 'USDC');
         setAmount('');
-        setSubmitted(false);
-        addCollateralMutation.reset();
+        addCollateralOp.reset();
       }
       onOpenChange(value);
     },
-    [onOpenChange, addCollateralMutation, assets]
+    [onOpenChange, addCollateralOp, assets]
   );
 
   return (
@@ -301,7 +312,18 @@ function AddCollateralDialog({
           </DialogDescription>
         </DialogHeader>
 
-        {submitted ? (
+        {/* Signing — wallet approval popup */}
+        {(addCollateralOp.status === 'signing' || addCollateralOp.status === 'submitting') ? (
+          <div className="flex flex-col items-center gap-4 py-8">
+            <Loader2 className="h-8 w-8 animate-spin text-accent-teal" />
+            <p className="font-semibold text-text-primary">
+              {addCollateralOp.status === 'signing' ? 'Waiting for wallet approval...' : 'Submitting transaction...'}
+            </p>
+            <p className="text-text-secondary text-sm text-center">
+              {addCollateralOp.status === 'signing' ? 'Please confirm the transaction in your wallet' : 'Processing on Canton...'}
+            </p>
+          </div>
+        ) : addCollateralOp.status === 'success' ? (
           <div className="flex flex-col items-center gap-4 py-8">
             <div className="h-12 w-12 rounded-full bg-positive/20 flex items-center justify-center">
               <svg className="h-6 w-6 text-positive" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -354,8 +376,8 @@ function AddCollateralDialog({
                 </div>
               )}
 
-              {addCollateralMutation.error && (
-                <TransactionError message={addCollateralMutation.error} onRetry={addCollateralMutation.reset} />
+              {addCollateralOp.error && (
+                <TransactionError message={addCollateralOp.error} onRetry={addCollateralOp.reset} />
               )}
             </div>
 
@@ -366,9 +388,9 @@ function AddCollateralDialog({
               <Button
                 variant="primary"
                 onClick={handleConfirm}
-                disabled={amountValue <= 0 || addCollateralMutation.isLoading}
+                disabled={amountValue <= 0 || addCollateralOp.isLoading}
               >
-                {addCollateralMutation.isLoading ? 'Processing...' : 'Add Collateral'}
+                {addCollateralOp.status === 'preparing' ? 'Preparing...' : 'Approve & Add Collateral'}
               </Button>
             </DialogFooter>
           </>
@@ -531,7 +553,7 @@ function NewBorrowSection({ pools, collateralAssets, collateralPrices, collatera
   collateralThresholds: Record<string, number>;
 }) {
   const { creditTier } = useWalletStore();
-  const borrowMutation = useBorrow();
+  const borrowOp = useWalletOperation();
 
   const effectiveAssets = collateralAssets.length > 0 ? collateralAssets : FALLBACK_COLLATERAL_ASSETS;
 
@@ -855,31 +877,48 @@ function NewBorrowSection({ pools, collateralAssets, collateralPrices, collatera
             </div>
 
             {/* Review Button */}
-            {borrowMutation.error && (
-              <TransactionError message={borrowMutation.error} onRetry={borrowMutation.reset} />
+            {borrowOp.error && (
+              <TransactionError message={borrowOp.error} onRetry={borrowOp.reset} />
             )}
+
+            {/* Signing — wallet approval popup */}
+            {(borrowOp.status === 'signing' || borrowOp.status === 'submitting') && (
+              <div className="flex flex-col items-center gap-4 py-6">
+                <Loader2 className="h-8 w-8 animate-spin text-accent-teal" />
+                <p className="font-semibold text-text-primary">
+                  {borrowOp.status === 'signing' ? 'Waiting for wallet approval...' : 'Submitting transaction...'}
+                </p>
+                <p className="text-text-secondary text-sm text-center">
+                  {borrowOp.status === 'signing' ? 'Please confirm the transaction in your wallet' : 'Processing on Canton...'}
+                </p>
+              </div>
+            )}
+
             <div className="pt-2">
               <Button
                 variant="primary"
                 size="lg"
                 className="w-full sm:w-auto"
-                disabled={!selectedPoolId || borrowValue <= 0 || collateralValueUSD <= 0 || borrowMutation.isLoading}
+                disabled={!selectedPoolId || borrowValue <= 0 || collateralValueUSD <= 0 || borrowOp.isLoading}
                 onClick={async () => {
                   try {
-                    await borrowMutation.execute({
-                      lendingPoolId: selectedPoolId,
-                      borrowAmount: borrowAmount,
-                      collateralAssets: collateralEntries
-                        .filter((e) => parseFloat(e.amount) > 0)
-                        .map((e) => ({ symbol: e.asset, amount: e.amount })),
-                    });
+                    await borrowOp.execute(
+                      ENDPOINTS.BORROW_REQUEST,
+                      {
+                        lendingPoolId: selectedPoolId,
+                        borrowAmount: borrowAmount,
+                        collateralAssets: collateralEntries
+                          .filter((e) => parseFloat(e.amount) > 0)
+                          .map((e) => ({ symbol: e.asset, amount: e.amount })),
+                      },
+                    );
                     setShowSuccess(true);
                   } catch {
-                    // error captured by borrowMutation.error
+                    // error captured by borrowOp.error
                   }
                 }}
               >
-                {borrowMutation.isLoading ? 'Processing...' : 'Review Borrow'}
+                {borrowOp.status === 'preparing' ? 'Preparing...' : borrowOp.isLoading ? 'Processing...' : 'Approve & Borrow'}
               </Button>
             </div>
           </div>
@@ -887,7 +926,7 @@ function NewBorrowSection({ pools, collateralAssets, collateralPrices, collatera
       </Card>
 
       {/* Success Dialog */}
-      <Dialog open={showSuccess} onOpenChange={setShowSuccess}>
+      <Dialog open={showSuccess} onOpenChange={(v) => { setShowSuccess(v); if (!v) borrowOp.reset(); }}>
         <DialogContent>
           <div className="flex flex-col items-center gap-4 py-8">
             <div className="h-16 w-16 rounded-full bg-positive/20 flex items-center justify-center">

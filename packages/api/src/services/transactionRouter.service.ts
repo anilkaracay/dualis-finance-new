@@ -19,6 +19,18 @@ import type {
 const log = createChildLogger('transaction-router-service');
 
 // ---------------------------------------------------------------------------
+// Post-Sign Callback Registry (for compound operations like repay)
+// ---------------------------------------------------------------------------
+
+type PostSignCallback = (txLogId: string, metadata: Record<string, unknown>) => Promise<void>;
+const postSignCallbacks = new Map<string, PostSignCallback>();
+
+/** Register a callback to run after a signed transaction is submitted (e.g. RecordRepay on pool). */
+export function registerPostSignCallback(op: string, cb: PostSignCallback): void {
+  postSignCallbacks.set(op, cb);
+}
+
+// ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
@@ -93,6 +105,12 @@ export async function routeTransaction(
     walletConnectionId?: string;
     forceRoutingMode?: TransactionRoutingMode;
     amountUsd?: string;
+    /** Command type: 'exercise' (default) or 'create' for contract creation */
+    commandType?: 'exercise' | 'create';
+    /** Compound operation identifier for post-sign callbacks (e.g. 'repay') */
+    compoundOp?: string;
+    /** Metadata passed to the post-sign callback */
+    compoundMeta?: Record<string, unknown>;
   },
 ): Promise<TransactionResult> {
   const db = requireDb();
@@ -124,6 +142,7 @@ export async function routeTransaction(
         argument: params.argument,
       };
       if (params.contractId != null) cmdParams.contractId = params.contractId;
+      if (params.commandType) cmdParams.commandType = params.commandType;
 
       const result = await provider.submitCommand(cmdParams);
 
@@ -182,8 +201,16 @@ export async function routeTransaction(
     argument: params.argument,
   };
   if (params.contractId != null) signCmdParams.contractId = params.contractId;
+  if (params.commandType) signCmdParams.commandType = params.commandType;
 
   const { payload, expiresAt } = await provider.prepareSigningPayload(signCmdParams);
+
+  // Build metadata — include compound operation info for post-sign callbacks
+  const txMetadata: Record<string, unknown> = { signingPayload: payload, expiresAt };
+  if (params.compoundOp) {
+    txMetadata.compoundOp = params.compoundOp;
+    if (params.compoundMeta) txMetadata.compoundMeta = params.compoundMeta;
+  }
 
   // Create transaction log with pending status
   await db.insert(schema.transactionLogs).values({
@@ -196,7 +223,7 @@ export async function routeTransaction(
     routingMode: 'wallet-sign',
     status: 'pending',
     amountUsd: params.amountUsd ?? null,
-    metadata: { signingPayload: payload, expiresAt },
+    metadata: txMetadata,
   });
 
   log.info({ txLogId, routingMode: 'wallet-sign', partyId }, 'Transaction pending wallet signature');
@@ -256,6 +283,20 @@ export async function submitSignedTransaction(
       .where(eq(schema.transactionLogs.transactionLogId, transactionLogId));
 
     log.info({ transactionLogId }, 'Signed transaction submitted');
+
+    // Execute post-sign callbacks for compound operations (e.g. RecordRepay on pool)
+    const compoundOp = metadata?.compoundOp as string | undefined;
+    if (compoundOp) {
+      const callback = postSignCallbacks.get(compoundOp);
+      if (callback) {
+        try {
+          await callback(transactionLogId, metadata as Record<string, unknown>);
+          log.info({ transactionLogId, compoundOp }, 'Post-sign callback executed');
+        } catch (cbErr) {
+          log.warn({ transactionLogId, compoundOp, err: cbErr instanceof Error ? cbErr.message : 'unknown' }, 'Post-sign callback failed (non-fatal)');
+        }
+      }
+    }
 
     return {
       transactionLogId,
