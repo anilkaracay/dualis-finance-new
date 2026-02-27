@@ -49,7 +49,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <AuthGuard>
-    <PartyLayerKit network="mainnet" appName="Dualis Finance">
+    <PartyLayerKit network={(process.env.NEXT_PUBLIC_CANTON_NETWORK as 'mainnet' | 'devnet' | 'testnet') || 'mainnet'} appName="Dualis Finance">
     <ToastProvider>
       <div className="flex h-screen overflow-hidden">
         {/* Sidebar — hidden on mobile */}

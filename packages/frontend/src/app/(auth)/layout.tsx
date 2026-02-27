@@ -30,7 +30,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
   const ThemeIcon = THEME_ICON[themePreference];
 
   return (
-    <PartyLayerKit network="mainnet" appName="Dualis Finance">
+    <PartyLayerKit network={(process.env.NEXT_PUBLIC_CANTON_NETWORK as 'mainnet' | 'devnet' | 'testnet') || 'mainnet'} appName="Dualis Finance">
     <div className="relative min-h-screen bg-bg-primary flex flex-col overflow-hidden">
       {/* ── Background Layer 1: Gradient mesh ── */}
       <div

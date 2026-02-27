@@ -5,9 +5,11 @@ WORKDIR /app
 ARG NEXT_PUBLIC_API_URL=https://api.dualis.finance/v1
 ARG NEXT_PUBLIC_WS_URL=wss://api.dualis.finance/v1/ws
 ARG NEXT_PUBLIC_APP_URL=https://dualis.finance
+ARG NEXT_PUBLIC_CANTON_NETWORK=mainnet
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_WS_URL=$NEXT_PUBLIC_WS_URL
 ENV NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL
+ENV NEXT_PUBLIC_CANTON_NETWORK=$NEXT_PUBLIC_CANTON_NETWORK
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json ./
 COPY packages/frontend/package.json packages/frontend/

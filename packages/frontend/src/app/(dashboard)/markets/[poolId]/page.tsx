@@ -134,7 +134,7 @@ export default function PoolDetailPage() {
   const poolId = params.poolId as string;
 
   const { pools, isLoading, fetchPools } = useProtocolStore();
-  const { isConnected } = useWalletStore();
+  const { isConnected, party: storeParty } = useWalletStore();
   const { fetchBalances } = useBalanceStore();
   const { fetchTokenBalances, getBalanceForSymbol } = useTokenBalanceStore();
 
@@ -149,7 +149,9 @@ export default function PoolDetailPage() {
   const [depositLoading, setDepositLoading] = useState(false);
   const [withdrawLoading, setWithdrawLoading] = useState(false);
 
-  const { submitTransaction, party } = usePartyLayer();
+  const { submitTransaction, party: plParty } = usePartyLayer();
+  // Prefer PartyLayer session party; fallback to persisted wallet store party
+  const party = plParty || storeParty;
 
   // Pool-specific params from API (dynamic per pool)
   const [detailParams, setDetailParams] = useState<PoolDetailParams>(DEFAULT_DETAIL_PARAMS);
@@ -178,7 +180,8 @@ export default function PoolDetailPage() {
       .catch(() => {
         // Use defaults if API call fails
       });
-  }, [fetchPools, poolId]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fetchPools, poolId, isConnected, party]);
 
   const pool = useMemo(
     () => pools.find((p) => p.poolId === poolId),
