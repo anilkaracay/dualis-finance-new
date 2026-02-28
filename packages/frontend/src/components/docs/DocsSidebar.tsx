@@ -7,9 +7,10 @@ import { DOCS_NAV } from '@/lib/docs/navigation';
 interface DocsSidebarProps {
   open?: boolean;
   onClose?: () => void;
+  onSearchOpen?: () => void;
 }
 
-export function DocsSidebar({ open, onClose }: DocsSidebarProps) {
+export function DocsSidebar({ open, onClose, onSearchOpen }: DocsSidebarProps) {
   const pathname = usePathname();
 
   return (
@@ -24,16 +25,14 @@ export function DocsSidebar({ open, onClose }: DocsSidebarProps) {
         {/* Search trigger */}
         <button
           className="docs-search-trigger"
-          onClick={() => {
-            /* search modal - future */
-          }}
+          onClick={onSearchOpen}
         >
           <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
             <circle cx="7" cy="7" r="5.5" />
             <path d="M11 11l3.5 3.5" strokeLinecap="round" />
           </svg>
           Search docs...
-          <span className="docs-search-kbd">Ctrl K</span>
+          <span className="docs-search-kbd">⌘K</span>
         </button>
 
         {/* Navigation sections */}

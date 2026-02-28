@@ -27,7 +27,7 @@ export default function RoadmapPage() {
           <tbody>
             <tr>
               <td><strong>Foundation</strong></td>
-              <td>Q4 2024 -- Q1 2025</td>
+              <td>Q4 2025</td>
               <td style={{ color: '#22c55e', fontWeight: 600 }}>Completed</td>
               <td>
                 Protocol architecture design, financial math engine (Jump Rate Model, health
@@ -38,7 +38,7 @@ export default function RoadmapPage() {
             </tr>
             <tr>
               <td><strong>Development</strong></td>
-              <td>Q1 -- Q4 2025</td>
+              <td>Q4 2025 -- Q1 2026</td>
               <td style={{ color: '#22c55e', fontWeight: 600 }}>Completed</td>
               <td>
                 Full-stack implementation: Fastify API (272 endpoints), Next.js frontend (43

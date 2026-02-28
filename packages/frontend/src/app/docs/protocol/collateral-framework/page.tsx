@@ -72,9 +72,9 @@ export default function CollateralFrameworkPage() {
             <tr>
               <td><strong>CC (Canton Coin)</strong></td>
               <td>Crypto</td>
-              <td>55%</td>
-              <td>65%</td>
-              <td>8%</td>
+              <td>75%</td>
+              <td>82%</td>
+              <td>5%</td>
             </tr>
             <tr>
               <td><strong>T-BILL (RWA-TBILL)</strong></td>

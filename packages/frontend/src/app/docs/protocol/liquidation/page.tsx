@@ -181,8 +181,8 @@ export default function LiquidationPage() {
             </tr>
             <tr>
               <td><strong>CC (Canton Coin)</strong></td>
-              <td>8%</td>
-              <td>Emerging asset with thinner liquidity and higher volatility</td>
+              <td>5%</td>
+              <td>Canton Network native asset with growing liquidity</td>
             </tr>
             <tr>
               <td><strong>TIFA-REC</strong></td>
