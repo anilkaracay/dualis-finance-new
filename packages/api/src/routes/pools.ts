@@ -25,11 +25,13 @@ const routingModeSchema = z.enum(['proxy', 'wallet-sign', 'auto']).optional();
 const depositSchema = z.object({
   amount: z.string().min(1),
   routingMode: routingModeSchema,
+  walletParty: z.string().optional(),
 });
 
 const withdrawSchema = z.object({
   shares: z.string().min(1),
   routingMode: routingModeSchema,
+  walletParty: z.string().optional(),
 });
 
 export async function poolRoutes(fastify: FastifyInstance): Promise<void> {
@@ -103,11 +105,11 @@ export async function poolRoutes(fastify: FastifyInstance): Promise<void> {
         throw new AppError('VALIDATION_ERROR', 'Invalid deposit request', 400, parsed.error.flatten());
       }
 
-      const partyId = request.user!.partyId;
+      const partyId = parsed.data.walletParty || request.user!.partyId;
       const userId = request.user?.userId;
 
       try {
-        const result = await poolService.deposit(poolId, partyId, parsed.data.amount, userId, parsed.data.routingMode);
+        const result = await poolService.deposit(poolId, partyId, parsed.data.amount, userId, parsed.data.routingMode, parsed.data.walletParty);
 
         // If the service returns a wallet-sign result, send it directly
         if ('requiresWalletSign' in result) {
@@ -144,11 +146,11 @@ export async function poolRoutes(fastify: FastifyInstance): Promise<void> {
         throw new AppError('VALIDATION_ERROR', 'Invalid withdraw request', 400, parsed.error.flatten());
       }
 
-      const partyId = request.user!.partyId;
+      const partyId = parsed.data.walletParty || request.user!.partyId;
       const userId = request.user?.userId;
 
       try {
-        const result = await poolService.withdraw(poolId, partyId, parsed.data.shares, userId, parsed.data.routingMode);
+        const result = await poolService.withdraw(poolId, partyId, parsed.data.shares, userId, parsed.data.routingMode, parsed.data.walletParty);
 
         // If the service returns a wallet-sign result, send it directly
         if ('requiresWalletSign' in result) {
@@ -246,11 +248,11 @@ export async function poolRoutes(fastify: FastifyInstance): Promise<void> {
         throw new AppError('VALIDATION_ERROR', 'Invalid supply request', 400, parsed.error.flatten());
       }
 
-      const partyId = request.user!.partyId;
+      const partyId = parsed.data.walletParty || request.user!.partyId;
       const userId = request.user?.userId;
 
       try {
-        const result = await poolService.deposit(poolId, partyId, parsed.data.amount, userId, parsed.data.routingMode);
+        const result = await poolService.deposit(poolId, partyId, parsed.data.amount, userId, parsed.data.routingMode, parsed.data.walletParty);
 
         if ('requiresWalletSign' in result) {
           return reply.status(200).send({ data: result });

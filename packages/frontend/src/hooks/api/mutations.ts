@@ -25,7 +25,7 @@ export function useDeposit() {
   const mutation = useMutation<DepositResponse>();
   return {
     ...mutation,
-    execute: (poolId: string, body: { amount: string }) =>
+    execute: (poolId: string, body: { amount: string; routingMode?: string; walletParty?: string }) =>
       mutation.execute(ENDPOINTS.POOL_DEPOSIT(poolId), body),
   };
 }
@@ -34,7 +34,7 @@ export function useWithdraw() {
   const mutation = useMutation<WithdrawResponse>();
   return {
     ...mutation,
-    execute: (poolId: string, body: { shares: string }) =>
+    execute: (poolId: string, body: { shares: string; routingMode?: string; walletParty?: string }) =>
       mutation.execute(ENDPOINTS.POOL_WITHDRAW(poolId), body),
   };
 }

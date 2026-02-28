@@ -247,6 +247,7 @@ export async function deposit(
   amount: string,
   userId?: string | undefined,
   routingMode?: TransactionRoutingMode,
+  walletParty?: string,
 ): Promise<{ data: DepositResponse; transaction: TransactionMeta } | TransactionResult> {
   log.info({ poolId, userPartyId, amount, routingMode }, 'Processing deposit');
   const pool = registry.getPool(poolId);
@@ -279,6 +280,7 @@ export async function deposit(
       contractId: pool.contractId,
       forceRoutingMode: 'wallet-sign',
       amountUsd: String(amountNum * pool.asset.priceUSD),
+      ...(walletParty ? { walletParty } : {}),
     });
     return txResult;
   }
@@ -420,6 +422,7 @@ export async function withdraw(
   shares: string,
   userId?: string | undefined,
   routingMode?: TransactionRoutingMode,
+  walletParty?: string,
 ): Promise<{ data: WithdrawResponse; transaction: TransactionMeta } | TransactionResult> {
   log.info({ poolId, userPartyId, shares, routingMode }, 'Processing withdrawal');
   const pool = registry.getPool(poolId);
@@ -446,6 +449,7 @@ export async function withdraw(
       contractId: pool.contractId,
       forceRoutingMode: 'wallet-sign',
       amountUsd: String(withdrawnAmount * pool.asset.priceUSD),
+      ...(walletParty ? { walletParty } : {}),
     });
     return txResult;
   }
