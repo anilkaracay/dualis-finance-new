@@ -103,7 +103,7 @@ function Topbar({
         {/* Network selector */}
         <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-positive/[0.06] border border-positive/15 text-xs text-positive/80">
           <span className="h-1.5 w-1.5 rounded-full bg-positive animate-pulse shrink-0" />
-          <span>Canton Mainnet</span>
+          <span>Canton {process.env.NEXT_PUBLIC_CANTON_NETWORK === 'devnet' ? 'Devnet' : process.env.NEXT_PUBLIC_CANTON_NETWORK === 'testnet' ? 'Testnet' : 'Mainnet'}</span>
         </div>
 
         {/* Search */}
