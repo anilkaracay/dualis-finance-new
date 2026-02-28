@@ -1,0 +1,276 @@
+/* ─── Dualis Finance Whitepaper — PDF Stylesheet ─── */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Crimson+Pro:ital,wght@0,400;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500&display=swap');
+
+:root {
+  --teal: #00D4AA;
+  --teal-dark: #00A88A;
+  --dark: #0A0A0B;
+  --body: #1a1a2e;
+  --gray: #6B7280;
+  --light-gray: #E5E7EB;
+  --lighter-gray: #F3F4F6;
+  --white: #FFFFFF;
+}
+
+/* ─── Page Setup ─── */
+@page {
+  size: A4;
+  margin: 2.5cm 2.5cm 3cm 2.5cm;
+
+  @top-center {
+    content: "Dualis Finance — Technical Whitepaper v1.0";
+    font-family: 'Inter', sans-serif;
+    font-size: 8pt;
+    color: #9CA3AF;
+    padding-bottom: 8pt;
+    border-bottom: 0.5pt solid #E5E7EB;
+  }
+
+  @bottom-left {
+    content: "Confidential — Cayvox Labs © 2026";
+    font-family: 'Inter', sans-serif;
+    font-size: 7pt;
+    color: #9CA3AF;
+  }
+
+  @bottom-right {
+    content: counter(page);
+    font-family: 'Inter', sans-serif;
+    font-size: 8pt;
+    color: #6B7280;
+  }
+}
+
+@page:first {
+  @top-center { content: none; }
+  @bottom-left { content: none; }
+  @bottom-right { content: none; }
+  margin-top: 4cm;
+}
+
+/* ─── Base Typography ─── */
+body {
+  font-family: 'Inter', -apple-system, sans-serif;
+  font-size: 10.5pt;
+  line-height: 1.65;
+  color: #1F2937;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ─── Headings ─── */
+h1 {
+  font-family: 'Crimson Pro', Georgia, serif;
+  font-size: 28pt;
+  font-weight: 700;
+  color: var(--dark);
+  line-height: 1.15;
+  margin-top: 0;
+  margin-bottom: 8pt;
+  letter-spacing: -0.02em;
+  page-break-after: avoid;
+}
+
+h2 {
+  font-family: 'Crimson Pro', Georgia, serif;
+  font-size: 18pt;
+  font-weight: 700;
+  color: var(--dark);
+  line-height: 1.25;
+  margin-top: 28pt;
+  margin-bottom: 10pt;
+  padding-bottom: 6pt;
+  border-bottom: 1.5pt solid var(--teal);
+  page-break-after: avoid;
+}
+
+h3 {
+  font-family: 'Inter', sans-serif;
+  font-size: 13pt;
+  font-weight: 600;
+  color: #111827;
+  margin-top: 20pt;
+  margin-bottom: 8pt;
+  page-break-after: avoid;
+}
+
+h4 {
+  font-family: 'Inter', sans-serif;
+  font-size: 11pt;
+  font-weight: 600;
+  color: #374151;
+  margin-top: 16pt;
+  margin-bottom: 6pt;
+  page-break-after: avoid;
+}
+
+/* ─── Paragraphs ─── */
+p {
+  margin-bottom: 8pt;
+  text-align: justify;
+  hyphens: auto;
+}
+
+/* ─── Strong / Emphasis ─── */
+strong { font-weight: 600; color: #111827; }
+em { font-style: italic; }
+
+/* ─── Links ─── */
+a {
+  color: var(--teal-dark);
+  text-decoration: none;
+}
+
+/* ─── Lists ─── */
+ul, ol {
+  margin-bottom: 10pt;
+  padding-left: 20pt;
+}
+
+li {
+  margin-bottom: 3pt;
+  line-height: 1.55;
+}
+
+/* ─── Tables ─── */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 12pt 0 16pt;
+  font-size: 9.5pt;
+  page-break-inside: avoid;
+}
+
+thead th {
+  font-family: 'Inter', sans-serif;
+  font-size: 8pt;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--white);
+  background-color: #0F172A;
+  padding: 8pt 10pt;
+  text-align: left;
+  border-bottom: 2pt solid var(--teal);
+}
+
+tbody td {
+  padding: 7pt 10pt;
+  border-bottom: 0.5pt solid #E5E7EB;
+  color: #374151;
+  vertical-align: top;
+}
+
+tbody tr:nth-child(even) {
+  background-color: #F9FAFB;
+}
+
+/* Numeric cells */
+td:nth-child(n+2) {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ─── Code ─── */
+code {
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 9pt;
+  background: #F3F4F6;
+  padding: 1pt 4pt;
+  border-radius: 3pt;
+  color: #0D9488;
+}
+
+pre {
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 8.5pt;
+  line-height: 1.5;
+  background: #0F172A;
+  color: #E2E8F0;
+  padding: 14pt 16pt;
+  border-radius: 6pt;
+  border-left: 3pt solid var(--teal);
+  overflow-x: auto;
+  margin: 10pt 0 14pt;
+  page-break-inside: avoid;
+}
+
+pre code {
+  background: none;
+  padding: 0;
+  color: inherit;
+  font-size: inherit;
+}
+
+/* ─── Blockquotes ─── */
+blockquote {
+  border-left: 3pt solid var(--teal);
+  padding: 10pt 16pt;
+  margin: 12pt 0;
+  background: #F0FDFA;
+  border-radius: 0 6pt 6pt 0;
+  font-style: italic;
+  color: #115E59;
+}
+
+blockquote p {
+  margin-bottom: 0;
+}
+
+/* ─── Horizontal Rules ─── */
+hr {
+  border: none;
+  border-top: 1pt solid #D1D5DB;
+  margin: 20pt 0;
+}
+
+/* ─── Math (KaTeX) ─── */
+.katex {
+  font-size: 1.05em;
+}
+
+.katex-display {
+  margin: 12pt 0;
+  padding: 8pt 0;
+}
+
+/* ─── Page breaks ─── */
+h2 {
+  page-break-before: auto;
+}
+
+/* Force page breaks before major sections */
+h2:nth-of-type(1) { page-break-before: avoid; }
+
+/* ─── Cover page styles ─── */
+.cover-title {
+  text-align: center;
+}
+
+/* ─── Footnotes ─── */
+.footnote {
+  font-size: 8pt;
+  color: #6B7280;
+}
+
+/* ─── Figure Captions ─── */
+.caption {
+  font-size: 9pt;
+  color: #6B7280;
+  text-align: center;
+  margin-top: 4pt;
+  font-style: italic;
+}
+
+/* ─── Print optimizations ─── */
+img {
+  max-width: 100%;
+  page-break-inside: avoid;
+}
+
+table, pre, blockquote {
+  page-break-inside: avoid;
+}
+
+h2, h3, h4 {
+  page-break-after: avoid;
+}
