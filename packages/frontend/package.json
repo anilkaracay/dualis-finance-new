@@ -12,6 +12,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@console-wallet/dapp-sdk": "2.0.0",
     "@dualis/shared": "workspace:*",
     "@gsap/react": "^2.1.2",
     "@partylayer/react": "^0.2.7",

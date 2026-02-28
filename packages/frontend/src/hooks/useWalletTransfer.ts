@@ -1,7 +1,8 @@
 'use client';
 
 import { useCallback } from 'react';
-import { useSignTransaction, useSession } from '@partylayer/react';
+import { useSession } from '@partylayer/react';
+import { consoleWallet, CoinEnum } from '@console-wallet/dapp-sdk';
 import { useWalletStore } from '@/stores/useWalletStore';
 
 export interface WalletTransferParams {
@@ -14,12 +15,13 @@ export interface WalletTransferParams {
 /**
  * Hook for real CC/CBTC/USDCx transfers via Console Wallet popup.
  *
- * Uses PartyLayer's signTransaction which delegates to the wallet adapter's
- * submitCommands() — for Console Wallet this opens the extension popup and
- * executes a real Splice/Canton token transfer.
+ * Calls Console Wallet SDK's `submitCommands()` DIRECTLY — bypassing
+ * PartyLayer's signTransaction wrapper which swallows errors and returns null.
+ *
+ * `submitCommands()` opens the Console Wallet browser extension popup,
+ * user approves the token transfer, and a real Canton Splice transfer is executed.
  */
 export function useWalletTransfer() {
-  const { signTransaction: plSignTx } = useSignTransaction();
   const session = useSession();
   const storeParty = useWalletStore((s) => s.party);
 
@@ -29,25 +31,36 @@ export function useWalletTransfer() {
       throw new Error('No wallet connected. Please connect your wallet first.');
     }
 
+    // Map string token to CoinEnum
+    const tokenEnum = CoinEnum[params.token as keyof typeof CoinEnum];
+    if (!tokenEnum) {
+      throw new Error(`Unsupported token: ${params.token}. Only CC, CBTC, USDCx are supported.`);
+    }
+
     const signSendRequest = {
       from: walletParty,
       to: params.to,
-      token: params.token,
+      token: tokenEnum,
       amount: params.amount,
       expireDate: new Date(Date.now() + 5 * 60_000).toISOString(),
-      memo: params.memo,
+      ...(params.memo ? { memo: params.memo } : {}),
       waitForFinalization: 5000,
     };
 
-    const result = await plSignTx({ tx: signSendRequest });
+    // Call Console Wallet SDK directly — opens browser extension popup
+    const result = await consoleWallet.submitCommands(signSendRequest);
 
-    if (!result) {
+    if (!result || result.status === false) {
       throw new Error('Transfer was cancelled by user');
     }
 
-    return { txHash: String(result.transactionHash) };
+    // Use signature as txHash, or generate one from confirmation data
+    const txHash = result.signature
+      || (result.confirmationData ? JSON.stringify(result.confirmationData) : `tx_${Date.now()}`);
+
+    return { txHash };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [plSignTx, session?.sessionId, storeParty]);
+  }, [session?.sessionId, storeParty]);
 
   return { transfer };
 }
