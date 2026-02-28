@@ -15,6 +15,7 @@ const PUBLIC_PREFIXES = [
   '/_next',
   '/images',
   '/favicon',
+  '/docs',
 ];
 
 const PUBLIC_EXACT = new Set(['/', '/manifest.json', '/robots.txt', '/sitemap.xml']);
