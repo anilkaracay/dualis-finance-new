@@ -11,7 +11,7 @@ let worker: Worker | null = null;
 
 export function startPeriodicScreeningWorker(): void {
   worker = new Worker<PeriodicScreeningJobData>(
-    'screening:periodic',
+    'screening-periodic',
     async (job) => {
       const { userId, screeningType } = job.data;
       log.info({ userId, screeningType, jobId: job.id }, 'Processing periodic screening');

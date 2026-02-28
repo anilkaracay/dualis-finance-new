@@ -16,7 +16,7 @@ let complianceCleanupQueue: Queue | null = null;
 
 function createQueues(): void {
   try {
-    walletScreeningQueue = new Queue('screening:wallet', {
+    walletScreeningQueue = new Queue('screening-wallet', {
       connection,
       defaultJobOptions: {
         attempts: 2,
@@ -26,7 +26,7 @@ function createQueues(): void {
       },
     });
 
-    sanctionsScreeningQueue = new Queue('screening:sanctions', {
+    sanctionsScreeningQueue = new Queue('screening-sanctions', {
       connection,
       defaultJobOptions: {
         attempts: 2,
@@ -36,7 +36,7 @@ function createQueues(): void {
       },
     });
 
-    periodicScreeningQueue = new Queue('screening:periodic', {
+    periodicScreeningQueue = new Queue('screening-periodic', {
       connection,
       defaultJobOptions: {
         attempts: 2,
@@ -46,7 +46,7 @@ function createQueues(): void {
       },
     });
 
-    complianceCleanupQueue = new Queue('compliance:cleanup', {
+    complianceCleanupQueue = new Queue('compliance-cleanup', {
       connection,
       defaultJobOptions: {
         removeOnComplete: { count: 100 },

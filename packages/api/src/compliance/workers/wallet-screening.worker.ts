@@ -10,7 +10,7 @@ let worker: Worker | null = null;
 
 export function startWalletScreeningWorker(): void {
   worker = new Worker<WalletScreeningJobData>(
-    'screening:wallet',
+    'screening-wallet',
     async (job) => {
       const { userId, walletAddress } = job.data;
       log.info({ userId, walletAddress, jobId: job.id }, 'Processing wallet screening');

@@ -13,7 +13,7 @@ let worker: Worker | null = null;
 
 export function startDigestWorker(): void {
   worker = new Worker(
-    'notification:digest',
+    'notification-digest',
     async (job) => {
       log.info({ jobId: job.id }, 'Processing digest job');
 

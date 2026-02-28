@@ -10,7 +10,7 @@ let worker: Worker | null = null;
 
 export function startSanctionsScreeningWorker(): void {
   worker = new Worker<SanctionsScreeningJobData>(
-    'screening:sanctions',
+    'screening-sanctions',
     async (job) => {
       const { name, nationality, dateOfBirth } = job.data;
       log.info({ name, jobId: job.id }, 'Processing sanctions screening');

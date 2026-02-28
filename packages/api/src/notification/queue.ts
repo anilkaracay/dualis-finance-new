@@ -24,7 +24,7 @@ let cleanupQueue: Queue | null = null;
 
 function createQueues(): void {
   try {
-    emailQueue = new Queue('notification:email', {
+    emailQueue = new Queue('notification-email', {
       connection,
       defaultJobOptions: {
         attempts: 3,
@@ -34,7 +34,7 @@ function createQueues(): void {
       },
     });
 
-    webhookQueue = new Queue('notification:webhook', {
+    webhookQueue = new Queue('notification-webhook', {
       connection,
       defaultJobOptions: {
         attempts: 3,
@@ -44,7 +44,7 @@ function createQueues(): void {
       },
     });
 
-    digestQueue = new Queue('notification:digest', {
+    digestQueue = new Queue('notification-digest', {
       connection,
       defaultJobOptions: {
         removeOnComplete: { count: 100 },
@@ -52,7 +52,7 @@ function createQueues(): void {
       },
     });
 
-    cleanupQueue = new Queue('notification:cleanup', {
+    cleanupQueue = new Queue('notification-cleanup', {
       connection,
       defaultJobOptions: {
         removeOnComplete: { count: 100 },

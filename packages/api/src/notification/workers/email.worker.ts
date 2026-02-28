@@ -10,7 +10,7 @@ let worker: Worker | null = null;
 
 export function startEmailWorker(): void {
   worker = new Worker<EmailJobData>(
-    'notification:email',
+    'notification-email',
     async (job) => {
       const { notificationId, partyId, toAddress, templateId, templateData } = job.data;
 

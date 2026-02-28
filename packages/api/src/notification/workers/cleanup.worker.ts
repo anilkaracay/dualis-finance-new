@@ -11,7 +11,7 @@ let worker: Worker | null = null;
 
 export function startCleanupWorker(): void {
   worker = new Worker(
-    'notification:cleanup',
+    'notification-cleanup',
     async (job) => {
       const start = Date.now();
       log.info({ jobId: job.id }, 'Processing cleanup job');

@@ -10,7 +10,7 @@ let worker: Worker | null = null;
 
 export function startWebhookWorker(): void {
   worker = new Worker<WebhookJobData>(
-    'notification:webhook',
+    'notification-webhook',
     async (job) => {
       const { notificationId, webhookEndpointId, url, secret, payload } = job.data;
 

@@ -8,7 +8,7 @@ let worker: Worker | null = null;
 
 export function startComplianceCleanupWorker(): void {
   worker = new Worker(
-    'compliance:cleanup',
+    'compliance-cleanup',
     async (job) => {
       log.info({ jobId: job.id, type: job.name }, 'Processing compliance cleanup');
       // Placeholder: process GDPR deletions past retention, archive old data, clean Redis keys
