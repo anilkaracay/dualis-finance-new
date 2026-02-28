@@ -280,7 +280,7 @@ export async function requestBorrow(
     // Build the full BorrowPosition create payload
     const borrowPositionPayload = {
       operator: operatorParty,
-      borrower: partyId,
+      borrower: operatorParty,
       positionId: `borrow-pos-${randomUUID().slice(0, 8)}`,
       poolId: params.lendingPoolId,
       borrowedAsset: {
@@ -337,10 +337,11 @@ export async function requestBorrow(
     }
 
     // ── Proxy mode: create contract directly ──
+    // Only operatorParty in actAs — external wallet parties are not on our participant
     const borrowPosResult = await client.createContract(
       'Dualis.Lending.Borrow:BorrowPosition',
       borrowPositionPayload,
-      { actAs: [operatorParty, partyId] },
+      { actAs: [operatorParty] },
     );
 
     // Fire-and-forget reward tracking
@@ -474,8 +475,10 @@ export async function repay(
   userId?: string | undefined,
   routingMode?: TransactionRoutingMode,
   walletParty?: string,
+  walletTransferConfirmed?: boolean,
+  walletTxHash?: string,
 ): Promise<{ data: RepayResponse; transaction: TransactionMeta } | TransactionResult> {
-  log.info({ partyId, positionId, amount }, 'Processing repayment');
+  log.info({ partyId, positionId, amount, walletTransferConfirmed, walletTxHash }, 'Processing repayment');
 
   const repayAmountNum = parseFloat(amount);
   if (isNaN(repayAmountNum) || repayAmountNum <= 0) throw new Error('Invalid repay amount');
@@ -506,8 +509,8 @@ export async function repay(
     const pool = registry.getPool(poolId);
     const currentBorrowIndex = pool ? pool.borrowIndex.toFixed(10) : '1.0000000000';
 
-    // Balance check: ensure user has enough tokens to repay
-    if (pool) {
+    // Balance check: skip when wallet already transferred tokens via Console Wallet popup
+    if (!walletTransferConfirmed && pool) {
       const walletBalance = await tokenBalanceService.getWalletTokenBalance(partyId, pool.asset.symbol);
       if (walletBalance < repayAmountNum) {
         throw new Error(
@@ -537,6 +540,7 @@ export async function repay(
     }
 
     // ── Proxy mode: exercise choice directly ──
+    // Only operatorParty in actAs — external wallet parties are not on our participant
     await client.exerciseChoice(
       'Dualis.Lending.Borrow:BorrowPosition',
       posContract.contractId,
@@ -546,7 +550,7 @@ export async function repay(
         currentBorrowIndex,
         repayTime: new Date().toISOString(),
       },
-      { actAs: [operatorParty, partyId] },
+      { actAs: [operatorParty] },
     );
 
     // Also exercise RecordRepay on the LendingPool to update totalBorrow
@@ -656,18 +660,22 @@ export async function addCollateral(
   userId?: string | undefined,
   routingMode?: TransactionRoutingMode,
   walletParty?: string,
+  walletTransferConfirmed?: boolean,
+  walletTxHash?: string,
 ): Promise<{ data: AddCollateralResponse; transaction: TransactionMeta } | TransactionResult> {
-  log.info({ partyId, positionId, asset }, 'Adding collateral');
+  log.info({ partyId, positionId, asset, walletTransferConfirmed, walletTxHash }, 'Adding collateral');
 
-  // ── Balance check: ensure user has enough collateral tokens ──
+  // ── Balance check: skip when wallet already transferred tokens via Console Wallet popup ──
   const collateralAmount = parseFloat(asset.amount);
   if (isNaN(collateralAmount) || collateralAmount <= 0) throw new Error('Invalid collateral amount');
 
-  const walletBalance = await tokenBalanceService.getWalletTokenBalance(partyId, asset.symbol);
-  if (walletBalance < collateralAmount) {
-    throw new Error(
-      `Insufficient ${asset.symbol} balance for collateral: you have ${walletBalance.toFixed(4)} but need ${collateralAmount.toFixed(4)}`,
-    );
+  if (!walletTransferConfirmed) {
+    const walletBalance = await tokenBalanceService.getWalletTokenBalance(partyId, asset.symbol);
+    if (walletBalance < collateralAmount) {
+      throw new Error(
+        `Insufficient ${asset.symbol} balance for collateral: you have ${walletBalance.toFixed(4)} but need ${collateralAmount.toFixed(4)}`,
+      );
+    }
   }
 
   // ---------- Canton mode ----------
@@ -724,7 +732,7 @@ export async function addCollateral(
         },
         updateTime: new Date().toISOString(),
       },
-      { actAs: [operatorParty, partyId] },
+      { actAs: [operatorParty] },
     );
 
     const payload = posContract.payload as unknown as Record<string, unknown>;

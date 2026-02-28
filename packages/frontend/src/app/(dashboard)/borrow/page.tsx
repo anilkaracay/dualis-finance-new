@@ -25,8 +25,10 @@ import { usePositionStore } from '@/stores/usePositionStore';
 import { useProtocolStore } from '@/stores/useProtocolStore';
 import { useWalletStore } from '@/stores/useWalletStore';
 import type { CreditTier } from '@dualis/shared';
+import { mapPoolToCanton } from '@dualis/shared';
 import { ENDPOINTS } from '@/lib/api/endpoints';
 import { useWalletOperation } from '@/hooks/useWalletOperation';
+import { useOperatorParty } from '@/hooks/useOperatorParty';
 import { Loader2 } from 'lucide-react';
 
 // ---------------------------------------------------------------------------
@@ -107,10 +109,12 @@ function RepayDialog({
   position,
   open,
   onOpenChange,
+  operatorParty,
 }: {
   position: BorrowPosition;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  operatorParty: string | null;
 }) {
   const [repayAmount, setRepayAmount] = useState('');
   const repayOp = useWalletOperation();
@@ -125,14 +129,30 @@ function RepayDialog({
 
   const handleConfirm = useCallback(async () => {
     try {
-      await repayOp.execute(
-        ENDPOINTS.BORROW_REPAY(position.positionId),
-        { amount: repayAmount },
-      );
+      const cantonToken = mapPoolToCanton(position.symbol);
+
+      // Two-phase flow: wallet popup for supported Canton tokens
+      if (operatorParty && ['CC', 'CBTC', 'USDCx'].includes(cantonToken)) {
+        await repayOp.executeWithWalletTransfer(
+          ENDPOINTS.BORROW_REPAY(position.positionId),
+          { amount: repayAmount },
+          {
+            to: operatorParty,
+            token: cantonToken,
+            amount: repayAmount,
+            memo: `repay-${position.positionId}`,
+          },
+        );
+      } else {
+        await repayOp.execute(
+          ENDPOINTS.BORROW_REPAY(position.positionId),
+          { amount: repayAmount },
+        );
+      }
     } catch {
       // error captured by repayOp.error
     }
-  }, [position.positionId, repayAmount, repayOp]);
+  }, [position.positionId, position.symbol, repayAmount, repayOp, operatorParty]);
 
   const handleOpenChange = useCallback(
     (value: boolean) => {
@@ -254,12 +274,14 @@ function AddCollateralDialog({
   onOpenChange,
   collateralAssets,
   collateralPrices,
+  operatorParty,
 }: {
   position: BorrowPosition;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   collateralAssets: string[];
   collateralPrices: Record<string, number>;
+  operatorParty: string | null;
 }) {
   const assets = collateralAssets.length > 0 ? collateralAssets : FALLBACK_COLLATERAL_ASSETS;
   const [selectedAsset, setSelectedAsset] = useState<string>(assets[0] ?? 'USDC');
@@ -281,14 +303,30 @@ function AddCollateralDialog({
 
   const handleConfirm = useCallback(async () => {
     try {
-      await addCollateralOp.execute(
-        ENDPOINTS.BORROW_ADD_COLLATERAL(position.positionId),
-        { asset: { symbol: selectedAsset, amount } },
-      );
+      const cantonToken = mapPoolToCanton(selectedAsset);
+
+      // Two-phase flow: wallet popup for supported Canton tokens
+      if (operatorParty && ['CC', 'CBTC', 'USDCx'].includes(cantonToken)) {
+        await addCollateralOp.executeWithWalletTransfer(
+          ENDPOINTS.BORROW_ADD_COLLATERAL(position.positionId),
+          { asset: { symbol: selectedAsset, amount } },
+          {
+            to: operatorParty,
+            token: cantonToken,
+            amount,
+            memo: `collateral-${position.positionId}`,
+          },
+        );
+      } else {
+        await addCollateralOp.execute(
+          ENDPOINTS.BORROW_ADD_COLLATERAL(position.positionId),
+          { asset: { symbol: selectedAsset, amount } },
+        );
+      }
     } catch {
       // error captured by addCollateralOp.error
     }
-  }, [position.positionId, selectedAsset, amount, addCollateralOp]);
+  }, [position.positionId, selectedAsset, amount, addCollateralOp, operatorParty]);
 
   const handleOpenChange = useCallback(
     (value: boolean) => {
@@ -546,11 +584,12 @@ function ActiveBorrowPositions({
 // New Borrow Section
 // ---------------------------------------------------------------------------
 
-function NewBorrowSection({ pools, collateralAssets, collateralPrices, collateralThresholds }: {
+function NewBorrowSection({ pools, collateralAssets, collateralPrices, collateralThresholds, operatorParty }: {
   pools: PoolData[];
   collateralAssets: string[];
   collateralPrices: Record<string, number>;
   collateralThresholds: Record<string, number>;
+  operatorParty: string | null;
 }) {
   const { creditTier } = useWalletStore();
   const borrowOp = useWalletOperation();
@@ -902,16 +941,35 @@ function NewBorrowSection({ pools, collateralAssets, collateralPrices, collatera
                 disabled={!selectedPoolId || borrowValue <= 0 || collateralValueUSD <= 0 || borrowOp.isLoading}
                 onClick={async () => {
                   try {
-                    await borrowOp.execute(
-                      ENDPOINTS.BORROW_REQUEST,
-                      {
-                        lendingPoolId: selectedPoolId,
-                        borrowAmount: borrowAmount,
-                        collateralAssets: collateralEntries
-                          .filter((e) => parseFloat(e.amount) > 0)
-                          .map((e) => ({ symbol: e.asset, amount: e.amount })),
-                      },
-                    );
+                    const borrowBody = {
+                      lendingPoolId: selectedPoolId,
+                      borrowAmount: borrowAmount,
+                      collateralAssets: collateralEntries
+                        .filter((e) => parseFloat(e.amount) > 0)
+                        .map((e) => ({ symbol: e.asset, amount: e.amount })),
+                    };
+
+                    // Two-phase flow: wallet popup for confirmation, then backend processes borrow
+                    if (operatorParty && selectedPool) {
+                      const cantonToken = mapPoolToCanton(selectedPool.symbol);
+                      if (['CC', 'CBTC', 'USDCx'].includes(cantonToken)) {
+                        await borrowOp.executeWithWalletTransfer(
+                          ENDPOINTS.BORROW_REQUEST,
+                          borrowBody,
+                          {
+                            to: operatorParty,
+                            token: 'CC',
+                            amount: '0.0001',
+                            memo: `borrow-confirm-${selectedPoolId}`,
+                          },
+                        );
+                        setShowSuccess(true);
+                        return;
+                      }
+                    }
+
+                    // Fallback: proxy mode
+                    await borrowOp.execute(ENDPOINTS.BORROW_REQUEST, borrowBody);
                     setShowSuccess(true);
                   } catch {
                     // error captured by borrowOp.error
@@ -967,6 +1025,7 @@ export default function BorrowPage() {
     isLoading: poolsLoading,
     fetchPools,
   } = useProtocolStore();
+  const { operatorParty } = useOperatorParty();
 
   const [repayPosition, setRepayPosition] = useState<BorrowPosition | null>(null);
   const [collateralPosition, setCollateralPosition] = useState<BorrowPosition | null>(null);
@@ -1052,7 +1111,7 @@ export default function BorrowPage() {
 
       {/* New Borrow Section */}
       <section>
-        <NewBorrowSection pools={pools} collateralAssets={collateralAssets} collateralPrices={collateralPrices} collateralThresholds={collateralThresholds} />
+        <NewBorrowSection pools={pools} collateralAssets={collateralAssets} collateralPrices={collateralPrices} collateralThresholds={collateralThresholds} operatorParty={operatorParty} />
       </section>
 
       {/* Repay Dialog */}
@@ -1063,6 +1122,7 @@ export default function BorrowPage() {
           onOpenChange={(open) => {
             if (!open) setRepayPosition(null);
           }}
+          operatorParty={operatorParty}
         />
       )}
 
@@ -1076,6 +1136,7 @@ export default function BorrowPage() {
           }}
           collateralAssets={collateralAssets}
           collateralPrices={collateralPrices}
+          operatorParty={operatorParty}
         />
       )}
     </div>

@@ -248,8 +248,10 @@ export async function deposit(
   userId?: string | undefined,
   routingMode?: TransactionRoutingMode,
   walletParty?: string,
+  walletTransferConfirmed?: boolean,
+  walletTxHash?: string,
 ): Promise<{ data: DepositResponse; transaction: TransactionMeta } | TransactionResult> {
-  log.info({ poolId, userPartyId, amount, routingMode }, 'Processing deposit');
+  log.info({ poolId, userPartyId, amount, routingMode, walletTransferConfirmed }, 'Processing deposit');
   const pool = registry.getPool(poolId);
   if (!pool) throw new Error(`Pool ${poolId} not found`);
 
@@ -259,12 +261,14 @@ export async function deposit(
   const amountNum = parseFloat(amount);
   if (isNaN(amountNum) || amountNum <= 0) throw new Error('Invalid deposit amount');
 
-  // ── Balance check: ensure user has enough tokens to deposit ──
-  const walletBalance = await tokenBalanceService.getWalletTokenBalance(userPartyId, pool.asset.symbol);
-  if (walletBalance < amountNum) {
-    throw new Error(
-      `Insufficient ${pool.asset.symbol} balance: you have ${walletBalance.toFixed(4)} but tried to deposit ${amountNum.toFixed(4)}`,
-    );
+  // ── Balance check: skip when wallet already transferred tokens via Console Wallet popup ──
+  if (!walletTransferConfirmed) {
+    const walletBalance = await tokenBalanceService.getWalletTokenBalance(userPartyId, pool.asset.symbol);
+    if (walletBalance < amountNum) {
+      throw new Error(
+        `Insufficient ${pool.asset.symbol} balance: you have ${walletBalance.toFixed(4)} but tried to deposit ${amountNum.toFixed(4)}`,
+      );
+    }
   }
 
   // ── Wallet-sign mode: prepare signing payload, return to frontend ──
@@ -290,17 +294,19 @@ export async function deposit(
     const client = CantonClient.getInstance();
     const operatorParty = cantonConfig().parties.operator;
 
-    // Deposit choice: controller depositor — needs actAs [operator, user]
+    // Deposit choice: controller depositor
+    // In proxy mode the operator acts on behalf of the user, so use operatorParty
+    // as depositor (external wallet parties are not registered on our participant).
     const result = await client.exerciseChoice(
       'Dualis.Lending.Pool:LendingPool',
       pool.contractId,
       'Deposit',
       {
-        depositor: userPartyId,
+        depositor: operatorParty,
         amount: parseFloat(amount).toFixed(10),
         depositTime: new Date().toISOString(),
       },
-      { actAs: [operatorParty, userPartyId] },
+      { actAs: [operatorParty] },
     );
 
     // Extract created contract IDs from the response events
@@ -331,19 +337,23 @@ export async function deposit(
 
     const shares = amountNum / (pool.supplyIndex || 1);
 
-    // Debit user wallet: tokens move from user to pool operator
-    const bridge = getTokenBridge();
-    if (bridge) {
-      try {
-        await bridge.transfer({
-          from: userPartyId,
-          to: operatorParty,
-          token: { symbol: pool.asset.symbol, amount: amount },
-          reference: `deposit-${poolId}-${Date.now()}`,
-        });
-      } catch (err) {
-        log.warn({ err, userPartyId, poolId }, 'Token bridge transfer failed after deposit');
+    // Debit user wallet: skip when wallet already transferred tokens via Console Wallet popup
+    if (!walletTransferConfirmed) {
+      const bridge = getTokenBridge();
+      if (bridge) {
+        try {
+          await bridge.transfer({
+            from: userPartyId,
+            to: operatorParty,
+            token: { symbol: pool.asset.symbol, amount: amount },
+            reference: `deposit-${poolId}-${Date.now()}`,
+          });
+        } catch (err) {
+          log.warn({ err, userPartyId, poolId }, 'Token bridge transfer failed after deposit');
+        }
       }
+    } else {
+      log.info({ walletTxHash, userPartyId, poolId }, 'Skipping token bridge — wallet transfer already confirmed');
     }
 
     // Fire-and-forget reward tracking (never fails the main operation)
@@ -380,18 +390,20 @@ export async function deposit(
   pool.totalSupply += amountNum;
   const shares = amountNum / (pool.supplyIndex || 1);
 
-  // Debit user wallet (mock mode)
-  const mockBridge = getTokenBridge();
-  if (mockBridge) {
-    try {
-      await mockBridge.transfer({
-        from: userPartyId,
-        to: cantonConfig().parties.operator,
-        token: { symbol: pool.asset.symbol, amount: amount },
-        reference: `deposit-${poolId}-${Date.now()}`,
-      });
-    } catch (err) {
-      log.warn({ err }, 'Mock token transfer failed after deposit');
+  // Debit user wallet (mock mode) — skip when wallet already transferred
+  if (!walletTransferConfirmed) {
+    const mockBridge = getTokenBridge();
+    if (mockBridge) {
+      try {
+        await mockBridge.transfer({
+          from: userPartyId,
+          to: cantonConfig().parties.operator,
+          token: { symbol: pool.asset.symbol, amount: amount },
+          reference: `deposit-${poolId}-${Date.now()}`,
+        });
+      } catch (err) {
+        log.warn({ err }, 'Mock token transfer failed after deposit');
+      }
     }
   }
 
@@ -423,8 +435,10 @@ export async function withdraw(
   userId?: string | undefined,
   routingMode?: TransactionRoutingMode,
   walletParty?: string,
+  walletTransferConfirmed?: boolean,
+  walletTxHash?: string,
 ): Promise<{ data: WithdrawResponse; transaction: TransactionMeta } | TransactionResult> {
-  log.info({ poolId, userPartyId, shares, routingMode }, 'Processing withdrawal');
+  log.info({ poolId, userPartyId, shares, routingMode, walletTransferConfirmed, walletTxHash }, 'Processing withdrawal');
   const pool = registry.getPool(poolId);
   if (!pool) throw new Error(`Pool ${poolId} not found`);
 
@@ -459,14 +473,15 @@ export async function withdraw(
     const client = CantonClient.getInstance();
     const operatorParty = cantonConfig().parties.operator;
 
-    // 1. Find user's SupplyPosition for this pool
-    const positions = await cantonQueries.getSupplyPositions(userPartyId);
+    // 1. Find SupplyPosition for this pool (depositor is operatorParty in proxy mode)
+    const positions = await cantonQueries.getSupplyPositions(operatorParty);
     const userPosition = positions.find(p => {
       const payload = p.payload as Record<string, unknown>;
       return payload.poolId === poolId;
     });
 
     // 2. Exercise Withdraw on user's SupplyPosition (controller depositor)
+    // In proxy mode operator acts as depositor — external wallet parties are not on our participant.
     if (userPosition) {
       try {
         await client.exerciseChoice(
@@ -478,7 +493,7 @@ export async function withdraw(
             withdrawAmount: withdrawnAmount.toFixed(10),
             withdrawTime: new Date().toISOString(),
           },
-          { actAs: [operatorParty, userPartyId] },
+          { actAs: [operatorParty] },
         );
       } catch (err) {
         log.warn({ err, userPartyId, poolId }, 'Failed to exercise Withdraw on SupplyPosition, continuing with pool update');

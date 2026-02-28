@@ -66,26 +66,27 @@ function toTransactionLog(
 
 /**
  * Determine the routing mode based on user preferences and transaction amount.
+ *
+ * NOTE: Currently always returns 'proxy' because Canton wallets (Console, Loop, etc.)
+ * only support CC token transfers via submitCommands(), NOT arbitrary DAML choice
+ * exercise. All DeFi operations (deposit, withdraw, supply, borrow, repay) execute
+ * DAML contract choices and must go through the backend operator party.
+ *
+ * wallet-sign mode will be re-enabled once Canton wallets support CIP-0103
+ * prepareExecute for arbitrary DAML commands.
  */
 function determineRoutingMode(
   forceMode: TransactionRoutingMode | undefined,
-  userMode: TransactionRoutingMode,
-  amountUsd: string | undefined,
-  signingThreshold: string,
+  _userMode: TransactionRoutingMode,
+  _amountUsd: string | undefined,
+  _signingThreshold: string,
 ): TransactionRoutingMode {
-  // Explicit override
-  if (forceMode && forceMode !== 'auto') return forceMode;
+  // Explicit override — only honor 'proxy'; wallet-sign is not supported
+  // for DAML choice execution yet
+  if (forceMode === 'proxy') return 'proxy';
 
-  // If user set an explicit preference (not auto)
-  if (userMode !== 'auto') return userMode;
-
-  // Auto mode: compare amount against threshold
-  if (!amountUsd) return 'proxy'; // No amount specified → proxy
-  const amount = parseFloat(amountUsd);
-  const threshold = parseFloat(signingThreshold);
-  if (isNaN(amount) || isNaN(threshold)) return 'proxy';
-
-  return amount >= threshold ? 'wallet-sign' : 'proxy';
+  // Always use proxy for DAML operations until wallets support prepareExecute
+  return 'proxy';
 }
 
 // ---------------------------------------------------------------------------

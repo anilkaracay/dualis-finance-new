@@ -29,6 +29,8 @@ const borrowRequestSchema = z.object({
   ).min(1),
   routingMode: routingModeSchema,
   walletParty: z.string().optional(),
+  walletTransferConfirmed: z.boolean().optional(),
+  walletTxHash: z.string().optional(),
 });
 
 const repaySchema = z.object({
@@ -41,6 +43,8 @@ const repaySchema = z.object({
   }, { message: 'Amount exceeds maximum allowed value' }),
   routingMode: routingModeSchema,
   walletParty: z.string().optional(),
+  walletTransferConfirmed: z.boolean().optional(),
+  walletTxHash: z.string().optional(),
 });
 
 const addCollateralSchema = z.object({
@@ -56,6 +60,8 @@ const addCollateralSchema = z.object({
   }),
   routingMode: routingModeSchema,
   walletParty: z.string().optional(),
+  walletTransferConfirmed: z.boolean().optional(),
+  walletTxHash: z.string().optional(),
 });
 
 export async function borrowRoutes(fastify: FastifyInstance): Promise<void> {
@@ -151,7 +157,7 @@ export async function borrowRoutes(fastify: FastifyInstance): Promise<void> {
       const userId = request.user?.userId;
 
       try {
-        const result = await borrowService.repay(partyId, positionId, parsed.data.amount, userId, parsed.data.routingMode, parsed.data.walletParty);
+        const result = await borrowService.repay(partyId, positionId, parsed.data.amount, userId, parsed.data.routingMode, parsed.data.walletParty, parsed.data.walletTransferConfirmed, parsed.data.walletTxHash);
         if ('requiresWalletSign' in result) {
           return reply.status(200).send({ data: result });
         }
@@ -195,7 +201,7 @@ export async function borrowRoutes(fastify: FastifyInstance): Promise<void> {
       const userId = request.user?.userId;
 
       try {
-        const result = await borrowService.addCollateral(partyId, positionId, parsed.data.asset, userId, parsed.data.routingMode, parsed.data.walletParty);
+        const result = await borrowService.addCollateral(partyId, positionId, parsed.data.asset, userId, parsed.data.routingMode, parsed.data.walletParty, parsed.data.walletTransferConfirmed, parsed.data.walletTxHash);
         if ('requiresWalletSign' in result) {
           return reply.status(200).send({ data: result });
         }

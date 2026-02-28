@@ -153,4 +153,6 @@ export const ENDPOINTS = {
   USER_TOKEN_BALANCES: '/user/token-balances',
   USER_TOKEN_BALANCE: (symbol: string) => `/user/token-balances/${symbol}`,
   USER_FAUCET: '/user/faucet',
+  // Config (public)
+  CONFIG_OPERATOR: '/config/operator',
 } as const;

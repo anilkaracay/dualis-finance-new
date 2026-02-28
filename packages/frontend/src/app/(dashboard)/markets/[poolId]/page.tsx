@@ -30,6 +30,10 @@ import { useWalletStore } from '@/stores/useWalletStore';
 import { useBalanceStore } from '@/stores/useBalanceStore';
 import { useTokenBalanceStore } from '@/stores/useTokenBalanceStore';
 import { usePartyLayer } from '@/hooks/usePartyLayer';
+import { useWalletOperation } from '@/hooks/useWalletOperation';
+import { useOperatorParty } from '@/hooks/useOperatorParty';
+import { mapPoolToCanton } from '@dualis/shared';
+import { ENDPOINTS } from '@/lib/api/endpoints';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -149,9 +153,12 @@ export default function PoolDetailPage() {
   const [depositLoading, setDepositLoading] = useState(false);
   const [withdrawLoading, setWithdrawLoading] = useState(false);
 
-  const { submitTransaction, party: plParty } = usePartyLayer();
+  const { party: plParty } = usePartyLayer();
   // Prefer PartyLayer session party; fallback to persisted wallet store party
   const party = plParty || storeParty;
+  const { operatorParty } = useOperatorParty();
+  const depositOp = useWalletOperation();
+  const withdrawOp = useWalletOperation();
 
   // Pool-specific params from API (dynamic per pool)
   const [detailParams, setDetailParams] = useState<PoolDetailParams>(DEFAULT_DETAIL_PARAMS);
@@ -245,30 +252,41 @@ export default function PoolDetailPage() {
     setDepositStep('signing');
 
     try {
-      await submitTransaction({
-        templateId: 'Dualis.Lending.Pool:LendingPool',
-        choiceName: 'Deposit',
-        argument: {
-          depositor: party,
-          amount: parseFloat(depositAmount).toFixed(10),
-          poolId,
-        },
-        contractId: pool.contractId,
-        forceRoutingMode: 'wallet-sign',
-        amountUsd: String(parseFloat(depositAmount) * pool.priceUSD),
-      });
+      // Map pool symbol to Canton token (CC, CBTC, USDCx)
+      const cantonToken = mapPoolToCanton(pool.symbol);
+
+      // Two-phase flow: wallet popup opens if operator party is available and token is supported
+      if (operatorParty && ['CC', 'CBTC', 'USDCx'].includes(cantonToken)) {
+        await depositOp.executeWithWalletTransfer(
+          ENDPOINTS.POOL_DEPOSIT(poolId),
+          { amount: depositAmount },
+          {
+            to: operatorParty,
+            token: cantonToken,
+            amount: depositAmount,
+            memo: `deposit-${poolId}`,
+          },
+        );
+      } else {
+        // Fallback: proxy mode for unsupported tokens (T-BILL etc.)
+        await depositOp.execute(
+          ENDPOINTS.POOL_DEPOSIT(poolId),
+          { amount: depositAmount },
+        );
+      }
+
       setDepositStep('success');
       // Refresh both protocol positions + wallet token balances
       void fetchBalances();
       void fetchTokenBalances(party ?? undefined);
     } catch (err) {
-      // User rejected in wallet or tx failed — go back to confirm step
+      // Transaction failed — go back to confirm step
       setDepositStep('confirm');
       setDepositError(err instanceof Error ? err.message : 'Transaction failed');
     } finally {
       setDepositLoading(false);
     }
-  }, [poolId, depositAmount, estimatedShares, pool, party, submitTransaction, fetchBalances, fetchTokenBalances]);
+  }, [poolId, depositAmount, estimatedShares, pool, party, operatorParty, depositOp, fetchBalances, fetchTokenBalances]);
 
   const handleWithdraw = useCallback(async () => {
     if (!poolId || !withdrawAmount || !pool) return;
@@ -277,28 +295,39 @@ export default function PoolDetailPage() {
     setWithdrawStep('signing');
 
     try {
-      await submitTransaction({
-        templateId: 'Dualis.Lending.Pool:LendingPool',
-        choiceName: 'ProcessWithdraw',
-        argument: {
-          withdrawAmount: parseFloat(withdrawAmount).toFixed(10),
-        },
-        contractId: pool.contractId,
-        forceRoutingMode: 'wallet-sign',
-        amountUsd: String(parseFloat(withdrawAmount) * pool.priceUSD),
-      });
+      const cantonToken = mapPoolToCanton(pool.symbol);
+
+      // Two-phase flow: wallet popup opens for confirmation (small fee transfer)
+      // then backend processes withdrawal and transfers tokens to user
+      if (operatorParty && ['CC', 'CBTC', 'USDCx'].includes(cantonToken)) {
+        await withdrawOp.executeWithWalletTransfer(
+          ENDPOINTS.POOL_WITHDRAW(poolId),
+          { shares: withdrawAmount },
+          {
+            to: operatorParty,
+            token: 'CC',
+            amount: '0.0001',
+            memo: `withdraw-confirm-${poolId}`,
+          },
+        );
+      } else {
+        await withdrawOp.execute(
+          ENDPOINTS.POOL_WITHDRAW(poolId),
+          { shares: withdrawAmount },
+        );
+      }
       setWithdrawStep('success');
       // Refresh both protocol positions + wallet token balances
       void fetchBalances();
       void fetchTokenBalances(party ?? undefined);
     } catch (err) {
-      // User rejected in wallet or tx failed — go back to confirm step
+      // Transaction failed — go back to confirm step
       setWithdrawStep('confirm');
       setWithdrawError(err instanceof Error ? err.message : 'Transaction failed');
     } finally {
       setWithdrawLoading(false);
     }
-  }, [poolId, withdrawAmount, pool, submitTransaction, fetchBalances, fetchTokenBalances]);
+  }, [poolId, withdrawAmount, pool, party, operatorParty, withdrawOp, fetchBalances, fetchTokenBalances]);
 
   // ─── Loading State ────────────────────────────────────────────────────────
 

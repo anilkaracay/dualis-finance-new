@@ -49,6 +49,9 @@ import { onboardingRoutes } from './routes/onboarding.js';
 // Wallet routes
 import { walletRoutes } from './routes/wallet.js';
 
+// Config routes (public)
+import { configRoutes } from './routes/config.js';
+
 // Notification routes (MP20)
 import { notificationRoutes } from './routes/notifications.js';
 import { notificationPreferenceRoutes } from './routes/notification-preferences.js';
@@ -332,6 +335,9 @@ async function main(): Promise<void> {
 
     // Wallet routes
     await app.register(walletRoutes);
+
+    // Config routes (public — operator party for wallet transfers)
+    await app.register(configRoutes);
 
     // Notification routes (MP20)
     await app.register(notificationRoutes);
