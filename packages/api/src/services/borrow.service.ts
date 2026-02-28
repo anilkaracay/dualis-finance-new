@@ -419,8 +419,9 @@ export async function getPositions(
   // ---------- Canton mode: query real BorrowPosition contracts ----------
   if (!env.CANTON_MOCK) {
     try {
-      // Query positions by user's party — each position has borrower = userPartyId
-      const contracts = await cantonQueries.getUserPositions(partyId);
+      // In proxy mode, operator is the borrower — query by operator party
+      const borrower = cantonConfig().parties.operator || partyId;
+      const contracts = await cantonQueries.getUserPositions(borrower);
 
       return contracts.map((c) => {
         const p = c.payload as unknown as Record<string, unknown>;
@@ -428,21 +429,38 @@ export async function getPositions(
         const hf = p.lastHealthFactor as Record<string, unknown> | undefined;
         const collRefs = (p.collateralRefs as Array<Record<string, unknown>>) ?? [];
 
+        const principal = parseFloat((p.borrowedAmountPrincipal as string) ?? '0');
+        const poolId = (p.poolId as string) ?? '';
+
+        // Calculate current debt using borrow index accrual
+        const pool = registry.getPool(poolId);
+        const indexAtEntry = parseFloat((p.borrowIndexAtEntry as string) ?? '1');
+        const currentIndex = pool?.borrowIndex ?? 1;
+        const currentDebt = principal * (currentIndex / indexAtEntry);
+        const interestAccrued = currentDebt - principal;
+
+        // Use oracle price from registry instead of stale Canton bootstrap price
+        const assetSymbol = (asset?.symbol as string) ?? 'UNKNOWN';
+        const oraclePrice = registry.getAssetPriceMap()[assetSymbol];
+        const assetPrice = oraclePrice && oraclePrice > 0
+          ? oraclePrice
+          : parseFloat((asset?.priceUSD as string) ?? '1');
+
         return {
           positionId: (p.positionId as string) ?? c.contractId,
-          lendingPoolId: (p.poolId as string) ?? '',
+          lendingPoolId: poolId,
           borrowedAsset: {
-            symbol: (asset?.symbol as string) ?? 'UNKNOWN',
+            symbol: assetSymbol,
             type: (asset?.instrumentType as string) ?? 'CryptoCurrency',
-            priceUSD: parseFloat((asset?.priceUSD as string) ?? '1'),
+            priceUSD: assetPrice,
           },
-          borrowedAmountPrincipal: parseFloat((p.borrowedAmountPrincipal as string) ?? '0'),
-          currentDebt: parseFloat((p.borrowedAmountPrincipal as string) ?? '0'), // Will be updated by index
-          interestAccrued: 0,
+          borrowedAmountPrincipal: principal,
+          currentDebt,
+          interestAccrued,
           healthFactor: {
             value: parseFloat((hf?.value as string) ?? '1'),
             collateralValueUSD: parseFloat((hf?.collateralValueUSD as string) ?? '0'),
-            weightedCollateralValueUSD: parseFloat((hf?.collateralValueUSD as string) ?? '0'),
+            weightedCollateralValueUSD: parseFloat((hf?.weightedCollateralValueUSD as string) ?? (hf?.collateralValueUSD as string) ?? '0'),
             borrowValueUSD: parseFloat((hf?.borrowValueUSD as string) ?? '0'),
             weightedLTV: parseFloat((hf?.weightedLTV as string) ?? '0'),
           },
@@ -493,8 +511,9 @@ export async function repay(
     const client = CantonClient.getInstance();
     const operatorParty = cantonConfig().parties.operator;
 
-    // Find the BorrowPosition contract by querying user's positions
-    const positions = await cantonQueries.getUserPositions(partyId);
+    // Find the BorrowPosition contract — in proxy mode, borrower = operator
+    const borrower = operatorParty || partyId;
+    const positions = await cantonQueries.getUserPositions(borrower);
     const posContract = positions.find(c => {
       const p = c.payload as unknown as Record<string, unknown>;
       return (p.positionId as string) === positionId || c.contractId === positionId;
@@ -683,8 +702,9 @@ export async function addCollateral(
     const client = CantonClient.getInstance();
     const operatorParty = cantonConfig().parties.operator;
 
-    // Find the BorrowPosition contract by querying user's positions
-    const positions = await cantonQueries.getUserPositions(partyId);
+    // Find the BorrowPosition contract — in proxy mode, borrower = operator
+    const borrower = operatorParty || partyId;
+    const positions = await cantonQueries.getUserPositions(borrower);
     const posContract = positions.find(c => {
       const p = c.payload as unknown as Record<string, unknown>;
       return (p.positionId as string) === positionId || c.contractId === positionId;

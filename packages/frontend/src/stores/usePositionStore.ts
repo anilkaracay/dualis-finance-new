@@ -179,6 +179,14 @@ export const usePositionStore = create<PositionState & PositionActions>()((set) 
         apiClient.get<{ data: SecLendingDealItem[] }>('/sec-lending/deals'),
       ]);
 
+      // Check if at least one API call succeeded
+      const anyFulfilled = borrowRes.status === 'fulfilled' || supplyRes.status === 'fulfilled';
+
+      if (!anyFulfilled) {
+        // All APIs failed — use demo data
+        throw new Error('All position APIs failed');
+      }
+
       const borrowData = borrowRes.status === 'fulfilled' ? borrowRes.value.data : null;
       const supplyData = supplyRes.status === 'fulfilled' ? supplyRes.value.data : null;
       const dealsData = dealsRes.status === 'fulfilled' ? dealsRes.value.data : null;
@@ -188,45 +196,31 @@ export const usePositionStore = create<PositionState & PositionActions>()((set) 
       const supplyArr = supplyData ? (Array.isArray(supplyData) ? supplyData : (supplyData as { data?: SupplyPosition[] }).data ?? []) : [];
       const dealsArr = dealsData ? (Array.isArray(dealsData) ? dealsData : (dealsData as { data?: SecLendingDealItem[] }).data ?? []) : [];
 
-      const hasAnyData = borrowArr.length > 0 || supplyArr.length > 0 || dealsArr.length > 0;
+      // Map supply positions: API returns { asset: { symbol } } but store expects { symbol }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const mappedSupply: SupplyPosition[] = supplyArr.map((raw: any) => ({
+        positionId: String(raw.positionId ?? ''),
+        poolId: String(raw.poolId ?? ''),
+        symbol: String(raw.symbol ?? raw.asset?.symbol ?? ''),
+        depositedAmount: Number(raw.depositedAmount ?? raw.principal ?? 0),
+        shares: Number(raw.shares ?? raw.principal ?? 0),
+        currentValueUSD: Number(raw.currentValueUSD ?? 0),
+        apy: Number(raw.apy ?? 0),
+        depositTimestamp: String(raw.depositTimestamp ?? new Date().toISOString()),
+      }));
 
-      if (hasAnyData) {
-        // Map supply positions: API returns { asset: { symbol } } but store expects { symbol }
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const mappedSupply: SupplyPosition[] = supplyArr.map((raw: any) => ({
-          positionId: String(raw.positionId ?? ''),
-          poolId: String(raw.poolId ?? ''),
-          symbol: String(raw.symbol ?? raw.asset?.symbol ?? ''),
-          depositedAmount: Number(raw.depositedAmount ?? 0),
-          shares: Number(raw.shares ?? 0),
-          currentValueUSD: Number(raw.currentValueUSD ?? 0),
-          apy: Number(raw.apy ?? 0),
-          depositTimestamp: String(raw.depositTimestamp ?? new Date().toISOString()),
-        }));
-
-        set({
-          borrowPositions: borrowArr.length > 0
-            ? (borrowArr as BorrowPositionItem[]).map(mapBorrowPositionItem)
-            : [],
-          supplyPositions: mappedSupply,
-          secLendingDeals: dealsArr.length > 0
-            ? (dealsArr as SecLendingDealItem[]).map(mapSecLendingDealItem)
-            : [],
-          isLoading: false,
-          isDemo: false,
-          error: null,
-        });
-      } else {
-        // API returned empty — use demo data with clear flag
-        set({
-          supplyPositions: MOCK_SUPPLY,
-          borrowPositions: MOCK_BORROW,
-          secLendingDeals: MOCK_SEC_LENDING,
-          isLoading: false,
-          isDemo: true,
-          error: null,
-        });
-      }
+      set({
+        borrowPositions: borrowArr.length > 0
+          ? (borrowArr as BorrowPositionItem[]).map(mapBorrowPositionItem)
+          : [],
+        supplyPositions: mappedSupply,
+        secLendingDeals: dealsArr.length > 0
+          ? (dealsArr as SecLendingDealItem[]).map(mapSecLendingDealItem)
+          : [],
+        isLoading: false,
+        isDemo: false,
+        error: null,
+      });
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Failed to fetch positions';
       console.warn('[PositionStore] API failed, using demo data:', msg);
