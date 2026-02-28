@@ -23,7 +23,7 @@ interface TokenBalanceState {
 }
 
 interface TokenBalanceActions {
-  fetchTokenBalances: (walletParty?: string) => Promise<void>;
+  fetchTokenBalances: (walletParty?: string, force?: boolean) => Promise<void>;
   getBalanceForSymbol: (symbol: string) => number;
   requestFaucet: () => Promise<void>;
   reset: () => void;
@@ -41,11 +41,11 @@ export const useTokenBalanceStore = create<TokenBalanceState & TokenBalanceActio
     lastFetched: null,
     lastParty: null,
 
-    fetchTokenBalances: async (walletParty?: string) => {
-      // Skip if fetched within last 15 seconds AND party hasn't changed
+    fetchTokenBalances: async (walletParty?: string, force?: boolean) => {
+      // Skip if fetched within last 10 seconds AND party hasn't changed (unless forced)
       const { lastFetched, lastParty } = get();
       const partyChanged = walletParty && walletParty !== lastParty;
-      if (!partyChanged && lastFetched && Date.now() - lastFetched < 15_000) return;
+      if (!force && !partyChanged && lastFetched && Date.now() - lastFetched < 10_000) return;
 
       set({ isLoading: true, error: null });
       try {

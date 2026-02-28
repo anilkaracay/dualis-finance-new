@@ -1131,12 +1131,12 @@ export default function BorrowPage() {
   const { fetchBalances } = useBalanceStore();
   const { fetchTokenBalances } = useTokenBalanceStore();
 
-  // Refresh all data after any successful transaction
+  // Refresh all data after any successful transaction (force = bypass cache)
   const refreshAll = useCallback(() => {
     void fetchPositions();
     void fetchPools();
     void fetchBalances();
-    void fetchTokenBalances(party ?? undefined);
+    void fetchTokenBalances(party ?? undefined, true);
   }, [fetchPositions, fetchPools, fetchBalances, fetchTokenBalances, party]);
 
   const [repayPosition, setRepayPosition] = useState<BorrowPosition | null>(null);

@@ -285,13 +285,13 @@ export default function PoolDetailPage() {
       }
 
       setDepositStep('success');
-      // Refresh protocol positions, wallet balances, and pool data
+      // Force refresh all data after successful deposit
       void fetchBalances();
-      void fetchTokenBalances(party ?? undefined);
+      void fetchTokenBalances(party ?? undefined, true);
       void fetchPools();
     } catch (err) {
-      // Transaction failed — go back to confirm step
-      setDepositStep('confirm');
+      // Transaction failed — go back to input step
+      setDepositStep('input');
       setDepositError(err instanceof Error ? err.message : 'Transaction failed');
     } finally {
       setDepositLoading(false);
@@ -327,9 +327,9 @@ export default function PoolDetailPage() {
         );
       }
       setWithdrawStep('success');
-      // Refresh protocol positions, wallet balances, and pool data
+      // Force refresh all data after successful withdrawal
       void fetchBalances();
-      void fetchTokenBalances(party ?? undefined);
+      void fetchTokenBalances(party ?? undefined, true);
       void fetchPools();
     } catch (err) {
       // Transaction failed — go back to confirm step
@@ -530,7 +530,7 @@ export default function PoolDetailPage() {
                         </DialogDescription>
                       </DialogHeader>
 
-                      {/* Step 1: Input */}
+                      {/* Input + Deposit */}
                       {depositStep === 'input' && (
                         <>
                           <div className="flex flex-col gap-4">
@@ -558,18 +558,32 @@ export default function PoolDetailPage() {
                               }
                             />
 
-                            <div className="flex items-center justify-between rounded-md bg-bg-tertiary px-3 py-2 text-sm">
-                              <span className="text-text-tertiary">You will receive</span>
-                              <span className="font-mono tabular-nums text-text-primary">
-                                ~{estimatedShares.toLocaleString('en-US', { maximumFractionDigits: 2 })} shares
-                              </span>
-                            </div>
+                            {depositAmountNum > 0 && (
+                              <div className="rounded-md bg-bg-tertiary p-3 space-y-2">
+                                <div className="flex items-center justify-between text-sm">
+                                  <span className="text-text-tertiary">Deposit Value</span>
+                                  <span className="font-mono text-text-primary">
+                                    ${(depositAmountNum * pool.priceUSD).toLocaleString('en-US', { maximumFractionDigits: 2 })}
+                                  </span>
+                                </div>
+                                <div className="flex items-center justify-between text-sm">
+                                  <span className="text-text-tertiary">Remaining Balance</span>
+                                  <span className="font-mono text-text-primary">
+                                    {remainingAfterDeposit.toLocaleString('en-US', { maximumFractionDigits: 4 })} {pool.symbol}
+                                  </span>
+                                </div>
+                              </div>
+                            )}
 
                             {/* Insufficient balance warning */}
                             {hasInsufficientBalance && (
                               <div className="flex items-center gap-2 rounded-md border border-red-500/20 bg-red-500/5 px-3 py-2 text-sm text-red-400">
                                 Insufficient balance. You have {walletBalance.toLocaleString('en-US', { maximumFractionDigits: 4 })} {pool.symbol}
                               </div>
+                            )}
+
+                            {depositError && (
+                              <TransactionError message={depositError} onRetry={() => setDepositError(null)} />
                             )}
                           </div>
 
@@ -580,61 +594,10 @@ export default function PoolDetailPage() {
                             <Button
                               variant="primary"
                               size="sm"
-                              disabled={estimatedShares <= 0 || hasInsufficientBalance}
-                              onClick={() => setDepositStep('confirm')}
-                            >
-                              Review Transaction
-                            </Button>
-                          </DialogFooter>
-                        </>
-                      )}
-
-                      {/* Step 2: Confirm */}
-                      {depositStep === 'confirm' && (
-                        <>
-                          <div className="flex flex-col gap-4">
-                            <div className="rounded-lg bg-bg-tertiary p-4 space-y-3">
-                              <h4 className="text-sm font-semibold text-text-primary">Transaction Summary</h4>
-                              <div className="flex justify-between text-sm">
-                                <span className="text-text-tertiary">Asset</span>
-                                <span className="text-text-primary">{pool.symbol}</span>
-                              </div>
-                              <div className="flex justify-between text-sm">
-                                <span className="text-text-tertiary">Deposit Amount</span>
-                                <span className="font-mono text-text-primary">{parseFloat(depositAmount).toLocaleString('en-US', { maximumFractionDigits: 4 })} {pool.symbol}</span>
-                              </div>
-                              <div className="flex justify-between text-sm">
-                                <span className="text-text-tertiary">Estimated Shares</span>
-                                <span className="font-mono text-text-primary">~{estimatedShares.toLocaleString('en-US', { maximumFractionDigits: 2 })}</span>
-                              </div>
-                              <div className="border-t border-border-subtle pt-2 flex justify-between text-sm">
-                                <span className="text-text-tertiary">Current Balance</span>
-                                <span className="font-mono text-text-primary">{walletBalance.toLocaleString('en-US', { maximumFractionDigits: 4 })} {pool.symbol}</span>
-                              </div>
-                              <div className="flex justify-between text-sm">
-                                <span className="text-text-tertiary">Remaining After</span>
-                                <span className="font-mono text-text-primary">{remainingAfterDeposit.toLocaleString('en-US', { maximumFractionDigits: 4 })} {pool.symbol}</span>
-                              </div>
-                            </div>
-
-                            <p className="text-xs text-text-tertiary">
-                              Your wallet will be debited {depositAmount} {pool.symbol}. This transaction will be submitted to the Canton ledger.
-                            </p>
-
-                            {depositError && (
-                              <TransactionError message={depositError} onRetry={() => setDepositError(null)} />
-                            )}
-                          </div>
-
-                          <DialogFooter>
-                            <Button variant="ghost" size="sm" onClick={() => setDepositStep('input')}>Back</Button>
-                            <Button
-                              variant="primary"
-                              size="sm"
-                              disabled={depositLoading}
+                              disabled={estimatedShares <= 0 || hasInsufficientBalance || depositLoading}
                               onClick={handleDeposit}
                             >
-                              {depositLoading ? 'Submitting...' : 'Approve & Submit'}
+                              {depositLoading ? 'Submitting...' : 'Deposit'}
                             </Button>
                           </DialogFooter>
                         </>
