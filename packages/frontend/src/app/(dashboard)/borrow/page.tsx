@@ -24,6 +24,8 @@ import { APYDisplay } from '@/components/data-display/APYDisplay';
 import { usePositionStore } from '@/stores/usePositionStore';
 import { useProtocolStore } from '@/stores/useProtocolStore';
 import { useWalletStore } from '@/stores/useWalletStore';
+import { useTokenBalanceStore } from '@/stores/useTokenBalanceStore';
+import { useBalanceStore } from '@/stores/useBalanceStore';
 import type { CreditTier } from '@dualis/shared';
 import { mapPoolToCanton } from '@dualis/shared';
 import { ENDPOINTS } from '@/lib/api/endpoints';
@@ -110,22 +112,31 @@ function RepayDialog({
   open,
   onOpenChange,
   operatorParty,
+  onSuccess,
 }: {
   position: BorrowPosition;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   operatorParty: string | null;
+  onSuccess?: () => void;
 }) {
   const [repayAmount, setRepayAmount] = useState('');
   const repayOp = useWalletOperation();
+  const { getBalanceForSymbol } = useTokenBalanceStore();
 
   const repayValue = parseFloat(repayAmount) || 0;
   const repayPercent = position.currentDebt > 0 ? repayValue / position.currentDebt : 0;
   const newHealthFactor = position.healthFactor * (1 + Math.min(repayPercent, 1) * 0.5);
 
+  // Wallet balance for the asset being repaid
+  const repayWalletBalance = getBalanceForSymbol(position.symbol);
+  const maxRepayable = Math.min(position.currentDebt, repayWalletBalance);
+  const hasInsufficientRepayBalance = repayValue > 0 && repayValue > repayWalletBalance;
+
   const handleRepayAll = useCallback(() => {
-    setRepayAmount(position.currentDebt.toString());
-  }, [position.currentDebt]);
+    // Set to min(debt, wallet balance) — can't repay more than you have
+    setRepayAmount(maxRepayable > 0 ? maxRepayable.toString() : '0');
+  }, [maxRepayable]);
 
   const handleConfirm = useCallback(async () => {
     try {
@@ -149,10 +160,12 @@ function RepayDialog({
           { amount: repayAmount },
         );
       }
+      // Refresh all data after successful repay
+      onSuccess?.();
     } catch {
       // error captured by repayOp.error
     }
-  }, [position.positionId, position.symbol, repayAmount, repayOp, operatorParty]);
+  }, [position.positionId, position.symbol, repayAmount, repayOp, operatorParty, onSuccess]);
 
   const handleOpenChange = useCallback(
     (value: boolean) => {
@@ -205,8 +218,16 @@ function RepayDialog({
           <>
             <div className="space-y-4">
               <div className="flex items-center justify-between text-sm">
-                <span className="text-text-secondary">Current Debt</span>
-                <span className="font-mono text-text-primary">{formatUSD(position.currentDebt)}</span>
+                <span className="text-text-secondary">Outstanding Debt</span>
+                <span className="font-mono text-text-primary">
+                  {formatNumber(position.currentDebt, 4)} {position.symbol}
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-text-secondary">Wallet Balance</span>
+                <span className="font-mono text-text-primary">
+                  {formatNumber(repayWalletBalance, 4)} {position.symbol}
+                </span>
               </div>
 
               <div className="flex items-end gap-2">
@@ -219,19 +240,31 @@ function RepayDialog({
                     onChange={(e) => setRepayAmount(e.target.value)}
                     min={0}
                     step={0.01}
+                    iconRight={
+                      <button
+                        onClick={handleRepayAll}
+                        className="text-xs font-medium text-accent-teal hover:text-accent-teal-hover"
+                      >
+                        Max
+                      </button>
+                    }
                   />
                 </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleRepayAll}
-                  className="mb-0.5"
-                >
-                  Repay All
-                </Button>
               </div>
 
-              <div className="rounded-md bg-bg-tertiary p-3">
+              {hasInsufficientRepayBalance && (
+                <div className="flex items-center gap-2 rounded-md border border-red-500/20 bg-red-500/5 px-3 py-2 text-sm text-red-400">
+                  Insufficient wallet balance. You have {formatNumber(repayWalletBalance, 4)} {position.symbol}
+                </div>
+              )}
+
+              <div className="rounded-md bg-bg-tertiary p-3 space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-text-secondary">Remaining Debt</span>
+                  <span className="font-mono text-text-primary">
+                    {formatNumber(Math.max(0, position.currentDebt - repayValue), 4)} {position.symbol}
+                  </span>
+                </div>
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-text-secondary">New Health Factor</span>
                   <span className="font-mono text-text-primary">
@@ -252,7 +285,7 @@ function RepayDialog({
               <Button
                 variant="primary"
                 onClick={handleConfirm}
-                disabled={repayValue <= 0 || repayValue > position.currentDebt || repayOp.isLoading}
+                disabled={repayValue <= 0 || repayValue > position.currentDebt || hasInsufficientRepayBalance || repayOp.isLoading}
               >
                 {repayOp.status === 'preparing' ? 'Preparing...' : 'Approve & Repay'}
               </Button>
@@ -275,6 +308,7 @@ function AddCollateralDialog({
   collateralAssets,
   collateralPrices,
   operatorParty,
+  onSuccess,
 }: {
   position: BorrowPosition;
   open: boolean;
@@ -282,11 +316,13 @@ function AddCollateralDialog({
   collateralAssets: string[];
   collateralPrices: Record<string, number>;
   operatorParty: string | null;
+  onSuccess?: () => void;
 }) {
   const assets = collateralAssets.length > 0 ? collateralAssets : FALLBACK_COLLATERAL_ASSETS;
   const [selectedAsset, setSelectedAsset] = useState<string>(assets[0] ?? 'USDC');
   const [amount, setAmount] = useState('');
   const addCollateralOp = useWalletOperation();
+  const { getBalanceForSymbol } = useTokenBalanceStore();
 
   const amountValue = parseFloat(amount) || 0;
   const priceUSD = collateralPrices[selectedAsset] ?? FALLBACK_COLLATERAL_PRICES[selectedAsset] ?? 1;
@@ -323,10 +359,12 @@ function AddCollateralDialog({
           { asset: { symbol: selectedAsset, amount } },
         );
       }
+      // Refresh all data after successful add collateral
+      onSuccess?.();
     } catch {
       // error captured by addCollateralOp.error
     }
-  }, [position.positionId, selectedAsset, amount, addCollateralOp, operatorParty]);
+  }, [position.positionId, selectedAsset, amount, addCollateralOp, operatorParty, onSuccess]);
 
   const handleOpenChange = useCallback(
     (value: boolean) => {
@@ -387,6 +425,11 @@ function AddCollateralDialog({
                 options={assets.map((asset) => ({ value: asset, label: asset }))}
               />
 
+              <div className="flex items-center justify-between text-xs text-text-tertiary">
+                <span>Wallet Balance</span>
+                <span className="font-mono">{formatNumber(getBalanceForSymbol(selectedAsset), 4)} {selectedAsset}</span>
+              </div>
+
               <Input
                 label="Amount"
                 type="number"
@@ -395,7 +438,24 @@ function AddCollateralDialog({
                 onChange={(e) => setAmount(e.target.value)}
                 min={0}
                 step={0.01}
+                iconRight={
+                  <button
+                    onClick={() => {
+                      const bal = getBalanceForSymbol(selectedAsset);
+                      setAmount(bal > 0 ? bal.toString() : '0');
+                    }}
+                    className="text-xs font-medium text-accent-teal hover:text-accent-teal-hover"
+                  >
+                    Max
+                  </button>
+                }
               />
+
+              {amountValue > 0 && amountValue > getBalanceForSymbol(selectedAsset) && (
+                <div className="flex items-center gap-2 rounded-md border border-red-500/20 bg-red-500/5 px-3 py-2 text-sm text-red-400">
+                  Insufficient balance. You have {formatNumber(getBalanceForSymbol(selectedAsset), 4)} {selectedAsset}
+                </div>
+              )}
 
               {amountValue > 0 && (
                 <div className="rounded-md bg-bg-tertiary p-3 space-y-2">
@@ -426,7 +486,7 @@ function AddCollateralDialog({
               <Button
                 variant="primary"
                 onClick={handleConfirm}
-                disabled={amountValue <= 0 || addCollateralOp.isLoading}
+                disabled={amountValue <= 0 || amountValue > getBalanceForSymbol(selectedAsset) || addCollateralOp.isLoading}
               >
                 {addCollateralOp.status === 'preparing' ? 'Preparing...' : 'Approve & Add Collateral'}
               </Button>
@@ -584,14 +644,16 @@ function ActiveBorrowPositions({
 // New Borrow Section
 // ---------------------------------------------------------------------------
 
-function NewBorrowSection({ pools, collateralAssets, collateralPrices, collateralThresholds, operatorParty }: {
+function NewBorrowSection({ pools, collateralAssets, collateralPrices, collateralThresholds, operatorParty, onSuccess }: {
   pools: PoolData[];
   collateralAssets: string[];
   collateralPrices: Record<string, number>;
   collateralThresholds: Record<string, number>;
   operatorParty: string | null;
+  onSuccess?: () => void;
 }) {
   const { creditTier } = useWalletStore();
+  const { getBalanceForSymbol } = useTokenBalanceStore();
   const borrowOp = useWalletOperation();
 
   const effectiveAssets = collateralAssets.length > 0 ? collateralAssets : FALLBACK_COLLATERAL_ASSETS;
@@ -649,6 +711,18 @@ function NewBorrowSection({ pools, collateralAssets, collateralPrices, collatera
   const availableLiquidity = selectedPool
     ? selectedPool.totalDeposits - selectedPool.totalBorrows
     : 0;
+
+  // Check if any collateral entry exceeds wallet balance
+  const hasInsufficientCollateral = useMemo(() => {
+    return collateralEntries.some((entry) => {
+      const amt = parseFloat(entry.amount) || 0;
+      if (amt <= 0) return false;
+      return amt > getBalanceForSymbol(entry.asset);
+    });
+  }, [collateralEntries, getBalanceForSymbol]);
+
+  // Check if borrow exceeds available liquidity
+  const exceedsLiquidity = borrowValue > 0 && borrowValue > availableLiquidity;
 
   const estimatedMonthlyInterest = selectedPool
     ? borrowValueUSD * (selectedPool.borrowAPY / 12)
@@ -758,7 +832,12 @@ function NewBorrowSection({ pools, collateralAssets, collateralPrices, collatera
                 />
                 {selectedPool && (
                   <p className="text-xs text-text-tertiary mt-1.5">
-                    Available: {formatUSD(availableLiquidity * selectedPool.priceUSD)}
+                    Available Liquidity: {formatNumber(availableLiquidity, 4)} {selectedPool.symbol} ({formatUSD(availableLiquidity * selectedPool.priceUSD)})
+                  </p>
+                )}
+                {exceedsLiquidity && selectedPool && (
+                  <p className="text-xs text-red-400 mt-1">
+                    Exceeds pool liquidity. Max: {formatNumber(availableLiquidity, 4)} {selectedPool.symbol}
                   </p>
                 )}
               </div>
@@ -773,40 +852,61 @@ function NewBorrowSection({ pools, collateralAssets, collateralPrices, collatera
                 Select Collateral
               </h4>
               <div className="space-y-3 max-w-md">
-                {collateralEntries.map((entry, index) => (
-                  <div key={index} className="flex items-end gap-2">
-                    <div className="w-32">
-                      <Select
-                        label="Asset"
-                        value={entry.asset}
-                        onChange={(e) => handleCollateralAssetChange(index, e.target.value)}
-                        size="sm"
-                        options={effectiveAssets.map((asset) => ({ value: asset, label: asset }))}
-                      />
+                {collateralEntries.map((entry, index) => {
+                  const entryWalletBalance = getBalanceForSymbol(entry.asset);
+                  const entryAmount = parseFloat(entry.amount) || 0;
+                  const hasInsufficient = entryAmount > 0 && entryAmount > entryWalletBalance;
+                  return (
+                    <div key={index} className="flex flex-col gap-1">
+                      <div className="flex items-end gap-2">
+                        <div className="w-32">
+                          <Select
+                            label="Asset"
+                            value={entry.asset}
+                            onChange={(e) => handleCollateralAssetChange(index, e.target.value)}
+                            size="sm"
+                            options={effectiveAssets.map((asset) => ({ value: asset, label: asset }))}
+                          />
+                        </div>
+                        <div className="flex-1">
+                          <Input
+                            label="Amount"
+                            type="number"
+                            placeholder="0.00"
+                            value={entry.amount}
+                            onChange={(e) => handleCollateralAmountChange(index, e.target.value)}
+                            min={0}
+                            step={0.01}
+                            iconRight={
+                              <button
+                                onClick={() => handleCollateralAmountChange(index, entryWalletBalance > 0 ? entryWalletBalance.toString() : '0')}
+                                className="text-xs font-medium text-accent-teal hover:text-accent-teal-hover"
+                              >
+                                Max
+                              </button>
+                            }
+                          />
+                        </div>
+                        {collateralEntries.length > 1 && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleRemoveCollateralRow(index)}
+                            className="mb-0.5 text-text-tertiary"
+                          >
+                            Remove
+                          </Button>
+                        )}
+                      </div>
+                      <div className="flex items-center justify-between text-xs text-text-tertiary px-1">
+                        <span>Balance: {entryWalletBalance.toLocaleString('en-US', { maximumFractionDigits: 4 })} {entry.asset}</span>
+                        {hasInsufficient && (
+                          <span className="text-red-400">Insufficient balance</span>
+                        )}
+                      </div>
                     </div>
-                    <div className="flex-1">
-                      <Input
-                        label="Amount"
-                        type="number"
-                        placeholder="0.00"
-                        value={entry.amount}
-                        onChange={(e) => handleCollateralAmountChange(index, e.target.value)}
-                        min={0}
-                        step={0.01}
-                      />
-                    </div>
-                    {collateralEntries.length > 1 && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleRemoveCollateralRow(index)}
-                        className="mb-0.5 text-text-tertiary"
-                      >
-                        Remove
-                      </Button>
-                    )}
-                  </div>
-                ))}
+                  );
+                })}
                 <Button variant="ghost" size="sm" onClick={handleAddCollateralRow}>
                   + Add Collateral Asset
                 </Button>
@@ -938,7 +1038,7 @@ function NewBorrowSection({ pools, collateralAssets, collateralPrices, collatera
                 variant="primary"
                 size="lg"
                 className="w-full sm:w-auto"
-                disabled={!selectedPoolId || borrowValue <= 0 || collateralValueUSD <= 0 || borrowOp.isLoading}
+                disabled={!selectedPoolId || borrowValue <= 0 || collateralValueUSD <= 0 || borrowOp.isLoading || hasInsufficientCollateral || exceedsLiquidity}
                 onClick={async () => {
                   try {
                     const borrowBody = {
@@ -964,6 +1064,7 @@ function NewBorrowSection({ pools, collateralAssets, collateralPrices, collatera
                           },
                         );
                         setShowSuccess(true);
+                        onSuccess?.();
                         return;
                       }
                     }
@@ -971,6 +1072,7 @@ function NewBorrowSection({ pools, collateralAssets, collateralPrices, collatera
                     // Fallback: proxy mode
                     await borrowOp.execute(ENDPOINTS.BORROW_REQUEST, borrowBody);
                     setShowSuccess(true);
+                    onSuccess?.();
                   } catch {
                     // error captured by borrowOp.error
                   }
@@ -1014,7 +1116,7 @@ function NewBorrowSection({ pools, collateralAssets, collateralPrices, collatera
 // ---------------------------------------------------------------------------
 
 export default function BorrowPage() {
-  const { isConnected } = useWalletStore();
+  const { isConnected, party } = useWalletStore();
   const {
     borrowPositions,
     isLoading: positionsLoading,
@@ -1026,6 +1128,16 @@ export default function BorrowPage() {
     fetchPools,
   } = useProtocolStore();
   const { operatorParty } = useOperatorParty();
+  const { fetchBalances } = useBalanceStore();
+  const { fetchTokenBalances } = useTokenBalanceStore();
+
+  // Refresh all data after any successful transaction
+  const refreshAll = useCallback(() => {
+    void fetchPositions();
+    void fetchPools();
+    void fetchBalances();
+    void fetchTokenBalances(party ?? undefined);
+  }, [fetchPositions, fetchPools, fetchBalances, fetchTokenBalances, party]);
 
   const [repayPosition, setRepayPosition] = useState<BorrowPosition | null>(null);
   const [collateralPosition, setCollateralPosition] = useState<BorrowPosition | null>(null);
@@ -1111,7 +1223,7 @@ export default function BorrowPage() {
 
       {/* New Borrow Section */}
       <section>
-        <NewBorrowSection pools={pools} collateralAssets={collateralAssets} collateralPrices={collateralPrices} collateralThresholds={collateralThresholds} operatorParty={operatorParty} />
+        <NewBorrowSection pools={pools} collateralAssets={collateralAssets} collateralPrices={collateralPrices} collateralThresholds={collateralThresholds} operatorParty={operatorParty} onSuccess={refreshAll} />
       </section>
 
       {/* Repay Dialog */}
@@ -1123,6 +1235,7 @@ export default function BorrowPage() {
             if (!open) setRepayPosition(null);
           }}
           operatorParty={operatorParty}
+          onSuccess={refreshAll}
         />
       )}
 
@@ -1137,6 +1250,7 @@ export default function BorrowPage() {
           collateralAssets={collateralAssets}
           collateralPrices={collateralPrices}
           operatorParty={operatorParty}
+          onSuccess={refreshAll}
         />
       )}
     </div>

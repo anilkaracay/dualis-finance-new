@@ -27,7 +27,7 @@ import { InterestRateChart } from '@/components/charts/InterestRateChart';
 import { Loader2 } from 'lucide-react';
 import { useProtocolStore } from '@/stores/useProtocolStore';
 import { useWalletStore } from '@/stores/useWalletStore';
-import { useBalanceStore } from '@/stores/useBalanceStore';
+import { useBalanceStore, type UserSupplyPosition } from '@/stores/useBalanceStore';
 import { useTokenBalanceStore } from '@/stores/useTokenBalanceStore';
 import { usePartyLayer } from '@/hooks/usePartyLayer';
 import { useWalletOperation } from '@/hooks/useWalletOperation';
@@ -139,7 +139,7 @@ export default function PoolDetailPage() {
 
   const { pools, isLoading, fetchPools } = useProtocolStore();
   const { isConnected, party: storeParty } = useWalletStore();
-  const { fetchBalances } = useBalanceStore();
+  const { fetchBalances, getSupplyPositionForPool } = useBalanceStore();
   const { fetchTokenBalances, getBalanceForSymbol } = useTokenBalanceStore();
 
   const [depositAmount, setDepositAmount] = useState('');
@@ -235,6 +235,15 @@ export default function PoolDetailPage() {
     return parsed;
   }, [depositAmount, pool]);
 
+  // User's supply position for this pool (from Canton)
+  const supplyPosition: UserSupplyPosition | undefined = getSupplyPositionForPool(poolId);
+
+  // Max withdrawable = min(user's current balance, pool available liquidity) — Aave pattern
+  const maxWithdrawable = useMemo(() => {
+    if (!supplyPosition || !pool) return 0;
+    return Math.min(supplyPosition.currentBalance, Math.max(0, availableLiquidity));
+  }, [supplyPosition, pool, availableLiquidity]);
+
   // Wallet balance for the current pool asset
   const walletBalance = pool ? getBalanceForSymbol(pool.symbol) : 0;
   const depositAmountNum = parseFloat(depositAmount || '0');
@@ -276,9 +285,10 @@ export default function PoolDetailPage() {
       }
 
       setDepositStep('success');
-      // Refresh both protocol positions + wallet token balances
+      // Refresh protocol positions, wallet balances, and pool data
       void fetchBalances();
       void fetchTokenBalances(party ?? undefined);
+      void fetchPools();
     } catch (err) {
       // Transaction failed — go back to confirm step
       setDepositStep('confirm');
@@ -286,7 +296,7 @@ export default function PoolDetailPage() {
     } finally {
       setDepositLoading(false);
     }
-  }, [poolId, depositAmount, estimatedShares, pool, party, operatorParty, depositOp, fetchBalances, fetchTokenBalances]);
+  }, [poolId, depositAmount, estimatedShares, pool, party, operatorParty, depositOp, fetchBalances, fetchTokenBalances, fetchPools]);
 
   const handleWithdraw = useCallback(async () => {
     if (!poolId || !withdrawAmount || !pool) return;
@@ -317,9 +327,10 @@ export default function PoolDetailPage() {
         );
       }
       setWithdrawStep('success');
-      // Refresh both protocol positions + wallet token balances
+      // Refresh protocol positions, wallet balances, and pool data
       void fetchBalances();
       void fetchTokenBalances(party ?? undefined);
+      void fetchPools();
     } catch (err) {
       // Transaction failed — go back to confirm step
       setWithdrawStep('confirm');
@@ -327,7 +338,7 @@ export default function PoolDetailPage() {
     } finally {
       setWithdrawLoading(false);
     }
-  }, [poolId, withdrawAmount, pool, party, operatorParty, withdrawOp, fetchBalances, fetchTokenBalances]);
+  }, [poolId, withdrawAmount, pool, party, operatorParty, withdrawOp, fetchBalances, fetchTokenBalances, fetchPools]);
 
   // ─── Loading State ────────────────────────────────────────────────────────
 
@@ -462,12 +473,42 @@ export default function PoolDetailPage() {
                   Connect Wallet
                 </Button>
               </div>
-            ) : (
-              <div className="flex flex-col items-center justify-center gap-4 py-8">
-                <p className="text-sm text-text-secondary">
-                  You haven&apos;t deposited in this pool yet
-                </p>
-                <div className="flex items-center gap-3">
+            ) : supplyPosition ? (
+              /* ── User has a supply position — show real data ── */
+              <div className="flex flex-col gap-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex flex-col gap-1">
+                    <span className="text-xs text-text-tertiary">Deposited</span>
+                    <span className="font-mono text-sm font-semibold tabular-nums text-text-primary">
+                      {supplyPosition.principal.toLocaleString('en-US', { maximumFractionDigits: 4 })} {pool.symbol}
+                    </span>
+                    <span className="text-xs text-text-tertiary">
+                      {formatUSD(supplyPosition.principal * pool.priceUSD)}
+                    </span>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <span className="text-xs text-text-tertiary">Current Balance</span>
+                    <span className="font-mono text-sm font-semibold tabular-nums text-positive">
+                      {supplyPosition.currentBalance.toLocaleString('en-US', { maximumFractionDigits: 4 })} {pool.symbol}
+                    </span>
+                    <span className="text-xs text-text-tertiary">
+                      {formatUSD(supplyPosition.currentBalance * pool.priceUSD)}
+                    </span>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <span className="text-xs text-text-tertiary">Interest Earned</span>
+                    <span className="font-mono text-sm font-semibold tabular-nums text-positive">
+                      +{supplyPosition.interestEarned.toLocaleString('en-US', { maximumFractionDigits: 6 })} {pool.symbol}
+                    </span>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <span className="text-xs text-text-tertiary">Supply APY</span>
+                    <span className="font-mono text-sm font-semibold tabular-nums text-positive">
+                      {(pool.supplyAPY * 100).toFixed(2)}%
+                    </span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 pt-2">
                   {/* Deposit Dialog */}
                   <Dialog onOpenChange={(open) => { if (!open) { setDepositStep('input'); setDepositAmount(''); setDepositError(null); setDepositLoading(false); } }}>
                     <DialogTrigger asChild>
@@ -662,23 +703,32 @@ export default function PoolDetailPage() {
                       {withdrawStep === 'input' && (
                         <>
                           <div className="flex flex-col gap-4">
-                            {/* Available to withdraw */}
+                            {/* Your deposit */}
+                            {supplyPosition && (
+                              <div className="flex items-center justify-between text-sm">
+                                <span className="text-text-tertiary">Your Deposit</span>
+                                <span className="font-mono tabular-nums text-text-primary">
+                                  {supplyPosition.currentBalance.toLocaleString('en-US', { maximumFractionDigits: 4 })} {pool.symbol}
+                                </span>
+                              </div>
+                            )}
+                            {/* Available to withdraw — min(user deposit, pool liquidity) */}
                             <div className="flex items-center justify-between text-sm">
                               <span className="text-text-tertiary">Available to withdraw</span>
                               <span className="font-mono tabular-nums text-text-primary">
-                                {Math.max(0, availableLiquidity).toLocaleString('en-US', { maximumFractionDigits: 4 })} {pool.symbol}
+                                {maxWithdrawable.toLocaleString('en-US', { maximumFractionDigits: 4 })} {pool.symbol}
                               </span>
                             </div>
 
                             <Input
-                              label="Amount (shares)"
+                              label="Amount"
                               type="number"
                               placeholder="0.00"
                               value={withdrawAmount}
                               onChange={(e) => setWithdrawAmount(e.target.value)}
                               iconRight={
                                 <button
-                                  onClick={() => setWithdrawAmount(Math.max(0, availableLiquidity).toString())}
+                                  onClick={() => setWithdrawAmount(maxWithdrawable > 0 ? maxWithdrawable.toString() : '0')}
                                   className="text-xs font-medium text-accent-teal hover:text-accent-teal-hover"
                                 >
                                   Max
@@ -687,11 +737,18 @@ export default function PoolDetailPage() {
                             />
 
                             <div className="flex items-center justify-between rounded-md bg-bg-tertiary px-3 py-2 text-sm">
-                              <span className="text-text-tertiary">Estimated receive</span>
+                              <span className="text-text-tertiary">Tokens returned to wallet</span>
                               <span className="font-mono tabular-nums text-text-primary">
                                 ~{parseFloat(withdrawAmount || '0').toLocaleString('en-US', { maximumFractionDigits: 4 })} {pool.symbol}
                               </span>
                             </div>
+
+                            {/* Exceeds available warning */}
+                            {parseFloat(withdrawAmount || '0') > maxWithdrawable && maxWithdrawable > 0 && (
+                              <div className="flex items-center gap-2 rounded-md border border-red-500/20 bg-red-500/5 px-3 py-2 text-sm text-red-400">
+                                Exceeds available balance. Max: {maxWithdrawable.toLocaleString('en-US', { maximumFractionDigits: 4 })} {pool.symbol}
+                              </div>
+                            )}
                           </div>
 
                           <DialogFooter>
@@ -701,7 +758,7 @@ export default function PoolDetailPage() {
                             <Button
                               variant="primary"
                               size="sm"
-                              disabled={!withdrawAmount || parseFloat(withdrawAmount) <= 0}
+                              disabled={!withdrawAmount || parseFloat(withdrawAmount) <= 0 || parseFloat(withdrawAmount) > maxWithdrawable}
                               onClick={() => setWithdrawStep('confirm')}
                             >
                               Review Withdrawal
@@ -722,8 +779,16 @@ export default function PoolDetailPage() {
                               </div>
                               <div className="flex justify-between text-sm">
                                 <span className="text-text-tertiary">Withdraw Amount</span>
-                                <span className="font-mono text-text-primary">{parseFloat(withdrawAmount).toLocaleString('en-US', { maximumFractionDigits: 4 })} shares</span>
+                                <span className="font-mono text-text-primary">{parseFloat(withdrawAmount).toLocaleString('en-US', { maximumFractionDigits: 4 })} {pool.symbol}</span>
                               </div>
+                              {supplyPosition && (
+                                <div className="flex justify-between text-sm">
+                                  <span className="text-text-tertiary">Remaining Balance</span>
+                                  <span className="font-mono text-text-primary">
+                                    {Math.max(0, supplyPosition.currentBalance - parseFloat(withdrawAmount || '0')).toLocaleString('en-US', { maximumFractionDigits: 4 })} {pool.symbol}
+                                  </span>
+                                </div>
+                              )}
                               <div className="border-t border-border-subtle pt-2 flex justify-between text-sm">
                                 <span className="text-text-tertiary">Tokens returned to wallet</span>
                                 <span className="font-mono text-text-primary">~{parseFloat(withdrawAmount).toLocaleString('en-US', { maximumFractionDigits: 4 })} {pool.symbol}</span>
@@ -731,7 +796,7 @@ export default function PoolDetailPage() {
                             </div>
 
                             <p className="text-xs text-text-tertiary">
-                              Your supply position will be reduced and tokens will be returned to your wallet.
+                              Your wallet will receive {withdrawAmount} {pool.symbol}. This transaction will be submitted to the Canton ledger.
                             </p>
 
                             {withdrawError && (
@@ -791,6 +856,74 @@ export default function PoolDetailPage() {
                     </DialogContent>
                   </Dialog>
                 </div>
+              </div>
+            ) : (
+              /* ── No supply position yet ── */
+              <div className="flex flex-col items-center justify-center gap-4 py-8">
+                <p className="text-sm text-text-secondary">
+                  You haven&apos;t deposited in this pool yet
+                </p>
+                <Dialog onOpenChange={(open) => { if (!open) { setDepositStep('input'); setDepositAmount(''); setDepositError(null); setDepositLoading(false); } }}>
+                  <DialogTrigger asChild>
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      icon={<ArrowDownToLine className="h-4 w-4" />}
+                    >
+                      Deposit
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent size="sm">
+                    <DialogHeader>
+                      <DialogTitle>Deposit {pool.symbol}</DialogTitle>
+                      <DialogDescription>
+                        Supply {pool.symbol} to earn {(pool.supplyAPY * 100).toFixed(2)}% APY.
+                      </DialogDescription>
+                    </DialogHeader>
+                    {/* Simple input for first-time depositors */}
+                    <div className="flex flex-col gap-4">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-text-tertiary">Wallet Balance</span>
+                        <span className="font-mono tabular-nums text-text-primary">
+                          {walletBalance.toLocaleString('en-US', { maximumFractionDigits: 4 })} {pool.symbol}
+                        </span>
+                      </div>
+                      <Input
+                        label="Amount"
+                        type="number"
+                        placeholder="0.00"
+                        value={depositAmount}
+                        onChange={(e) => setDepositAmount(e.target.value)}
+                        iconRight={
+                          <button
+                            onClick={() => setDepositAmount(walletBalance > 0 ? walletBalance.toString() : '0')}
+                            className="text-xs font-medium text-accent-teal hover:text-accent-teal-hover"
+                          >
+                            Max
+                          </button>
+                        }
+                      />
+                      {hasInsufficientBalance && (
+                        <div className="flex items-center gap-2 rounded-md border border-red-500/20 bg-red-500/5 px-3 py-2 text-sm text-red-400">
+                          Insufficient balance. You have {walletBalance.toLocaleString('en-US', { maximumFractionDigits: 4 })} {pool.symbol}
+                        </div>
+                      )}
+                    </div>
+                    <DialogFooter>
+                      <DialogClose asChild>
+                        <Button variant="ghost" size="sm">Cancel</Button>
+                      </DialogClose>
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        disabled={estimatedShares <= 0 || hasInsufficientBalance || depositLoading}
+                        onClick={handleDeposit}
+                      >
+                        {depositLoading ? 'Submitting...' : 'Deposit'}
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
               </div>
             )}
           </CardContent>
