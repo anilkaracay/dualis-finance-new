@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { ChevronLeft, Wallet, ArrowDownToLine, ArrowUpFromLine } from 'lucide-react';
+import { ChevronLeft, Wallet, ArrowDownToLine, ArrowUpFromLine, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
@@ -146,11 +146,8 @@ export default function PoolDetailPage() {
   const [withdrawAmount, setWithdrawAmount] = useState('');
   const [chartTab, setChartTab] = useState<ChartTab>('supplyAPY');
   const [timeRange, setTimeRange] = useState<TimeRange>('30d');
-  const [depositStep, setDepositStep] = useState<'input' | 'confirm' | 'signing' | 'success'>('input');
   const [withdrawStep, setWithdrawStep] = useState<'input' | 'confirm' | 'signing' | 'success'>('input');
-  const [depositError, setDepositError] = useState<string | null>(null);
   const [withdrawError, setWithdrawError] = useState<string | null>(null);
-  const [depositLoading, setDepositLoading] = useState(false);
   const [withdrawLoading, setWithdrawLoading] = useState(false);
 
   const { party: plParty } = usePartyLayer();
@@ -256,9 +253,6 @@ export default function PoolDetailPage() {
 
   const handleDeposit = useCallback(async () => {
     if (!poolId || estimatedShares <= 0 || !pool) return;
-    setDepositError(null);
-    setDepositLoading(true);
-    setDepositStep('signing');
 
     try {
       // Map pool symbol to Canton token (CC, CBTC, USDCx)
@@ -284,17 +278,12 @@ export default function PoolDetailPage() {
         );
       }
 
-      setDepositStep('success');
       // Force refresh all data after successful deposit
       void fetchBalances();
       void fetchTokenBalances(party ?? undefined, true);
       void fetchPools();
-    } catch (err) {
-      // Transaction failed — go back to input step
-      setDepositStep('input');
-      setDepositError(err instanceof Error ? err.message : 'Transaction failed');
-    } finally {
-      setDepositLoading(false);
+    } catch {
+      // error captured by depositOp.error
     }
   }, [poolId, depositAmount, estimatedShares, pool, party, operatorParty, depositOp, fetchBalances, fetchTokenBalances, fetchPools]);
 
@@ -510,7 +499,7 @@ export default function PoolDetailPage() {
                 </div>
                 <div className="flex items-center gap-3 pt-2">
                   {/* Deposit Dialog */}
-                  <Dialog onOpenChange={(open) => { if (!open) { setDepositStep('input'); setDepositAmount(''); setDepositError(null); setDepositLoading(false); } }}>
+                  <Dialog onOpenChange={(open) => { if (!open) { setDepositAmount(''); depositOp.reset(); } }}>
                     <DialogTrigger asChild>
                       <Button
                         variant="primary"
@@ -524,14 +513,37 @@ export default function PoolDetailPage() {
                       <DialogHeader>
                         <DialogTitle>Deposit {pool.symbol}</DialogTitle>
                         <DialogDescription>
-                          {depositStep === 'confirm'
-                            ? 'Review your transaction before submitting.'
-                            : `Supply ${pool.symbol} to earn ${(pool.supplyAPY * 100).toFixed(2)}% APY.`}
+                          Supply {pool.symbol} to earn {(pool.supplyAPY * 100).toFixed(2)}% APY.
                         </DialogDescription>
                       </DialogHeader>
 
-                      {/* Input + Deposit */}
-                      {depositStep === 'input' && (
+                      {/* Signing — Wallet approval popup is open */}
+                      {(depositOp.status === 'signing' || depositOp.status === 'submitting') ? (
+                        <div className="flex flex-col items-center gap-4 py-8">
+                          <Loader2 className="h-8 w-8 animate-spin text-accent-teal" />
+                          <p className="font-semibold text-text-primary">
+                            {depositOp.status === 'signing' ? 'Waiting for wallet approval...' : 'Submitting transaction...'}
+                          </p>
+                          <p className="text-sm text-text-secondary text-center">
+                            {depositOp.status === 'signing' ? 'Please confirm the transaction in your wallet' : 'Processing on Canton...'}
+                          </p>
+                        </div>
+                      ) : depositOp.status === 'success' ? (
+                        <div className="flex flex-col items-center gap-4 py-8">
+                          <div className="h-12 w-12 rounded-full bg-positive/20 flex items-center justify-center">
+                            <svg className="h-6 w-6 text-positive" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                            </svg>
+                          </div>
+                          <p className="text-text-primary font-semibold">Deposit submitted!</p>
+                          <p className="text-text-secondary text-sm">
+                            Deposited {depositAmount} {pool.symbol}
+                          </p>
+                          <DialogClose asChild>
+                            <Button variant="secondary" size="sm" onClick={() => { setDepositAmount(''); depositOp.reset(); }}>Close</Button>
+                          </DialogClose>
+                        </div>
+                      ) : (
                         <>
                           <div className="flex flex-col gap-4">
                             {/* Wallet balance */}
@@ -582,8 +594,8 @@ export default function PoolDetailPage() {
                               </div>
                             )}
 
-                            {depositError && (
-                              <TransactionError message={depositError} onRetry={() => setDepositError(null)} />
+                            {depositOp.error && (
+                              <TransactionError message={depositOp.error} onRetry={depositOp.reset} />
                             )}
                           </div>
 
@@ -594,49 +606,13 @@ export default function PoolDetailPage() {
                             <Button
                               variant="primary"
                               size="sm"
-                              disabled={estimatedShares <= 0 || hasInsufficientBalance || depositLoading}
+                              disabled={estimatedShares <= 0 || hasInsufficientBalance || depositOp.isLoading}
                               onClick={handleDeposit}
                             >
-                              {depositLoading ? 'Submitting...' : 'Deposit'}
+                              {depositOp.isLoading ? 'Processing...' : 'Deposit'}
                             </Button>
                           </DialogFooter>
                         </>
-                      )}
-
-                      {/* Step 2.5: Signing — Wallet approval popup is open */}
-                      {depositStep === 'signing' && (
-                        <div className="flex flex-col items-center gap-4 py-8">
-                          <Loader2 className="h-8 w-8 animate-spin text-accent-teal" />
-                          <p className="font-semibold text-text-primary">Waiting for wallet approval...</p>
-                          <p className="text-sm text-text-secondary text-center">
-                            Please approve this transaction in your connected wallet.
-                          </p>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => { setDepositStep('confirm'); setDepositLoading(false); }}
-                          >
-                            Cancel
-                          </Button>
-                        </div>
-                      )}
-
-                      {/* Step 3: Success */}
-                      {depositStep === 'success' && (
-                        <div className="flex flex-col items-center gap-4 py-8">
-                          <div className="h-12 w-12 rounded-full bg-positive/20 flex items-center justify-center">
-                            <svg className="h-6 w-6 text-positive" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                            </svg>
-                          </div>
-                          <p className="text-text-primary font-semibold">Deposit submitted!</p>
-                          <p className="text-text-secondary text-sm">
-                            Deposited {depositAmount} {pool.symbol}
-                          </p>
-                          <DialogClose asChild>
-                            <Button variant="secondary" size="sm" onClick={() => { setDepositAmount(''); setDepositStep('input'); setDepositError(null); }}>Close</Button>
-                          </DialogClose>
-                        </div>
                       )}
                     </DialogContent>
                   </Dialog>
@@ -826,7 +802,7 @@ export default function PoolDetailPage() {
                 <p className="text-sm text-text-secondary">
                   You haven&apos;t deposited in this pool yet
                 </p>
-                <Dialog onOpenChange={(open) => { if (!open) { setDepositStep('input'); setDepositAmount(''); setDepositError(null); setDepositLoading(false); } }}>
+                <Dialog onOpenChange={(open) => { if (!open) { setDepositAmount(''); depositOp.reset(); } }}>
                   <DialogTrigger asChild>
                     <Button
                       variant="primary"
@@ -843,48 +819,73 @@ export default function PoolDetailPage() {
                         Supply {pool.symbol} to earn {(pool.supplyAPY * 100).toFixed(2)}% APY.
                       </DialogDescription>
                     </DialogHeader>
-                    {/* Simple input for first-time depositors */}
-                    <div className="flex flex-col gap-4">
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-text-tertiary">Wallet Balance</span>
-                        <span className="font-mono tabular-nums text-text-primary">
-                          {walletBalance.toLocaleString('en-US', { maximumFractionDigits: 4 })} {pool.symbol}
-                        </span>
+                    {(depositOp.status === 'signing' || depositOp.status === 'submitting') ? (
+                      <div className="flex flex-col items-center gap-3 py-8">
+                        <div className="h-8 w-8 animate-spin rounded-full border-2 border-accent-teal border-t-transparent" />
+                        <p className="text-sm text-text-secondary">
+                          {depositOp.status === 'signing' ? 'Approve in your wallet...' : 'Processing deposit...'}
+                        </p>
                       </div>
-                      <Input
-                        label="Amount"
-                        type="number"
-                        placeholder="0.00"
-                        value={depositAmount}
-                        onChange={(e) => setDepositAmount(e.target.value)}
-                        iconRight={
-                          <button
-                            onClick={() => setDepositAmount(walletBalance > 0 ? walletBalance.toString() : '0')}
-                            className="text-xs font-medium text-accent-teal hover:text-accent-teal-hover"
-                          >
-                            Max
-                          </button>
-                        }
-                      />
-                      {hasInsufficientBalance && (
-                        <div className="flex items-center gap-2 rounded-md border border-red-500/20 bg-red-500/5 px-3 py-2 text-sm text-red-400">
-                          Insufficient balance. You have {walletBalance.toLocaleString('en-US', { maximumFractionDigits: 4 })} {pool.symbol}
+                    ) : depositOp.status === 'success' ? (
+                      <div className="flex flex-col items-center gap-3 py-8">
+                        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-500/10">
+                          <CheckCircle2 className="h-6 w-6 text-green-500" />
                         </div>
-                      )}
-                    </div>
-                    <DialogFooter>
-                      <DialogClose asChild>
-                        <Button variant="ghost" size="sm">Cancel</Button>
-                      </DialogClose>
-                      <Button
-                        variant="primary"
-                        size="sm"
-                        disabled={estimatedShares <= 0 || hasInsufficientBalance || depositLoading}
-                        onClick={handleDeposit}
-                      >
-                        {depositLoading ? 'Submitting...' : 'Deposit'}
-                      </Button>
-                    </DialogFooter>
+                        <p className="text-sm font-medium text-green-400">Deposit successful!</p>
+                        <DialogClose asChild>
+                          <Button variant="ghost" size="sm">Close</Button>
+                        </DialogClose>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="flex flex-col gap-4">
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-text-tertiary">Wallet Balance</span>
+                            <span className="font-mono tabular-nums text-text-primary">
+                              {walletBalance.toLocaleString('en-US', { maximumFractionDigits: 4 })} {pool.symbol}
+                            </span>
+                          </div>
+                          <Input
+                            label="Amount"
+                            type="number"
+                            placeholder="0.00"
+                            value={depositAmount}
+                            onChange={(e) => setDepositAmount(e.target.value)}
+                            iconRight={
+                              <button
+                                onClick={() => setDepositAmount(walletBalance > 0 ? walletBalance.toString() : '0')}
+                                className="text-xs font-medium text-accent-teal hover:text-accent-teal-hover"
+                              >
+                                Max
+                              </button>
+                            }
+                          />
+                          {hasInsufficientBalance && (
+                            <div className="flex items-center gap-2 rounded-md border border-red-500/20 bg-red-500/5 px-3 py-2 text-sm text-red-400">
+                              Insufficient balance. You have {walletBalance.toLocaleString('en-US', { maximumFractionDigits: 4 })} {pool.symbol}
+                            </div>
+                          )}
+                          {depositOp.error && (
+                            <div className="flex items-center gap-2 rounded-md border border-red-500/20 bg-red-500/5 px-3 py-2 text-sm text-red-400">
+                              {depositOp.error}
+                            </div>
+                          )}
+                        </div>
+                        <DialogFooter>
+                          <DialogClose asChild>
+                            <Button variant="ghost" size="sm">Cancel</Button>
+                          </DialogClose>
+                          <Button
+                            variant="primary"
+                            size="sm"
+                            disabled={estimatedShares <= 0 || hasInsufficientBalance}
+                            onClick={handleDeposit}
+                          >
+                            Deposit
+                          </Button>
+                        </DialogFooter>
+                      </>
+                    )}
                   </DialogContent>
                 </Dialog>
               </div>

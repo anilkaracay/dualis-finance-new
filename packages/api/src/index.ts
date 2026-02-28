@@ -224,11 +224,13 @@ async function main(): Promise<void> {
       timeWindow: env.RATE_LIMIT_WINDOW_MS,
       allowList: (req) => {
         const url = req.url ?? '';
-        // Skip rate limiting for health/metrics and public read-heavy endpoints
+        // Skip rate limiting for health/metrics, public read-heavy endpoints,
+        // and authenticated user balance queries (called frequently by frontend)
         return url.startsWith('/health') ||
                url === '/metrics' ||
                url.startsWith('/v1/pools') ||
-               url.startsWith('/v1/oracle/');
+               url.startsWith('/v1/oracle/') ||
+               (req.method === 'GET' && url.startsWith('/v1/user/'));
       },
       onExceeded: async (req) => {
         try {
