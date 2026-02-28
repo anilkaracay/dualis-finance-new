@@ -25,6 +25,7 @@ interface TokenBalanceState {
 interface TokenBalanceActions {
   fetchTokenBalances: (walletParty?: string, force?: boolean) => Promise<void>;
   getBalanceForSymbol: (symbol: string) => number;
+  adjustBalance: (symbol: string, delta: number) => void;
   requestFaucet: () => Promise<void>;
   reset: () => void;
 }
@@ -67,6 +68,21 @@ export const useTokenBalanceStore = create<TokenBalanceState & TokenBalanceActio
     getBalanceForSymbol: (symbol: string): number => {
       const found = get().balances.find((b) => b.symbol === symbol);
       return found?.amount ?? 0;
+    },
+
+    adjustBalance: (symbol: string, delta: number) => {
+      const { balances } = get();
+      set({
+        balances: balances.map((b) =>
+          b.symbol === symbol
+            ? {
+                ...b,
+                amount: Math.max(0, b.amount + delta),
+                valueUSD: Math.max(0, (b.amount + delta) * (b.amount > 0 ? b.valueUSD / b.amount : 0)),
+              }
+            : b,
+        ),
+      });
     },
 
     requestFaucet: async () => {

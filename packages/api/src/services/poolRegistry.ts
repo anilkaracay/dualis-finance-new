@@ -191,8 +191,8 @@ let _cantonLoaded = false;
  * Load pools from the Canton ledger. Replaces any existing pool data.
  * Called once at API startup when CANTON_MOCK=false.
  */
-export async function loadFromCanton(): Promise<number> {
-  if (_cantonLoaded) return pools.size;
+export async function loadFromCanton(force = false): Promise<number> {
+  if (_cantonLoaded && !force) return pools.size;
 
   // Dynamic import to avoid circular deps at module load time
   const { getAllPools: cantonGetAllPools } = await import('../canton/queries.js');
@@ -201,14 +201,25 @@ export async function loadFromCanton(): Promise<number> {
     const contracts = await cantonGetAllPools();
     log.info({ found: contracts.length }, 'Loaded LendingPool contracts from Canton');
 
+    // Snapshot current oracle-synced prices so we can preserve them
+    const oraclePrices = new Map<string, number>();
+    for (const [id, p] of pools) {
+      oraclePrices.set(id, p.asset.priceUSD);
+    }
+
     // Clear any pre-seeded mock pools
     pools.clear();
 
     for (const c of contracts) {
       const poolState = cantonPoolToState(c.contractId, c.payload as unknown as Record<string, unknown>);
+      // Preserve oracle-synced price if available (Canton stores bootstrap price)
+      const oraclePrice = oraclePrices.get(poolState.poolId);
+      if (oraclePrice !== undefined && oraclePrice > 0) {
+        poolState.asset.priceUSD = oraclePrice;
+      }
       pools.set(poolState.poolId, poolState);
       log.debug(
-        { poolId: poolState.poolId, asset: poolState.asset.symbol, supply: poolState.totalSupply },
+        { poolId: poolState.poolId, asset: poolState.asset.symbol, supply: poolState.totalSupply, price: poolState.asset.priceUSD },
         'Registered Canton pool',
       );
     }
@@ -359,6 +370,39 @@ export function updateAssetPriceBySymbol(symbol: string, newPrice: number): numb
     }
   }
   return updated;
+}
+
+/**
+ * Refresh a single pool's state from Canton ledger.
+ * Called after deposit/withdraw to sync totalSupply, totalBorrow, indices, contractId.
+ */
+export async function refreshPoolFromCanton(poolId: string): Promise<boolean> {
+  try {
+    const { getPoolByKey } = await import('../canton/queries.js');
+    const fresh = await getPoolByKey(poolId);
+    if (!fresh) {
+      log.warn({ poolId }, 'Pool not found on Canton during refresh');
+      return false;
+    }
+    const updated = cantonPoolToState(fresh.contractId, fresh.payload as unknown as Record<string, unknown>);
+    const existing = pools.get(poolId);
+    if (existing) {
+      // Preserve lastAccrualTs from local state if Canton returns 0 (bootstrap)
+      if (updated.lastAccrualTs <= 0) {
+        updated.lastAccrualTs = existing.lastAccrualTs;
+      }
+      // Preserve oracle-synced price (Canton stores stale bootstrap price)
+      if (existing.asset.priceUSD > 0) {
+        updated.asset.priceUSD = existing.asset.priceUSD;
+      }
+    }
+    pools.set(poolId, updated);
+    log.info({ poolId, totalSupply: updated.totalSupply, totalBorrow: updated.totalBorrow, contractId: updated.contractId }, 'Pool refreshed from Canton');
+    return true;
+  } catch (err) {
+    log.warn({ err, poolId }, 'Failed to refresh pool from Canton');
+    return false;
+  }
 }
 
 /** Total pool count. */

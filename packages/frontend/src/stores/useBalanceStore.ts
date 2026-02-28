@@ -93,7 +93,22 @@ export const useBalanceStore = create<BalanceState & BalanceActions>()((set, get
 
   getSupplyPositionForPool: (poolId: string) => {
     const { balances } = get();
-    return balances?.supplyPositions.find(p => p.poolId === poolId);
+    if (!balances) return undefined;
+    const positions = balances.supplyPositions.filter(p => p.poolId === poolId);
+    if (positions.length === 0) return undefined;
+    const first = positions[0]!;
+    if (positions.length === 1) return first;
+    // Aggregate multiple supply positions for the same pool
+    return {
+      contractId: first.contractId,
+      positionId: first.positionId,
+      poolId,
+      asset: first.asset,
+      principal: positions.reduce((sum, p) => sum + p.principal, 0),
+      currentBalance: positions.reduce((sum, p) => sum + p.currentBalance, 0),
+      interestEarned: positions.reduce((sum, p) => sum + p.interestEarned, 0),
+      depositTimestamp: first.depositTimestamp,
+    };
   },
 
   getBorrowPositionForPool: (poolId: string) => {

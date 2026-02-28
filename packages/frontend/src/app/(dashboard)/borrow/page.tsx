@@ -1049,18 +1049,22 @@ function NewBorrowSection({ pools, collateralAssets, collateralPrices, collatera
                         .map((e) => ({ symbol: e.asset, amount: e.amount })),
                     };
 
-                    // Two-phase flow: wallet popup for confirmation, then backend processes borrow
+                    // Two-phase flow: wallet popup shows collateral amount, then backend processes borrow
                     if (operatorParty && selectedPool) {
                       const cantonToken = mapPoolToCanton(selectedPool.symbol);
-                      if (['CC', 'CBTC', 'USDCx'].includes(cantonToken)) {
+                      // Use first collateral entry for the wallet transfer
+                      const firstCollateral = collateralEntries.find((e) => parseFloat(e.amount) > 0);
+                      const transferToken = firstCollateral ? mapPoolToCanton(firstCollateral.asset) : cantonToken;
+                      const transferAmount = firstCollateral?.amount ?? borrowAmount;
+                      if (['CC', 'CBTC', 'USDCx'].includes(transferToken)) {
                         await borrowOp.executeWithWalletTransfer(
                           ENDPOINTS.BORROW_REQUEST,
                           borrowBody,
                           {
                             to: operatorParty,
-                            token: 'CC',
-                            amount: '0.0001',
-                            memo: `borrow-confirm-${selectedPoolId}`,
+                            token: transferToken,
+                            amount: transferAmount,
+                            memo: `borrow-${selectedPoolId}`,
                           },
                         );
                         setShowSuccess(true);

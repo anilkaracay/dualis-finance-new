@@ -515,10 +515,10 @@ export class SpliceBalanceBridge implements ITokenBridge {
 
       const balances: TokenAmount[] = [];
       if (!symbol || symbol === 'CC') {
-        balances.push({ symbol: 'CC', amount: String(Math.floor(total)) });
+        balances.push({ symbol: 'CC', amount: total.toFixed(4) });
       }
 
-      log.info({ party: party.slice(0, 20), cc: total.toFixed(2), source: 'validator-self' }, 'Splice balance queried');
+      log.info({ party: party.slice(0, 20), cc: total.toFixed(4), source: 'validator-self' }, 'Splice balance queried');
       return { party, balances };
     } catch (error) {
       log.debug({ error: error instanceof Error ? error.message : 'unknown' }, 'Validator balance query failed, falling back to Scan API');
@@ -571,12 +571,12 @@ export class SpliceBalanceBridge implements ITokenBridge {
 
       const balances: TokenAmount[] = [];
       if (!symbol || symbol === 'CC') {
-        balances.push({ symbol: 'CC', amount: String(Math.floor(total)) });
+        balances.push({ symbol: 'CC', amount: total.toFixed(4) });
       }
 
       log.info({
         party: party.slice(0, 20),
-        cc: total.toFixed(2),
+        cc: total.toFixed(4),
         round: response.data.computed_as_of_round,
         source: 'scan-api',
       }, 'Splice balance queried');

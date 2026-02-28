@@ -26,7 +26,7 @@ interface ProtocolState {
 }
 
 interface ProtocolActions {
-  fetchPools: () => void;
+  fetchPools: (refresh?: boolean) => void;
   fetchFromAPI: () => Promise<void>;
   updatePool: (poolId: string, data: Partial<PoolData>) => void;
 }
@@ -142,11 +142,12 @@ export const useProtocolStore = create<ProtocolState & ProtocolActions>()((set) 
   isDemo: false,
   error: null,
 
-  fetchPools: () => {
+  fetchPools: (refresh?: boolean) => {
     set({ isLoading: true, error: null });
     // Try API first, fall back to mock
+    const url = refresh ? '/pools?refresh=true' : '/pools';
     import('@/lib/api/client')
-      .then(({ apiClient }) => apiClient.get<{ data: PoolListItem[] }>('/pools'))
+      .then(({ apiClient }) => apiClient.get<{ data: PoolListItem[] }>(url))
       .then((response) => {
         const body = response.data;
         const pools = Array.isArray(body) ? body : body?.data;

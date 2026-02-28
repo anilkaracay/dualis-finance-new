@@ -144,6 +144,7 @@ export default function PoolDetailPage() {
 
   const [depositAmount, setDepositAmount] = useState('');
   const [withdrawAmount, setWithdrawAmount] = useState('');
+  const [depositDialogOpen, setDepositDialogOpen] = useState(false);
   const [chartTab, setChartTab] = useState<ChartTab>('supplyAPY');
   const [timeRange, setTimeRange] = useState<TimeRange>('30d');
   const [withdrawStep, setWithdrawStep] = useState<'input' | 'confirm' | 'signing' | 'success'>('input');
@@ -278,14 +279,18 @@ export default function PoolDetailPage() {
         );
       }
 
-      // Force refresh all data after successful deposit
+      // Optimistic balance update — immediately adjust wallet balance in UI
+      useTokenBalanceStore.getState().adjustBalance(pool.symbol, -depositAmountNum);
+
+      // Refresh all data after successful deposit
+      // Backend already called refreshPoolFromCanton() so normal fetch picks up new values
       void fetchBalances();
       void fetchTokenBalances(party ?? undefined, true);
       void fetchPools();
     } catch {
       // error captured by depositOp.error
     }
-  }, [poolId, depositAmount, estimatedShares, pool, party, operatorParty, depositOp, fetchBalances, fetchTokenBalances, fetchPools]);
+  }, [poolId, depositAmount, depositAmountNum, estimatedShares, pool, party, operatorParty, depositOp, fetchBalances, fetchTokenBalances, fetchPools]);
 
   const handleWithdraw = useCallback(async () => {
     if (!poolId || !withdrawAmount || !pool) return;
@@ -296,7 +301,7 @@ export default function PoolDetailPage() {
     try {
       const cantonToken = mapPoolToCanton(pool.symbol);
 
-      // Two-phase flow: wallet popup opens for confirmation (small fee transfer)
+      // Two-phase flow: wallet popup shows actual withdraw amount
       // then backend processes withdrawal and transfers tokens to user
       if (operatorParty && ['CC', 'CBTC', 'USDCx'].includes(cantonToken)) {
         await withdrawOp.executeWithWalletTransfer(
@@ -304,9 +309,9 @@ export default function PoolDetailPage() {
           { shares: withdrawAmount },
           {
             to: operatorParty,
-            token: 'CC',
-            amount: '0.0001',
-            memo: `withdraw-confirm-${poolId}`,
+            token: cantonToken,
+            amount: withdrawAmount,
+            memo: `withdraw-${poolId}`,
           },
         );
       } else {
@@ -316,7 +321,9 @@ export default function PoolDetailPage() {
         );
       }
       setWithdrawStep('success');
-      // Force refresh all data after successful withdrawal
+      // Optimistic balance update — immediately adjust wallet balance in UI
+      useTokenBalanceStore.getState().adjustBalance(pool.symbol, parseFloat(withdrawAmount));
+      // Refresh all data after successful withdrawal
       void fetchBalances();
       void fetchTokenBalances(party ?? undefined, true);
       void fetchPools();
@@ -498,124 +505,15 @@ export default function PoolDetailPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-3 pt-2">
-                  {/* Deposit Dialog */}
-                  <Dialog onOpenChange={(open) => { if (!open) { setDepositAmount(''); depositOp.reset(); } }}>
-                    <DialogTrigger asChild>
-                      <Button
-                        variant="primary"
-                        size="sm"
-                        icon={<ArrowDownToLine className="h-4 w-4" />}
-                      >
-                        Deposit
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent size="sm">
-                      <DialogHeader>
-                        <DialogTitle>Deposit {pool.symbol}</DialogTitle>
-                        <DialogDescription>
-                          Supply {pool.symbol} to earn {(pool.supplyAPY * 100).toFixed(2)}% APY.
-                        </DialogDescription>
-                      </DialogHeader>
-
-                      {/* Signing — Wallet approval popup is open */}
-                      {(depositOp.status === 'signing' || depositOp.status === 'submitting') ? (
-                        <div className="flex flex-col items-center gap-4 py-8">
-                          <Loader2 className="h-8 w-8 animate-spin text-accent-teal" />
-                          <p className="font-semibold text-text-primary">
-                            {depositOp.status === 'signing' ? 'Waiting for wallet approval...' : 'Submitting transaction...'}
-                          </p>
-                          <p className="text-sm text-text-secondary text-center">
-                            {depositOp.status === 'signing' ? 'Please confirm the transaction in your wallet' : 'Processing on Canton...'}
-                          </p>
-                        </div>
-                      ) : depositOp.status === 'success' ? (
-                        <div className="flex flex-col items-center gap-4 py-8">
-                          <div className="h-12 w-12 rounded-full bg-positive/20 flex items-center justify-center">
-                            <svg className="h-6 w-6 text-positive" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                            </svg>
-                          </div>
-                          <p className="text-text-primary font-semibold">Deposit submitted!</p>
-                          <p className="text-text-secondary text-sm">
-                            Deposited {depositAmount} {pool.symbol}
-                          </p>
-                          <DialogClose asChild>
-                            <Button variant="secondary" size="sm" onClick={() => { setDepositAmount(''); depositOp.reset(); }}>Close</Button>
-                          </DialogClose>
-                        </div>
-                      ) : (
-                        <>
-                          <div className="flex flex-col gap-4">
-                            {/* Wallet balance */}
-                            <div className="flex items-center justify-between text-sm">
-                              <span className="text-text-tertiary">Wallet Balance</span>
-                              <span className="font-mono tabular-nums text-text-primary">
-                                {walletBalance.toLocaleString('en-US', { maximumFractionDigits: 4 })} {pool.symbol}
-                              </span>
-                            </div>
-
-                            <Input
-                              label="Amount"
-                              type="number"
-                              placeholder="0.00"
-                              value={depositAmount}
-                              onChange={(e) => setDepositAmount(e.target.value)}
-                              iconRight={
-                                <button
-                                  onClick={() => setDepositAmount(walletBalance > 0 ? walletBalance.toString() : '0')}
-                                  className="text-xs font-medium text-accent-teal hover:text-accent-teal-hover"
-                                >
-                                  Max
-                                </button>
-                              }
-                            />
-
-                            {depositAmountNum > 0 && (
-                              <div className="rounded-md bg-bg-tertiary p-3 space-y-2">
-                                <div className="flex items-center justify-between text-sm">
-                                  <span className="text-text-tertiary">Deposit Value</span>
-                                  <span className="font-mono text-text-primary">
-                                    ${(depositAmountNum * pool.priceUSD).toLocaleString('en-US', { maximumFractionDigits: 2 })}
-                                  </span>
-                                </div>
-                                <div className="flex items-center justify-between text-sm">
-                                  <span className="text-text-tertiary">Remaining Balance</span>
-                                  <span className="font-mono text-text-primary">
-                                    {remainingAfterDeposit.toLocaleString('en-US', { maximumFractionDigits: 4 })} {pool.symbol}
-                                  </span>
-                                </div>
-                              </div>
-                            )}
-
-                            {/* Insufficient balance warning */}
-                            {hasInsufficientBalance && (
-                              <div className="flex items-center gap-2 rounded-md border border-red-500/20 bg-red-500/5 px-3 py-2 text-sm text-red-400">
-                                Insufficient balance. You have {walletBalance.toLocaleString('en-US', { maximumFractionDigits: 4 })} {pool.symbol}
-                              </div>
-                            )}
-
-                            {depositOp.error && (
-                              <TransactionError message={depositOp.error} onRetry={depositOp.reset} />
-                            )}
-                          </div>
-
-                          <DialogFooter>
-                            <DialogClose asChild>
-                              <Button variant="ghost" size="sm">Cancel</Button>
-                            </DialogClose>
-                            <Button
-                              variant="primary"
-                              size="sm"
-                              disabled={estimatedShares <= 0 || hasInsufficientBalance || depositOp.isLoading}
-                              onClick={handleDeposit}
-                            >
-                              {depositOp.isLoading ? 'Processing...' : 'Deposit'}
-                            </Button>
-                          </DialogFooter>
-                        </>
-                      )}
-                    </DialogContent>
-                  </Dialog>
+                  {/* Deposit trigger — dialog rendered outside conditional branches */}
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    icon={<ArrowDownToLine className="h-4 w-4" />}
+                    onClick={() => setDepositDialogOpen(true)}
+                  >
+                    Deposit
+                  </Button>
 
                   {/* Withdraw Dialog */}
                   <Dialog onOpenChange={(open) => { if (!open) { setWithdrawStep('input'); setWithdrawAmount(''); setWithdrawError(null); setWithdrawLoading(false); } }}>
@@ -802,97 +700,143 @@ export default function PoolDetailPage() {
                 <p className="text-sm text-text-secondary">
                   You haven&apos;t deposited in this pool yet
                 </p>
-                <Dialog onOpenChange={(open) => { if (!open) { setDepositAmount(''); depositOp.reset(); } }}>
-                  <DialogTrigger asChild>
-                    <Button
-                      variant="primary"
-                      size="sm"
-                      icon={<ArrowDownToLine className="h-4 w-4" />}
-                    >
-                      Deposit
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent size="sm">
-                    <DialogHeader>
-                      <DialogTitle>Deposit {pool.symbol}</DialogTitle>
-                      <DialogDescription>
-                        Supply {pool.symbol} to earn {(pool.supplyAPY * 100).toFixed(2)}% APY.
-                      </DialogDescription>
-                    </DialogHeader>
-                    {(depositOp.status === 'signing' || depositOp.status === 'submitting') ? (
-                      <div className="flex flex-col items-center gap-3 py-8">
-                        <div className="h-8 w-8 animate-spin rounded-full border-2 border-accent-teal border-t-transparent" />
-                        <p className="text-sm text-text-secondary">
-                          {depositOp.status === 'signing' ? 'Approve in your wallet...' : 'Processing deposit...'}
-                        </p>
-                      </div>
-                    ) : depositOp.status === 'success' ? (
-                      <div className="flex flex-col items-center gap-3 py-8">
-                        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-500/10">
-                          <CheckCircle2 className="h-6 w-6 text-green-500" />
-                        </div>
-                        <p className="text-sm font-medium text-green-400">Deposit successful!</p>
-                        <DialogClose asChild>
-                          <Button variant="ghost" size="sm">Close</Button>
-                        </DialogClose>
-                      </div>
-                    ) : (
-                      <>
-                        <div className="flex flex-col gap-4">
-                          <div className="flex items-center justify-between text-sm">
-                            <span className="text-text-tertiary">Wallet Balance</span>
-                            <span className="font-mono tabular-nums text-text-primary">
-                              {walletBalance.toLocaleString('en-US', { maximumFractionDigits: 4 })} {pool.symbol}
-                            </span>
-                          </div>
-                          <Input
-                            label="Amount"
-                            type="number"
-                            placeholder="0.00"
-                            value={depositAmount}
-                            onChange={(e) => setDepositAmount(e.target.value)}
-                            iconRight={
-                              <button
-                                onClick={() => setDepositAmount(walletBalance > 0 ? walletBalance.toString() : '0')}
-                                className="text-xs font-medium text-accent-teal hover:text-accent-teal-hover"
-                              >
-                                Max
-                              </button>
-                            }
-                          />
-                          {hasInsufficientBalance && (
-                            <div className="flex items-center gap-2 rounded-md border border-red-500/20 bg-red-500/5 px-3 py-2 text-sm text-red-400">
-                              Insufficient balance. You have {walletBalance.toLocaleString('en-US', { maximumFractionDigits: 4 })} {pool.symbol}
-                            </div>
-                          )}
-                          {depositOp.error && (
-                            <div className="flex items-center gap-2 rounded-md border border-red-500/20 bg-red-500/5 px-3 py-2 text-sm text-red-400">
-                              {depositOp.error}
-                            </div>
-                          )}
-                        </div>
-                        <DialogFooter>
-                          <DialogClose asChild>
-                            <Button variant="ghost" size="sm">Cancel</Button>
-                          </DialogClose>
-                          <Button
-                            variant="primary"
-                            size="sm"
-                            disabled={estimatedShares <= 0 || hasInsufficientBalance}
-                            onClick={handleDeposit}
-                          >
-                            Deposit
-                          </Button>
-                        </DialogFooter>
-                      </>
-                    )}
-                  </DialogContent>
-                </Dialog>
+                {/* Deposit trigger — dialog rendered outside conditional branches */}
+                <Button
+                  variant="primary"
+                  size="sm"
+                  icon={<ArrowDownToLine className="h-4 w-4" />}
+                  onClick={() => setDepositDialogOpen(true)}
+                >
+                  Deposit
+                </Button>
               </div>
             )}
           </CardContent>
         </Card>
       </div>
+
+      {/* ── Controlled Deposit Dialog (outside conditional branches) ────── */}
+      <Dialog
+        open={depositDialogOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDepositDialogOpen(false);
+            setDepositAmount('');
+            depositOp.reset();
+          }
+        }}
+      >
+        <DialogContent size="sm">
+          <DialogHeader>
+            <DialogTitle>Deposit {pool.symbol}</DialogTitle>
+            <DialogDescription>
+              Supply {pool.symbol} to earn {(pool.supplyAPY * 100).toFixed(2)}% APY.
+            </DialogDescription>
+          </DialogHeader>
+
+          {/* Signing — Wallet approval popup is open */}
+          {(depositOp.status === 'signing' || depositOp.status === 'submitting') ? (
+            <div className="flex flex-col items-center gap-4 py-8">
+              <Loader2 className="h-8 w-8 animate-spin text-accent-teal" />
+              <p className="font-semibold text-text-primary">
+                {depositOp.status === 'signing' ? 'Waiting for wallet approval...' : 'Submitting transaction...'}
+              </p>
+              <p className="text-sm text-text-secondary text-center">
+                {depositOp.status === 'signing' ? 'Please confirm the transaction in your wallet' : 'Processing on Canton...'}
+              </p>
+            </div>
+          ) : depositOp.status === 'success' ? (
+            <div className="flex flex-col items-center gap-4 py-8">
+              <div className="h-12 w-12 rounded-full bg-positive/20 flex items-center justify-center">
+                <CheckCircle2 className="h-6 w-6 text-positive" />
+              </div>
+              <p className="text-text-primary font-semibold">Deposit successful!</p>
+              <p className="text-text-secondary text-sm">
+                Deposited {depositAmount} {pool.symbol}
+              </p>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => {
+                  setDepositDialogOpen(false);
+                  setDepositAmount('');
+                  depositOp.reset();
+                }}
+              >
+                Close
+              </Button>
+            </div>
+          ) : (
+            <>
+              <div className="flex flex-col gap-4">
+                {/* Wallet balance */}
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-text-tertiary">Wallet Balance</span>
+                  <span className="font-mono tabular-nums text-text-primary">
+                    {walletBalance.toLocaleString('en-US', { maximumFractionDigits: 4 })} {pool.symbol}
+                  </span>
+                </div>
+
+                <Input
+                  label="Amount"
+                  type="number"
+                  placeholder="0.00"
+                  value={depositAmount}
+                  onChange={(e) => setDepositAmount(e.target.value)}
+                  iconRight={
+                    <button
+                      onClick={() => setDepositAmount(walletBalance > 0 ? walletBalance.toString() : '0')}
+                      className="text-xs font-medium text-accent-teal hover:text-accent-teal-hover"
+                    >
+                      Max
+                    </button>
+                  }
+                />
+
+                {depositAmountNum > 0 && (
+                  <div className="rounded-md bg-bg-tertiary p-3 space-y-2">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-text-tertiary">Deposit Value</span>
+                      <span className="font-mono text-text-primary">
+                        ${(depositAmountNum * pool.priceUSD).toLocaleString('en-US', { maximumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-text-tertiary">Remaining Balance</span>
+                      <span className="font-mono text-text-primary">
+                        {remainingAfterDeposit.toLocaleString('en-US', { maximumFractionDigits: 4 })} {pool.symbol}
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Insufficient balance warning */}
+                {hasInsufficientBalance && (
+                  <div className="flex items-center gap-2 rounded-md border border-red-500/20 bg-red-500/5 px-3 py-2 text-sm text-red-400">
+                    Insufficient balance. You have {walletBalance.toLocaleString('en-US', { maximumFractionDigits: 4 })} {pool.symbol}
+                  </div>
+                )}
+
+                {depositOp.error && (
+                  <TransactionError message={depositOp.error} onRetry={depositOp.reset} />
+                )}
+              </div>
+
+              <DialogFooter>
+                <Button variant="ghost" size="sm" onClick={() => setDepositDialogOpen(false)}>Cancel</Button>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  disabled={estimatedShares <= 0 || hasInsufficientBalance || depositOp.isLoading}
+                  onClick={handleDeposit}
+                >
+                  {depositOp.isLoading ? 'Processing...' : 'Deposit'}
+                </Button>
+              </DialogFooter>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* ── Row 2: Charts ──────────────────────────────────────────────────── */}
       <Card>

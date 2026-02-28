@@ -102,8 +102,8 @@ export function useWalletOperation<TResponse = unknown>() {
    *
    * Use for ALL DeFi operations:
    * - Deposit, Repay, Add Collateral: user sends full amount to operator
-   * - Withdraw, Borrow: user sends small confirmation fee (0.0001 CC) to operator,
-   *   then backend processes the operation and transfers tokens to user
+   * - Withdraw: user sends withdraw amount to operator, backend processes withdrawal
+   * - Borrow: user sends collateral amount to operator, backend processes borrow
    */
   const executeWithWalletTransfer = useCallback(async (
     apiUrl: string,

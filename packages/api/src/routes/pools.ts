@@ -6,9 +6,11 @@ import type { ApiErrorCode } from '@dualis/shared';
 import { AppError } from '../middleware/errorHandler.js';
 import { authMiddleware } from '../middleware/auth.js';
 import * as poolService from '../services/pool.service.js';
+import * as registry from '../services/poolRegistry.js';
 import { mapCantonError } from '../canton/error-mapper.js';
 
 const listPoolsSchema = z.object({
+  refresh: z.coerce.boolean().optional(),
   assetType: z.enum(['stablecoin', 'crypto', 'treasury', 'rwa', 'all']).optional(),
   sortBy: z.enum(['tvl', 'supplyApy', 'borrowApy', 'utilization']).optional(),
   sortOrder: z.enum(['asc', 'desc']).optional(),
@@ -46,7 +48,12 @@ export async function poolRoutes(fastify: FastifyInstance): Promise<void> {
       throw new AppError('VALIDATION_ERROR', 'Invalid query parameters', 400, parsed.error.flatten());
     }
 
-    const params = parsed.data as ListPoolsParams;
+    const { refresh, ...restParams } = parsed.data;
+    // If ?refresh=true, reload pool state from Canton before returning
+    if (refresh) {
+      await registry.loadFromCanton(true);
+    }
+    const params = restParams as ListPoolsParams;
     const result = poolService.listPools(params);
     const response: ApiResponse<PoolListItem[]> = {
       data: result.data,

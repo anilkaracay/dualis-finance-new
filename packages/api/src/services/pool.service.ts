@@ -335,6 +335,9 @@ export async function deposit(
     pool.contractId = newPoolContractId;
     pool.totalSupply += amountNum;
 
+    // Sync pool state from Canton (totalSupply, indices, contractId)
+    await registry.refreshPoolFromCanton(poolId);
+
     const shares = amountNum / (pool.supplyIndex || 1);
 
     // Debit user wallet: skip when wallet already transferred tokens via Console Wallet popup
@@ -530,6 +533,9 @@ export async function withdraw(
     pool.contractId = newCid;
 
     pool.totalSupply -= withdrawnAmount;
+
+    // Sync pool state from Canton (totalSupply, indices, contractId)
+    await registry.refreshPoolFromCanton(poolId);
 
     // Credit user wallet: tokens return from pool to user
     const withdrawBridge = getTokenBridge();

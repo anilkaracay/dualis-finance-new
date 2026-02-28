@@ -4,6 +4,7 @@
 
 import { createChildLogger } from '../config/logger.js';
 import { env } from '../config/env.js';
+import { cantonConfig } from '../config/canton-env.js';
 import * as cantonQueries from '../canton/queries.js';
 import * as registry from './poolRegistry.js';
 import type { CreditTier } from '@dualis/shared';
@@ -67,7 +68,9 @@ export async function getUserSupplyPositions(
   }
 
   try {
-    const contracts = await cantonQueries.getSupplyPositions(userPartyId);
+    // In proxy mode, operator is the depositor for all users — query by operator party
+    const depositor = cantonConfig().parties.operator || userPartyId;
+    const contracts = await cantonQueries.getSupplyPositions(depositor);
 
     return contracts.map(c => {
       const p = c.payload as Record<string, unknown>;
@@ -113,7 +116,9 @@ export async function getUserBorrowPositions(
   }
 
   try {
-    const contracts = await cantonQueries.getUserPositions(userPartyId);
+    // In proxy mode, operator is the borrower — query by operator party
+    const borrower = cantonConfig().parties.operator || userPartyId;
+    const contracts = await cantonQueries.getUserPositions(borrower);
 
     return contracts.map(c => {
       const p = c.payload as unknown as Record<string, unknown>;
