@@ -440,7 +440,7 @@ interface ScanHoldingsResponse {
  * future works automatically — zero code changes needed.
  */
 export class SpliceBalanceBridge implements ITokenBridge {
-  private readonly walletApiUrl: string | null;
+  private readonly walletApiUrl: string;
   private readonly scanApiUrl: string;
   private readonly jwtSecret: string;
   private readonly jwtAudience: string;
@@ -450,7 +450,9 @@ export class SpliceBalanceBridge implements ITokenBridge {
   private readonly migrationId: number;
 
   constructor(config: CantonConfig) {
-    this.walletApiUrl = process.env.SPLICE_WALLET_API_URL ?? null;
+    // Validator app URL — hosts per-user wallet balance API (real-time)
+    this.walletApiUrl = process.env.SPLICE_WALLET_API_URL
+      ?? 'http://splice-validator-validator-1:5003';
     this.scanApiUrl = process.env.SPLICE_SCAN_API_URL
       ?? 'https://scan.sv-1.dev.global.canton.network.sync.global';
     this.jwtSecret = process.env.SPLICE_WALLET_JWT_SECRET ?? 'unsafe';
@@ -458,7 +460,7 @@ export class SpliceBalanceBridge implements ITokenBridge {
     this.operatorParty = config.parties.operator;
     this.migrationId = parseInt(process.env.SPLICE_MIGRATION_ID ?? '1', 10);
     log.info({
-      walletApiUrl: this.walletApiUrl ? 'configured' : 'not-set',
+      walletApiUrl: this.walletApiUrl,
       scanApiUrl: this.scanApiUrl,
     }, 'SpliceBalanceBridge initialized');
   }
@@ -480,24 +482,34 @@ export class SpliceBalanceBridge implements ITokenBridge {
     return `${header}.${payload}.${signature}`;
   }
 
-  // ── Balance query (wallet-agnostic) ──────────────────────────────────────
+  // ── Balance query ──────────────────────────────────────────────────────────
 
   async getBalance(party: string, symbol?: string): Promise<BalanceResult> {
-    // Validator's own balance → Splice Wallet API (fast, no Scan roundtrip)
-    if (party === this.operatorParty && this.walletApiUrl) {
-      return this.getValidatorBalance(party, symbol);
+    // Operator party → Wallet API with 'administrator' sub (real-time, local participant)
+    if (party === this.operatorParty) {
+      try {
+        return await this.getWalletBalance(party, 'administrator', symbol);
+      } catch {
+        return this.getScanBalance(party, symbol);
+      }
     }
 
-    // ANY party (including validator) → Scan API (wallet-agnostic, global view)
+    // External wallet parties (Console Wallet, Loop, etc.) live on different
+    // participants — the local Wallet API can't see them. Query the global
+    // Scan API which indexes ALL parties across the entire Canton network.
     return this.getScanBalance(party, symbol);
   }
 
-  /** Query validator's own CC balance via Splice Wallet API */
-  private async getValidatorBalance(party: string, symbol?: string): Promise<BalanceResult> {
+  /**
+   * Query real-time CC balance via Splice Wallet API.
+   * Uses per-user JWT with the wallet username as `sub`.
+   * This queries the live ledger state — no snapshot delay.
+   */
+  private async getWalletBalance(party: string, walletUsername: string, symbol?: string): Promise<BalanceResult> {
     const { default: axios } = await import('axios');
 
     try {
-      const jwt = this.generateJwt('administrator');
+      const jwt = this.generateJwt(walletUsername);
       const response = await axios.get<{
         round: number;
         effective_unlocked_qty: string;
@@ -511,19 +523,26 @@ export class SpliceBalanceBridge implements ITokenBridge {
       const locked = parseFloat(response.data.effective_locked_qty) || 0;
       const total = unlocked + locked;
 
-      if (total <= 0) return { party, balances: [] };
-
       const balances: TokenAmount[] = [];
-      if (!symbol || symbol === 'CC') {
+      if ((!symbol || symbol === 'CC') && total > 0) {
         balances.push({ symbol: 'CC', amount: total.toFixed(4) });
       }
 
-      log.info({ party: party.slice(0, 20), cc: total.toFixed(4), source: 'validator-self' }, 'Splice balance queried');
+      log.info({
+        party: party.slice(0, 20),
+        user: walletUsername,
+        cc: total.toFixed(4),
+        round: response.data.round,
+        source: 'wallet-api-realtime',
+      }, 'Real-time wallet balance queried');
       return { party, balances };
     } catch (error) {
-      log.debug({ error: error instanceof Error ? error.message : 'unknown' }, 'Validator balance query failed, falling back to Scan API');
-      // Fall back to Scan API
-      return this.getScanBalance(party, symbol);
+      log.debug({
+        error: error instanceof Error ? error.message : 'unknown',
+        party: party.slice(0, 20),
+        user: walletUsername,
+      }, 'Wallet balance query failed');
+      throw error; // Let caller decide to fallback
     }
   }
 
@@ -531,13 +550,12 @@ export class SpliceBalanceBridge implements ITokenBridge {
    * Query any party's CC balance via the global Splice Scan API.
    * Works for ANY wallet — Console, Loop, Cantor8, Nightly, Bron, or future wallets.
    * No auth required. Uses POST /api/scan/v0/holdings/summary.
+   * Note: ~6h snapshot delay.
    */
   private async getScanBalance(party: string, symbol?: string): Promise<BalanceResult> {
     const { default: axios } = await import('axios');
 
     try {
-      // First, find the latest available ACS snapshot timestamp.
-      // Scan API takes periodic snapshots (~every 6 hours). We need the most recent one.
       const snapshotResp = await axios.get<{ record_time: string }>(
         `${this.scanApiUrl}/api/scan/v0/state/acs/snapshot-timestamp`,
         {
@@ -578,8 +596,8 @@ export class SpliceBalanceBridge implements ITokenBridge {
         party: party.slice(0, 20),
         cc: total.toFixed(4),
         round: response.data.computed_as_of_round,
-        source: 'scan-api',
-      }, 'Splice balance queried');
+        source: 'scan-api-snapshot',
+      }, 'Splice balance queried (snapshot)');
       return { party, balances };
     } catch (error) {
       log.debug({ error: error instanceof Error ? error.message : 'unknown', party: party.slice(0, 20) }, 'Scan API balance query failed');
