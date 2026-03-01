@@ -4,7 +4,7 @@ import { useState, useMemo } from 'react';
 import Link from 'next/link';
 import { ArrowRight, Check, Clock, Plus, Users, Zap } from 'lucide-react';
 import { ProposalStatus, ProposalType } from '@dualis/shared';
-import type { GovernanceProposal } from '@dualis/shared';
+import type { GovernanceProposal, Delegation } from '@dualis/shared';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
@@ -218,10 +218,15 @@ export default function GovernancePage() {
     [proposals],
   );
 
-  const activeDelegation = useMemo(
-    () => (delegations ?? []).find((d) => d.isActive),
-    [delegations],
-  );
+  const activeDelegation = useMemo(() => {
+    if (!delegations) return undefined;
+    // API may return { given, received } object instead of array
+    if (!Array.isArray(delegations)) {
+      const obj = delegations as unknown as { given?: Delegation | null };
+      return obj.given?.isActive ? obj.given : undefined;
+    }
+    return delegations.find((d) => d.isActive);
+  }, [delegations]);
 
   return (
     <div className="space-y-8">

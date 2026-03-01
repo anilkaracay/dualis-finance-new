@@ -101,10 +101,15 @@ function Topbar({
 
       {/* Right: Actions */}
       <div className="flex items-center gap-3">
-        {/* Network selector */}
-        <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-positive/[0.06] border border-positive/15 text-xs text-positive/80">
-          <span className="h-1.5 w-1.5 rounded-full bg-positive animate-pulse shrink-0" />
-          <span>Canton {process.env.NEXT_PUBLIC_CANTON_NETWORK === 'devnet' ? 'Devnet' : process.env.NEXT_PUBLIC_CANTON_NETWORK === 'testnet' ? 'Testnet' : 'Mainnet'}</span>
+        {/* Network badge */}
+        <div className="hidden sm:flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-full bg-bg-tertiary/80 border border-border-default/60 text-xs">
+          <img src="https://coin-images.coingecko.com/coins/images/70468/small/Canton-Ticker_%281%29.png?1762826299" alt="Canton" className="h-4 w-4 rounded-full" />
+          <span className="font-medium text-text-primary">Canton</span>
+          <span className="text-text-disabled">&middot;</span>
+          <span className="flex items-center gap-1">
+            <span className="h-1.5 w-1.5 rounded-full bg-positive animate-pulse" />
+            <span className="text-positive/90 font-medium">{process.env.NEXT_PUBLIC_CANTON_NETWORK === 'devnet' ? 'Devnet' : process.env.NEXT_PUBLIC_CANTON_NETWORK === 'testnet' ? 'Testnet' : 'Mainnet'}</span>
+          </span>
         </div>
 
         {/* Privacy Level Indicator */}

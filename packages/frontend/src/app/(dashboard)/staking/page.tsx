@@ -311,10 +311,10 @@ export default function StakingPage() {
   const safetyModuleSize = stakingInfo?.safetyModuleSize ?? 0;
 
   const stakingParams: StakingParameter[] = [
-    { label: 'Cooldown Period', value: stakingInfo ? `${stakingInfo.cooldownPeriod} days` : '\u2014' },
-    { label: 'Slashing Percentage', value: stakingInfo ? `${(stakingInfo.slashingPenalty * 100).toFixed(0)}%` : '\u2014' },
-    { label: 'Emission Rate', value: stakingInfo ? `${stakingInfo.emissionRate.toLocaleString()} DUAL/day` : '\u2014' },
-    { label: 'Min Stake', value: stakingInfo ? `${stakingInfo.minStakeAmount.toLocaleString()} DUAL` : '\u2014' },
+    { label: 'Cooldown Period', value: stakingInfo?.cooldownPeriod != null ? `${stakingInfo.cooldownPeriod} days` : '10 days' },
+    { label: 'Slashing Percentage', value: stakingInfo?.slashingPenalty != null ? `${(stakingInfo.slashingPenalty * 100).toFixed(0)}%` : '30%' },
+    { label: 'Emission Rate', value: stakingInfo?.emissionRate != null ? `${stakingInfo.emissionRate.toLocaleString()} DUAL/day` : '1,000 DUAL/day' },
+    { label: 'Min Stake', value: stakingInfo?.minStakeAmount != null ? `${stakingInfo.minStakeAmount.toLocaleString()} DUAL` : '100 DUAL' },
   ];
 
   if (isLoading) {
