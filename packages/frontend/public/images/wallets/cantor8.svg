@@ -1,6 +1,12 @@
 <svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <rect width="64" height="64" rx="14" fill="#111827"/>
-  <path d="M20 20h24v24H20V20z" fill="none" stroke="#F59E0B" stroke-width="3" stroke-linejoin="round"/>
-  <path d="M28 20v24M36 20v24M20 28h24M20 36h24" stroke="#F59E0B" stroke-width="2"/>
-  <text x="32" y="34" text-anchor="middle" fill="#F59E0B" font-size="10" font-weight="800" font-family="Inter,sans-serif" dominant-baseline="middle">C8</text>
+  <rect width="64" height="64" rx="14" fill="#000000"/>
+  <g transform="translate(32,28)">
+    <rect x="-14" y="-8" width="28" height="16" rx="3" fill="#00C9A7" transform="rotate(-10)" opacity="0.6"/>
+    <rect x="-14" y="-8" width="28" height="16" rx="3" fill="#00E6B8" transform="rotate(5)"/>
+    <rect x="-14" y="-8" width="28" height="16" rx="3" fill="#4AEDC4" transform="rotate(20)" opacity="0.7"/>
+  </g>
+  <!-- Reflection -->
+  <g transform="translate(32,48)" opacity="0.2">
+    <rect x="-10" y="-4" width="20" height="8" rx="2" fill="#00E6B8" transform="rotate(5)"/>
+  </g>
 </svg>
