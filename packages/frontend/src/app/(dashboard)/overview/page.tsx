@@ -562,15 +562,19 @@ export default function OverviewPage() {
     );
   }, [safeBorrow]);
 
-  const donutSegments = useMemo<DonutSegment[]>(
-    () =>
-      safeSupply.map((pos) => ({
-        label: pos.symbol ?? 'Unknown',
-        value: pos.currentValueUSD ?? 0,
-        color: getAssetColor(pos.symbol ?? ''),
-      })),
-    [safeSupply]
-  );
+  const donutSegments = useMemo<DonutSegment[]>(() => {
+    // Aggregate by asset symbol for donut chart
+    const assetValues = new Map<string, number>();
+    for (const pos of safeSupply) {
+      const sym = pos.symbol ?? 'Unknown';
+      assetValues.set(sym, (assetValues.get(sym) ?? 0) + (pos.currentValueUSD ?? 0));
+    }
+    return Array.from(assetValues.entries()).map(([label, value]) => ({
+      label,
+      value,
+      color: getAssetColor(label),
+    }));
+  }, [safeSupply]);
 
   // ---------- Render ----------
 

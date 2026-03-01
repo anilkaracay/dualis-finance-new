@@ -164,6 +164,8 @@ export interface DepositResponse {
 export interface WithdrawResponse {
   withdrawnAmount: string;
   remainingShares: number;
+  /** Canton transaction update ID — used for CCView transaction link */
+  updateId?: string;
 }
 
 /** Health factor in API responses */

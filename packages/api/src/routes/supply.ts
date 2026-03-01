@@ -30,9 +30,11 @@ export async function supplyRoutes(fastify: FastifyInstance): Promise<void> {
       // Query real Canton supply positions via userBalance service
       const cantonPositions = await userBalanceService.getUserSupplyPositions(partyId);
 
-      const positions: SupplyPositionResponse[] = cantonPositions.map((pos) => {
+      // Aggregate positions by (symbol, poolId) — one row per asset+pool
+      const aggregated = new Map<string, SupplyPositionResponse>();
+      for (const pos of cantonPositions) {
+        const key = `${pos.asset.symbol}::${pos.poolId}`;
         const pool = registry.getPool(pos.poolId);
-        // Calculate supply APY from pool utilization and rate model
         let supplyAPY = 0;
         if (pool) {
           const utilization = pool.totalSupply > 0 ? pool.totalBorrow / pool.totalSupply : 0;
@@ -40,20 +42,31 @@ export async function supplyRoutes(fastify: FastifyInstance): Promise<void> {
           supplyAPY = calculatePoolAPY(model, utilization, 'supply');
         }
 
-        return {
-          positionId: pos.positionId,
-          poolId: pos.poolId,
-          symbol: pos.asset.symbol,
-          asset: { symbol: pos.asset.symbol, type: pool?.asset?.type ?? 'CryptoCurrency' },
-          depositedAmount: pos.principal,
-          shares: pos.principal,
-          currentBalance: pos.currentBalance,
-          currentValueUSD: pos.currentBalance * pos.asset.priceUSD,
-          interestEarned: pos.interestEarned,
-          apy: supplyAPY,
-          depositTimestamp: pos.depositTimestamp,
-        };
-      });
+        const existing = aggregated.get(key);
+        if (existing) {
+          existing.depositedAmount += pos.principal;
+          existing.shares += pos.principal;
+          existing.currentBalance += pos.currentBalance;
+          existing.currentValueUSD += pos.currentBalance * pos.asset.priceUSD;
+          existing.interestEarned += pos.interestEarned;
+        } else {
+          aggregated.set(key, {
+            positionId: key, // composite key for aggregated row
+            poolId: pos.poolId,
+            symbol: pos.asset.symbol,
+            asset: { symbol: pos.asset.symbol, type: pool?.asset?.type ?? 'CryptoCurrency' },
+            depositedAmount: pos.principal,
+            shares: pos.principal,
+            currentBalance: pos.currentBalance,
+            currentValueUSD: pos.currentBalance * pos.asset.priceUSD,
+            interestEarned: pos.interestEarned,
+            apy: supplyAPY,
+            depositTimestamp: pos.depositTimestamp,
+          });
+        }
+      }
+
+      const positions = Array.from(aggregated.values());
 
       const response: ApiResponse<SupplyPositionResponse[]> = {
         data: positions,
@@ -85,19 +98,35 @@ export async function supplyRoutes(fastify: FastifyInstance): Promise<void> {
       const model = registry.getPoolRateModel(poolId);
       const supplyAPY = calculatePoolAPY(model, utilization, 'supply');
 
-      const positions: SupplyPositionResponse[] = poolPositions.map((pos) => ({
-        positionId: pos.positionId,
-        poolId: pos.poolId,
-        symbol: pos.asset.symbol,
-        asset: { symbol: pos.asset.symbol, type: pool.asset.type },
-        depositedAmount: pos.principal,
-        shares: pos.principal,
-        currentBalance: pos.currentBalance,
-        currentValueUSD: pos.currentBalance * pos.asset.priceUSD,
-        interestEarned: pos.interestEarned,
-        apy: supplyAPY,
-        depositTimestamp: pos.depositTimestamp,
-      }));
+      // Aggregate positions by symbol — one row per asset within this pool
+      const aggregated = new Map<string, SupplyPositionResponse>();
+      for (const pos of poolPositions) {
+        const key = pos.asset.symbol;
+        const existing = aggregated.get(key);
+        if (existing) {
+          existing.depositedAmount += pos.principal;
+          existing.shares += pos.principal;
+          existing.currentBalance += pos.currentBalance;
+          existing.currentValueUSD += pos.currentBalance * pos.asset.priceUSD;
+          existing.interestEarned += pos.interestEarned;
+        } else {
+          aggregated.set(key, {
+            positionId: `${pos.asset.symbol}::${pos.poolId}`,
+            poolId: pos.poolId,
+            symbol: pos.asset.symbol,
+            asset: { symbol: pos.asset.symbol, type: pool.asset.type },
+            depositedAmount: pos.principal,
+            shares: pos.principal,
+            currentBalance: pos.currentBalance,
+            currentValueUSD: pos.currentBalance * pos.asset.priceUSD,
+            interestEarned: pos.interestEarned,
+            apy: supplyAPY,
+            depositTimestamp: pos.depositTimestamp,
+          });
+        }
+      }
+
+      const positions = Array.from(aggregated.values());
 
       const response: ApiResponse<SupplyPositionResponse[]> = {
         data: positions,

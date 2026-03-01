@@ -451,7 +451,10 @@ export async function withdraw(
   const sharesNum = parseFloat(shares);
   if (isNaN(sharesNum) || sharesNum <= 0) throw new Error('Invalid withdrawal amount');
 
-  const withdrawnAmount = sharesNum * (pool.supplyIndex || 1);
+  const rawWithdraw = sharesNum * (pool.supplyIndex || 1);
+  // Floor to 10 decimal places — ensures JS value never exceeds DAML's Decimal precision
+  // (JS float64 can produce micro-larger results than DAML Decimal, causing "Withdraw amount exceeds balance")
+  const withdrawnAmount = Math.floor(rawWithdraw * 1e10) / 1e10;
   const available = pool.totalSupply - pool.totalBorrow;
   if (withdrawnAmount > available) throw new Error('Insufficient liquidity for withdrawal');
 
@@ -571,10 +574,14 @@ export async function withdraw(
       amountUsd: withdrawnAmount * pool.asset.priceUSD,
     });
 
+    // Extract Canton updateId for CCView transaction link
+    const cantonUpdateId = (poolResult.exerciseResult as Record<string, unknown>)?.updateId as string | undefined;
+
     return {
       data: {
         withdrawnAmount: withdrawnAmount.toFixed(6),
         remainingShares: 0,
+        ...(cantonUpdateId ? { updateId: cantonUpdateId } : {}),
       },
       transaction: buildTransactionMeta(),
     };

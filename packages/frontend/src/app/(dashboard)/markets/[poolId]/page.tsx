@@ -299,27 +299,12 @@ export default function PoolDetailPage() {
     setWithdrawStep('signing');
 
     try {
-      const cantonToken = mapPoolToCanton(pool.symbol);
-
-      // Two-phase flow: wallet popup shows actual withdraw amount
-      // then backend processes withdrawal and transfers tokens to user
-      if (operatorParty && ['CC', 'CBTC', 'USDCx'].includes(cantonToken)) {
-        await withdrawOp.executeWithWalletTransfer(
-          ENDPOINTS.POOL_WITHDRAW(poolId),
-          { shares: withdrawAmount },
-          {
-            to: operatorParty,
-            token: cantonToken,
-            amount: withdrawAmount,
-            memo: `withdraw-${poolId}`,
-          },
-        );
-      } else {
-        await withdrawOp.execute(
-          ENDPOINTS.POOL_WITHDRAW(poolId),
-          { shares: withdrawAmount },
-        );
-      }
+      // Proxy mode: backend exercises Canton withdraw directly (SupplyPosition.Withdraw + ProcessWithdraw)
+      // No wallet popup needed — user is RECEIVING tokens, not sending
+      await withdrawOp.execute(
+        ENDPOINTS.POOL_WITHDRAW(poolId),
+        { shares: withdrawAmount },
+      );
       setWithdrawStep('success');
       // Optimistic balance update — immediately adjust wallet balance in UI
       useTokenBalanceStore.getState().adjustBalance(pool.symbol, parseFloat(withdrawAmount));
@@ -334,7 +319,7 @@ export default function PoolDetailPage() {
     } finally {
       setWithdrawLoading(false);
     }
-  }, [poolId, withdrawAmount, pool, party, operatorParty, withdrawOp, fetchBalances, fetchTokenBalances, fetchPools]);
+  }, [poolId, withdrawAmount, pool, party, withdrawOp, fetchBalances, fetchTokenBalances, fetchPools]);
 
   // ─── Loading State ────────────────────────────────────────────────────────
 
@@ -655,13 +640,13 @@ export default function PoolDetailPage() {
                         </>
                       )}
 
-                      {/* Step 2.5: Signing — Wallet approval popup is open */}
+                      {/* Step 2.5: Processing — Backend executing Canton withdraw */}
                       {withdrawStep === 'signing' && (
                         <div className="flex flex-col items-center gap-4 py-8">
                           <Loader2 className="h-8 w-8 animate-spin text-accent-teal" />
-                          <p className="font-semibold text-text-primary">Waiting for wallet approval...</p>
+                          <p className="font-semibold text-text-primary">Processing withdrawal...</p>
                           <p className="text-sm text-text-secondary text-center">
-                            Please approve this withdrawal in your connected wallet.
+                            Your withdrawal is being processed on Canton.
                           </p>
                           <Button
                             variant="ghost"
@@ -681,10 +666,18 @@ export default function PoolDetailPage() {
                               <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                             </svg>
                           </div>
-                          <p className="text-text-primary font-semibold">Withdrawal submitted!</p>
+                          <p className="text-text-primary font-semibold">Withdrawal successful!</p>
                           <p className="text-text-secondary text-sm">
-                            Withdrawing {withdrawAmount} shares of {pool.symbol}
+                            Withdrew {withdrawAmount} {pool.symbol}
                           </p>
+                          {(() => {
+                            const uid = (withdrawOp.data as Record<string, unknown> | null)?.updateId;
+                            return typeof uid === 'string' ? (
+                              <p className="text-xs text-text-tertiary font-mono truncate max-w-[280px]" title={uid}>
+                                Tx: {uid.slice(0, 12)}...{uid.slice(-8)}
+                              </p>
+                            ) : null;
+                          })()}
                           <DialogClose asChild>
                             <Button variant="secondary" size="sm" onClick={() => { setWithdrawAmount(''); setWithdrawStep('input'); setWithdrawError(null); }}>Close</Button>
                           </DialogClose>

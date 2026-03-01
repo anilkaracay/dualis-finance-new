@@ -132,7 +132,48 @@ export async function borrowRoutes(fastify: FastifyInstance): Promise<void> {
     { preHandler: [authMiddleware] },
     async (request, reply) => {
       const partyId = request.user!.partyId;
-      const positions = await borrowService.getPositions(partyId);
+      const rawPositions = await borrowService.getPositions(partyId);
+
+      // Aggregate borrow positions by (symbol, poolId) — one row per asset+pool
+      const aggregated = new Map<string, BorrowPositionItem>();
+      for (const pos of rawPositions) {
+        const key = `${pos.borrowedAsset.symbol}::${pos.lendingPoolId}`;
+        const existing = aggregated.get(key);
+        if (existing) {
+          existing.borrowedAmountPrincipal += pos.borrowedAmountPrincipal;
+          existing.currentDebt += pos.currentDebt;
+          existing.interestAccrued += pos.interestAccrued;
+          // Merge collateral arrays
+          for (const c of pos.collateral) {
+            const ec = existing.collateral.find(x => x.symbol === c.symbol);
+            if (ec) {
+              const newAmount = parseFloat(ec.amount) + parseFloat(c.amount);
+              ec.amount = newAmount.toString();
+              ec.valueUSD += c.valueUSD;
+            } else {
+              existing.collateral.push({ ...c });
+            }
+          }
+          // Recalculate aggregated health factor
+          existing.healthFactor.collateralValueUSD += pos.healthFactor.collateralValueUSD;
+          existing.healthFactor.weightedCollateralValueUSD = (existing.healthFactor.weightedCollateralValueUSD ?? 0) + (pos.healthFactor.weightedCollateralValueUSD ?? 0);
+          existing.healthFactor.borrowValueUSD += pos.healthFactor.borrowValueUSD;
+          if (existing.healthFactor.borrowValueUSD > 0) {
+            existing.healthFactor.value = (existing.healthFactor.weightedCollateralValueUSD ?? existing.healthFactor.collateralValueUSD) / existing.healthFactor.borrowValueUSD;
+          }
+          // Use worst case
+          existing.isLiquidatable = existing.isLiquidatable || pos.isLiquidatable;
+        } else {
+          aggregated.set(key, {
+            ...pos,
+            positionId: key,
+            collateral: pos.collateral.map(c => ({ ...c })),
+            healthFactor: { ...pos.healthFactor },
+          });
+        }
+      }
+
+      const positions = Array.from(aggregated.values());
 
       const response: ApiResponse<BorrowPositionItem[]> = {
         data: positions,
