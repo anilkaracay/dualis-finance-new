@@ -1,0 +1,233 @@
+-- ============================================================================
+-- DUALIS FINANCE — Privacy Module Tests
+-- ============================================================================
+
+module Test.PrivacyTest where
+
+import Dualis.Privacy.Config
+import Dualis.Privacy.AuditLog
+import Daml.Script
+
+-- ─── Helpers ─────────────────────────────────────────────────────────────
+
+mkRule : Text -> Text -> DataScope -> DisclosureRule
+mkRule rId party scope = DisclosureRule with
+  ruleId = rId
+  discloseTo = party
+  displayName = "Test Rule " <> rId
+  dataScope = scope
+  purpose = "Testing"
+  expiresAt = None
+  isActive = True
+  createdAt = "2026-01-01T00:00:00Z"
+
+-- ─── PrivacyConfig CRUD Tests ────────────────────────────────────────────
+
+testCreatePrivacyConfig : Script ()
+testCreatePrivacyConfig = script do
+  operator <- allocateParty "operator"
+  user <- allocateParty "user"
+
+  configCid <- submit operator do
+    createCmd PrivacyConfig with
+      operator
+      user
+      privacyLevel = PLPublic
+      disclosureRules = []
+      auditTrailEnabled = True
+      updatedAt = "2026-01-01T00:00:00Z"
+
+  -- Verify the contract exists
+  Some config <- queryContractId user configCid
+  config.privacyLevel === PLPublic
+  config.disclosureRules === []
+  config.auditTrailEnabled === True
+
+testSetPrivacyLevel : Script ()
+testSetPrivacyLevel = script do
+  operator <- allocateParty "operator"
+  user <- allocateParty "user"
+
+  configCid <- submit operator do
+    createCmd PrivacyConfig with
+      operator; user
+      privacyLevel = PLPublic
+      disclosureRules = []
+      auditTrailEnabled = True
+      updatedAt = "2026-01-01T00:00:00Z"
+
+  -- User changes privacy level to Selective
+  newCid <- submit user do
+    exerciseCmd configCid SetPrivacyLevel with
+      newLevel = PLSelective
+      updateTime = "2026-02-01T00:00:00Z"
+
+  Some updated <- queryContractId user newCid
+  updated.privacyLevel === PLSelective
+  updated.updatedAt === "2026-02-01T00:00:00Z"
+
+  -- Change again to Maximum
+  maxCid <- submit user do
+    exerciseCmd newCid SetPrivacyLevel with
+      newLevel = PLMaximum
+      updateTime = "2026-03-01T00:00:00Z"
+
+  Some maxConfig <- queryContractId user maxCid
+  maxConfig.privacyLevel === PLMaximum
+
+testAddAndRemoveDisclosure : Script ()
+testAddAndRemoveDisclosure = script do
+  operator <- allocateParty "operator"
+  user <- allocateParty "user"
+
+  configCid <- submit operator do
+    createCmd PrivacyConfig with
+      operator; user
+      privacyLevel = PLSelective
+      disclosureRules = []
+      auditTrailEnabled = True
+      updatedAt = "2026-01-01T00:00:00Z"
+
+  -- Add first rule
+  cid2 <- submit user do
+    exerciseCmd configCid AddDisclosure with
+      newRule = mkRule "r1" "party::regulator::sec" AllData
+      updateTime = "2026-01-15T00:00:00Z"
+
+  Some c2 <- queryContractId user cid2
+  length c2.disclosureRules === 1
+
+  -- Add second rule
+  cid3 <- submit user do
+    exerciseCmd cid2 AddDisclosure with
+      newRule = mkRule "r2" "party::auditor::kpmg" Positions
+      updateTime = "2026-01-20T00:00:00Z"
+
+  Some c3 <- queryContractId user cid3
+  length c3.disclosureRules === 2
+
+  -- Remove first rule
+  cid4 <- submit user do
+    exerciseCmd cid3 RemoveDisclosure with
+      ruleId = "r1"
+      updateTime = "2026-02-01T00:00:00Z"
+
+  Some c4 <- queryContractId user cid4
+  length c4.disclosureRules === 1
+  (head c4.disclosureRules).ruleId === "r2"
+
+-- ─── CheckAccess Tests ───────────────────────────────────────────────────
+
+testCheckAccessPublic : Script ()
+testCheckAccessPublic = script do
+  operator <- allocateParty "operator"
+  user <- allocateParty "user"
+
+  configCid <- submit operator do
+    createCmd PrivacyConfig with
+      operator; user
+      privacyLevel = PLPublic
+      disclosureRules = []
+      auditTrailEnabled = True
+      updatedAt = "2026-01-01T00:00:00Z"
+
+  -- Public level: any requester gets access
+  result <- submit operator do
+    exerciseCmd configCid CheckAccess with
+      requester = "party::random::0"
+      scope = Positions
+
+  result === True
+
+testCheckAccessSelfAccess : Script ()
+testCheckAccessSelfAccess = script do
+  operator <- allocateParty "operator"
+  user <- allocateParty "user"
+
+  configCid <- submit operator do
+    createCmd PrivacyConfig with
+      operator; user
+      privacyLevel = PLMaximum
+      disclosureRules = []
+      auditTrailEnabled = True
+      updatedAt = "2026-01-01T00:00:00Z"
+
+  -- Owner always has access, even with Maximum privacy
+  result <- submit operator do
+    exerciseCmd configCid CheckAccess with
+      requester = show user
+      scope = AllData
+
+  result === True
+
+testCheckAccessSelectiveWithRule : Script ()
+testCheckAccessSelectiveWithRule = script do
+  operator <- allocateParty "operator"
+  user <- allocateParty "user"
+
+  let secRule = mkRule "sec-01" "party::regulator::sec" AllData
+
+  configCid <- submit operator do
+    createCmd PrivacyConfig with
+      operator; user
+      privacyLevel = PLSelective
+      disclosureRules = [secRule]
+      auditTrailEnabled = True
+      updatedAt = "2026-01-01T00:00:00Z"
+
+  -- Matching requester with AllData scope → granted
+  granted <- submit operator do
+    exerciseCmd configCid CheckAccess with
+      requester = "party::regulator::sec"
+      scope = Positions
+
+  granted === True
+
+  -- Non-matching requester → denied
+  denied <- submit operator do
+    exerciseCmd configCid CheckAccess with
+      requester = "party::random::0"
+      scope = Positions
+
+  denied === False
+
+testCheckAccessMaximumNoRules : Script ()
+testCheckAccessMaximumNoRules = script do
+  operator <- allocateParty "operator"
+  user <- allocateParty "user"
+
+  configCid <- submit operator do
+    createCmd PrivacyConfig with
+      operator; user
+      privacyLevel = PLMaximum
+      disclosureRules = []
+      auditTrailEnabled = True
+      updatedAt = "2026-01-01T00:00:00Z"
+
+  -- Maximum with no rules: deny everyone (except self)
+  result <- submit operator do
+    exerciseCmd configCid CheckAccess with
+      requester = "party::auditor::kpmg"
+      scope = CreditScore
+
+  result === False
+
+-- ─── Audit Entry Tests ───────────────────────────────────────────────────
+
+testCreateAuditEntry : Script ()
+testCreateAuditEntry = script do
+  operator <- allocateParty "operator"
+
+  entryCid <- submit operator do
+    createCmd PrivacyAuditEntry with
+      operator
+      ownerParty = "party::alice::1"
+      requesterParty = "party::regulator::sec"
+      dataScope = AllData
+      granted = True
+      reason = "Active disclosure rule: SEC Reporting"
+      timestamp = "2026-02-20T14:00:00Z"
+
+  Some entry <- queryContractId operator entryCid
+  entry.granted === True
+  entry.ownerParty === "party::alice::1"

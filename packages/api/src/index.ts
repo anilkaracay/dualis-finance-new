@@ -225,14 +225,17 @@ async function main(): Promise<void> {
       allowList: (req) => {
         const url = req.url ?? '';
         // Skip rate limiting for health/metrics, public read-heavy endpoints,
-        // auth endpoints (login/register/wallet), and user balance queries
+        // auth endpoints (login/register/wallet), user balance queries,
+        // wallet connections (polling), and privacy config reads
         return url.startsWith('/health') ||
                url === '/metrics' ||
                url.startsWith('/v1/pools') ||
                url.startsWith('/v1/oracle/') ||
                url.startsWith('/v1/auth/') ||
                url.startsWith('/auth/') ||
-               (req.method === 'GET' && url.startsWith('/v1/user/'));
+               (req.method === 'GET' && url.startsWith('/v1/user/')) ||
+               (req.method === 'GET' && url.startsWith('/v1/wallet/')) ||
+               (req.method === 'GET' && url.startsWith('/v1/privacy/'));
       },
       onExceeded: async (req) => {
         try {

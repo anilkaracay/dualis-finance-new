@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { cn } from '@/lib/utils/cn';
 import { Search, Bell, Moon, Sun, Monitor } from 'lucide-react';
 import type { ThemePreference } from '@/stores/useUIStore';
+import { PrivacyIndicator } from '@/components/privacy/PrivacyIndicator';
 
 interface TopbarProps {
   title?: string | undefined;
@@ -105,6 +106,9 @@ function Topbar({
           <span className="h-1.5 w-1.5 rounded-full bg-positive animate-pulse shrink-0" />
           <span>Canton {process.env.NEXT_PUBLIC_CANTON_NETWORK === 'devnet' ? 'Devnet' : process.env.NEXT_PUBLIC_CANTON_NETWORK === 'testnet' ? 'Testnet' : 'Mainnet'}</span>
         </div>
+
+        {/* Privacy Level Indicator */}
+        <PrivacyIndicator />
 
         {/* Search */}
         <button

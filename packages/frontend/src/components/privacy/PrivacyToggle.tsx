@@ -27,21 +27,21 @@ const LEVEL_OPTIONS: LevelOption[] = [
   {
     level: 'Public',
     icon: Eye,
-    title: 'Standart Gizlilik',
-    description: 'Tüm veriler görünür',
+    title: 'Standard Privacy',
+    description: 'All data visible',
   },
   {
     level: 'Selective',
     icon: EyeOff,
-    title: 'Gelişmiş Gizlilik',
-    description: 'Seçici veri paylaşımı',
-    tag: '(Kurumsal için önerilir)',
+    title: 'Enhanced Privacy',
+    description: 'Selective data sharing',
+    tag: '(Recommended for institutional)',
   },
   {
     level: 'Maximum',
     icon: Lock,
-    title: 'Tam Gizlilik',
-    description: 'Minimum veri ifşası',
+    title: 'Maximum Privacy',
+    description: 'Minimum data exposure',
     tag: '(Premium)',
   },
 ];
@@ -54,7 +54,7 @@ function PrivacyToggle({ currentLevel, onChange, loading = false }: PrivacyToggl
     if (!option) return;
 
     const confirmed = window.confirm(
-      `Gizlilik seviyesini "${option.title}" olarak değiştirmek istediğinize emin misiniz?`
+      `Are you sure you want to change your privacy level to "${option.title}"?`
     );
 
     if (confirmed) {

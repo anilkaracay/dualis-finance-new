@@ -246,7 +246,7 @@ export async function privacyMiddleware(
   const partyId = request.user?.partyId;
   if (!partyId) return;
 
-  const config = privacyService.getPrivacyConfig(partyId);
+  const config = await privacyService.getPrivacyConfig(partyId);
   if (request.user) {
     request.user.privacyLevel = config.privacyLevel;
   }

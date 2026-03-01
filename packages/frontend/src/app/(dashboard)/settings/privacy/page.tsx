@@ -1,12 +1,16 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { PrivacyToggle } from '@/components/privacy/PrivacyToggle'
 import { DisclosureManager } from '@/components/privacy/DisclosureManager'
 import { AuditLogViewer } from '@/components/privacy/AuditLogViewer'
+import { PrivacyDashboard } from '@/components/privacy/PrivacyDashboard'
+import { PrivacyWizard } from '@/components/privacy/PrivacyWizard'
+import { PrivacyFlowDiagram } from '@/components/privacy/PrivacyFlowDiagram'
 import { usePrivacyStore } from '@/stores/usePrivacyStore'
+import type { PrivacyLevel } from '@dualis/shared'
 
 export default function PrivacySettingsPage() {
   const {
@@ -20,10 +24,29 @@ export default function PrivacySettingsPage() {
     fetchAuditLog,
   } = usePrivacyStore()
 
+  const [showWizard, setShowWizard] = useState(false)
+
   useEffect(() => {
     fetchPrivacyConfig()
     fetchAuditLog()
   }, [fetchPrivacyConfig, fetchAuditLog])
+
+  // Show wizard on first visit
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const completed = localStorage.getItem('dualis-privacy-wizard-completed')
+      if (!completed) {
+        setShowWizard(true)
+      }
+    }
+  }, [])
+
+  const handleWizardComplete = (selectedLevel?: PrivacyLevel) => {
+    setShowWizard(false)
+    if (selectedLevel) {
+      setPrivacyLevel(selectedLevel)
+    }
+  }
 
   const privacyLevel = config?.privacyLevel ?? 'Public'
   const disclosureRules = config?.disclosureRules ?? []
@@ -34,6 +57,25 @@ export default function PrivacySettingsPage() {
       <h1 className="text-xl font-semibold text-text-primary tracking-tight">
         Privacy Settings
       </h1>
+
+      {/* Privacy Wizard — first visit onboarding */}
+      {showWizard && (
+        <PrivacyWizard onComplete={handleWizardComplete} />
+      )}
+
+      {/* Privacy Dashboard — overview */}
+      {!showWizard && config && (
+        <PrivacyDashboard config={config} auditLog={auditLog} />
+      )}
+
+      {/* Privacy Flow Diagram */}
+      {!showWizard && config && (
+        <Card className="border-border-default bg-bg-tertiary">
+          <CardContent className="pt-6">
+            <PrivacyFlowDiagram config={config} />
+          </CardContent>
+        </Card>
+      )}
 
       {/* Privacy Level Toggle */}
       <Card className="border-border-default bg-bg-tertiary">
@@ -55,7 +97,7 @@ export default function PrivacySettingsPage() {
       {/* Disclosure Rules */}
       <Card className="border-border-default bg-bg-tertiary">
         <CardHeader>
-          <CardTitle>Selective Disclosure Rules</CardTitle>
+          <CardTitle>Disclosure Rules</CardTitle>
         </CardHeader>
         <CardContent>
           {isLoading ? (

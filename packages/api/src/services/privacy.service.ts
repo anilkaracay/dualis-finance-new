@@ -1,5 +1,15 @@
 import { createChildLogger } from '../config/logger.js';
 import { randomUUID } from 'node:crypto';
+import { env } from '../config/env.js';
+import { cantonConfig } from '../config/canton-env.js';
+import { CantonClient } from '../canton/client.js';
+import * as cantonQueries from '../canton/queries.js';
+import {
+  fromDamlPrivacyConfig,
+  toDamlDataScope,
+  toDamlDisclosureRule,
+  fromDamlDataScope,
+} from '@dualis/shared';
 import type {
   PrivacyConfig,
   PrivacyLevel,
@@ -20,7 +30,7 @@ function buildTransactionMeta(): TransactionMeta {
 }
 
 // ---------------------------------------------------------------------------
-// Mock data
+// Mock data (used when env.CANTON_MOCK is true)
 // ---------------------------------------------------------------------------
 
 const MOCK_CONFIGS: Map<string, PrivacyConfig> = new Map([
@@ -75,7 +85,6 @@ const MOCK_CONFIGS: Map<string, PrivacyConfig> = new Map([
       updatedAt: '2026-02-10T00:00:00.000Z',
     },
   ],
-  // Cross-referenced mock users
   [
     'party::retail_user_001',
     {
@@ -192,12 +201,97 @@ const MOCK_AUDIT_LOG: PrivacyAuditEntry[] = [
 ];
 
 // ---------------------------------------------------------------------------
+// Canton helpers
+// ---------------------------------------------------------------------------
+
+/** Extract new PrivacyConfig contractId from exercise result events. */
+function extractPrivacyConfigId(
+  events: unknown[] | undefined,
+  fallbackId: string,
+): string {
+  for (const event of events ?? []) {
+    const created = (event as Record<string, unknown>).CreatedEvent as Record<string, unknown> | undefined;
+    if (!created) continue;
+    const tid = (created.templateId as string) ?? '';
+    if (tid.includes('PrivacyConfig')) {
+      return (created.contractId as string) ?? fallbackId;
+    }
+  }
+  return fallbackId;
+}
+
+/** Log an audit entry to Canton (fire-and-forget). Falls back to in-memory. */
+async function logAuditToCanton(
+  partyId: string,
+  requesterParty: string,
+  dataScope: DataScope,
+  granted: boolean,
+  reason: string,
+): Promise<void> {
+  if (!env.CANTON_MOCK) {
+    try {
+      const client = CantonClient.getInstance();
+      const operatorParty = cantonConfig().parties.operator;
+      await client.createContract('Dualis.Privacy.AuditLog:PrivacyAuditEntry', {
+        operator: operatorParty,
+        ownerParty: partyId,
+        requesterParty,
+        dataScope: toDamlDataScope(dataScope),
+        granted,
+        reason,
+        timestamp: new Date().toISOString(),
+      });
+      return;
+    } catch (err) {
+      log.warn({ err }, 'Failed to log audit entry to Canton — falling back to in-memory');
+    }
+  }
+
+  // Mock / fallback
+  MOCK_AUDIT_LOG.push({
+    partyId,
+    requesterParty,
+    dataScope,
+    granted,
+    reason,
+    timestamp: new Date().toISOString(),
+  });
+}
+
+// ---------------------------------------------------------------------------
 // Service functions
 // ---------------------------------------------------------------------------
 
-export function getPrivacyConfig(partyId: string): PrivacyConfig {
+export async function getPrivacyConfig(partyId: string): Promise<PrivacyConfig> {
   log.debug({ partyId }, 'Getting privacy config');
 
+  if (!env.CANTON_MOCK) {
+    // Query Canton for existing PrivacyConfig contract
+    const contract = await cantonQueries.getPrivacyConfig(partyId);
+
+    if (contract) {
+      return fromDamlPrivacyConfig(
+        contract.payload as unknown as Record<string, unknown>,
+        contract.contractId,
+      );
+    }
+
+    // No config exists yet — create one on Canton
+    log.info({ partyId }, 'No privacy config found — creating default on Canton');
+    const client = CantonClient.getInstance();
+    const result = await client.createPrivacyConfig(partyId);
+
+    return {
+      partyId,
+      privacyLevel: 'Public',
+      disclosureRules: [],
+      auditTrailEnabled: true,
+      updatedAt: new Date().toISOString(),
+      contractId: result.contractId,
+    };
+  }
+
+  // Mock mode
   return MOCK_CONFIGS.get(partyId) ?? {
     partyId,
     privacyLevel: 'Public' as PrivacyLevel,
@@ -207,13 +301,40 @@ export function getPrivacyConfig(partyId: string): PrivacyConfig {
   };
 }
 
-export function setPrivacyLevel(
+export async function setPrivacyLevel(
   partyId: string,
   level: PrivacyLevel,
-): { data: PrivacyConfig; transaction: TransactionMeta } {
+): Promise<{ data: PrivacyConfig; transaction: TransactionMeta }> {
   log.info({ partyId, level }, 'Setting privacy level');
 
-  const config = getPrivacyConfig(partyId);
+  if (!env.CANTON_MOCK) {
+    const config = await getPrivacyConfig(partyId);
+    if (!config.contractId) {
+      throw new Error('Privacy config contract not found on Canton');
+    }
+
+    const client = CantonClient.getInstance();
+    const result = await client.setPrivacyLevel(config.contractId, level);
+
+    // Exercise archives old contract, creates new one — extract new ID
+    const newContractId = extractPrivacyConfigId(result.events, config.contractId);
+
+    // Re-query for fresh state
+    let fresh: PrivacyConfig;
+    try {
+      const freshContract = await cantonQueries.getPrivacyConfig(partyId);
+      fresh = freshContract
+        ? fromDamlPrivacyConfig(freshContract.payload as unknown as Record<string, unknown>, freshContract.contractId)
+        : { ...config, privacyLevel: level, contractId: newContractId, updatedAt: new Date().toISOString() };
+    } catch {
+      fresh = { ...config, privacyLevel: level, contractId: newContractId, updatedAt: new Date().toISOString() };
+    }
+
+    return { data: fresh, transaction: buildTransactionMeta() };
+  }
+
+  // Mock mode
+  const config = await getPrivacyConfig(partyId);
   config.privacyLevel = level;
   config.updatedAt = new Date().toISOString();
   MOCK_CONFIGS.set(partyId, config);
@@ -221,7 +342,7 @@ export function setPrivacyLevel(
   return { data: config, transaction: buildTransactionMeta() };
 }
 
-export function addDisclosureRule(
+export async function addDisclosureRule(
   partyId: string,
   rule: {
     discloseTo: string;
@@ -230,11 +351,12 @@ export function addDisclosureRule(
     purpose: string;
     expiresAt: string | null;
   },
-): { data: DisclosureRule; transaction: TransactionMeta } {
+): Promise<{ data: DisclosureRule; transaction: TransactionMeta }> {
   log.info({ partyId, discloseTo: rule.discloseTo }, 'Adding disclosure rule');
 
+  const newRuleId = `rule-${randomUUID().slice(0, 8)}`;
   const newRule: DisclosureRule = {
-    id: `rule-${randomUUID().slice(0, 8)}`,
+    id: newRuleId,
     discloseTo: rule.discloseTo,
     displayName: rule.displayName,
     dataScope: rule.dataScope,
@@ -244,7 +366,24 @@ export function addDisclosureRule(
     createdAt: new Date().toISOString(),
   };
 
-  const config = getPrivacyConfig(partyId);
+  if (!env.CANTON_MOCK) {
+    const config = await getPrivacyConfig(partyId);
+    if (!config.contractId) {
+      throw new Error('Privacy config contract not found on Canton');
+    }
+
+    const client = CantonClient.getInstance();
+    const damlRule = toDamlDisclosureRule(newRule);
+    const result = await client.addDisclosure(config.contractId, damlRule);
+
+    // Extract new contractId
+    extractPrivacyConfigId(result.events, config.contractId);
+
+    return { data: newRule, transaction: buildTransactionMeta() };
+  }
+
+  // Mock mode
+  const config = await getPrivacyConfig(partyId);
   config.disclosureRules.push(newRule);
   config.updatedAt = new Date().toISOString();
   MOCK_CONFIGS.set(partyId, config);
@@ -252,12 +391,25 @@ export function addDisclosureRule(
   return { data: newRule, transaction: buildTransactionMeta() };
 }
 
-export function removeDisclosureRule(
+export async function removeDisclosureRule(
   partyId: string,
   ruleId: string,
-): { data: { removed: boolean }; transaction: TransactionMeta } {
+): Promise<{ data: { removed: boolean }; transaction: TransactionMeta }> {
   log.info({ partyId, ruleId }, 'Removing disclosure rule');
 
+  if (!env.CANTON_MOCK) {
+    const config = await getPrivacyConfig(partyId);
+    if (!config.contractId) {
+      throw new Error('Privacy config contract not found on Canton');
+    }
+
+    const client = CantonClient.getInstance();
+    await client.removeDisclosure(config.contractId, ruleId);
+
+    return { data: { removed: true }, transaction: buildTransactionMeta() };
+  }
+
+  // Mock mode
   const config = MOCK_CONFIGS.get(partyId);
   if (config) {
     config.disclosureRules = config.disclosureRules.filter((r) => r.id !== ruleId);
@@ -267,22 +419,22 @@ export function removeDisclosureRule(
   return { data: { removed: true }, transaction: buildTransactionMeta() };
 }
 
-export function checkAccess(
+export async function checkAccess(
   ownerParty: string,
   requesterParty: string,
   scope: DataScope,
-): { granted: boolean; reason: string } {
+): Promise<{ granted: boolean; reason: string }> {
   log.debug({ ownerParty, requesterParty, scope }, 'Checking access');
 
-  const config = getPrivacyConfig(ownerParty);
+  const config = await getPrivacyConfig(ownerParty);
 
   // Public level — always grant
   if (config.privacyLevel === 'Public') {
-    logAudit(ownerParty, requesterParty, scope, true, 'Public privacy level');
+    void logAuditToCanton(ownerParty, requesterParty, scope, true, 'Public privacy level');
     return { granted: true, reason: 'Public privacy level' };
   }
 
-  // Check disclosure rules
+  // Check disclosure rules (DAML does not check expiry — TS handles it)
   const now = new Date();
   const matchingRule = config.disclosureRules.find(
     (r) =>
@@ -293,22 +445,53 @@ export function checkAccess(
   );
 
   if (matchingRule) {
-    logAudit(ownerParty, requesterParty, scope, true, `Disclosure rule: ${matchingRule.displayName}`);
+    void logAuditToCanton(ownerParty, requesterParty, scope, true, `Disclosure rule: ${matchingRule.displayName}`);
     return { granted: true, reason: `Active disclosure rule: ${matchingRule.displayName}` };
   }
 
   // Maximum or Selective with no matching rule — deny
   const reason = `${config.privacyLevel} privacy — no disclosure rules match`;
-  logAudit(ownerParty, requesterParty, scope, false, reason);
+  void logAuditToCanton(ownerParty, requesterParty, scope, false, reason);
   return { granted: false, reason };
 }
 
-export function getAuditLog(
+export async function getAuditLog(
   partyId: string,
   filters?: { scope?: DataScope; granted?: boolean },
-): PrivacyAuditEntry[] {
+): Promise<PrivacyAuditEntry[]> {
   log.debug({ partyId, filters }, 'Getting audit log');
 
+  if (!env.CANTON_MOCK) {
+    try {
+      const contracts = await cantonQueries.getPrivacyAuditEntries(partyId);
+      let entries: PrivacyAuditEntry[] = contracts.map((c) => {
+        const p = c.payload as unknown as Record<string, unknown>;
+        return {
+          partyId: (p.ownerParty as string) ?? partyId,
+          requesterParty: (p.requesterParty as string) ?? '',
+          dataScope: fromDamlDataScope((p.dataScope as string) ?? '') as DataScope,
+          granted: (p.granted as boolean) ?? false,
+          reason: (p.reason as string) ?? null,
+          timestamp: (p.timestamp as string) ?? '',
+        };
+      });
+
+      if (filters?.scope) {
+        entries = entries.filter((e) => e.dataScope === filters.scope);
+      }
+      if (filters?.granted !== undefined) {
+        entries = entries.filter((e) => e.granted === filters.granted);
+      }
+
+      // Sort newest first
+      entries.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+      return entries;
+    } catch (err) {
+      log.warn({ err }, 'Failed to query audit log from Canton — falling back to mock');
+    }
+  }
+
+  // Mock mode / fallback
   let entries = MOCK_AUDIT_LOG.filter((e) => e.partyId === partyId);
 
   if (filters?.scope) {
@@ -319,25 +502,4 @@ export function getAuditLog(
   }
 
   return entries;
-}
-
-// ---------------------------------------------------------------------------
-// Internal helpers
-// ---------------------------------------------------------------------------
-
-function logAudit(
-  partyId: string,
-  requesterParty: string,
-  dataScope: DataScope,
-  granted: boolean,
-  reason: string,
-): void {
-  MOCK_AUDIT_LOG.push({
-    partyId,
-    requesterParty,
-    dataScope,
-    granted,
-    reason,
-    timestamp: new Date().toISOString(),
-  });
 }

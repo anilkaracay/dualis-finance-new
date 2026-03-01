@@ -34,6 +34,8 @@ import { useWalletOperation } from '@/hooks/useWalletOperation';
 import { useOperatorParty } from '@/hooks/useOperatorParty';
 import { mapPoolToCanton } from '@dualis/shared';
 import { ENDPOINTS } from '@/lib/api/endpoints';
+import { TransactionPrivacyInfo } from '@/components/privacy/TransactionPrivacyInfo';
+import { usePrivacyStore } from '@/stores/usePrivacyStore';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -141,6 +143,7 @@ export default function PoolDetailPage() {
   const { isConnected, party: storeParty } = useWalletStore();
   const { fetchBalances, getSupplyPositionForPool } = useBalanceStore();
   const { fetchTokenBalances, getBalanceForSymbol } = useTokenBalanceStore();
+  const { config: privacyConfig, fetchPrivacyConfig: fetchPrivacy } = usePrivacyStore();
 
   const [depositAmount, setDepositAmount] = useState('');
   const [withdrawAmount, setWithdrawAmount] = useState('');
@@ -163,6 +166,7 @@ export default function PoolDetailPage() {
 
   useEffect(() => {
     fetchPools();
+    fetchPrivacy();
     if (isConnected) {
       fetchBalances();
       // Pass connected wallet party so backend queries the real Canton wallet balance
@@ -624,6 +628,15 @@ export default function PoolDetailPage() {
                             {withdrawError && (
                               <TransactionError message={withdrawError} onRetry={() => setWithdrawError(null)} />
                             )}
+
+                            {/* Privacy info — shows who can see this transaction */}
+                            {privacyConfig && (
+                              <TransactionPrivacyInfo
+                                transactionType="withdraw"
+                                privacyLevel={privacyConfig.privacyLevel}
+                                disclosureRules={privacyConfig.disclosureRules}
+                              />
+                            )}
                           </div>
 
                           <DialogFooter>
@@ -812,6 +825,15 @@ export default function PoolDetailPage() {
 
                 {depositOp.error && (
                   <TransactionError message={depositOp.error} onRetry={depositOp.reset} />
+                )}
+
+                {/* Privacy info — shows who can see this transaction */}
+                {privacyConfig && (
+                  <TransactionPrivacyInfo
+                    transactionType="deposit"
+                    privacyLevel={privacyConfig.privacyLevel}
+                    disclosureRules={privacyConfig.disclosureRules}
+                  />
                 )}
               </div>
 

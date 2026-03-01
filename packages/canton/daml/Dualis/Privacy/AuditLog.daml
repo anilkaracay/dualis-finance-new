@@ -1,0 +1,27 @@
+-- ============================================================================
+-- DUALIS FINANCE — Privacy Audit Log Template
+-- ============================================================================
+-- Immutable audit entries recording privacy access checks. Each entry is
+-- a standalone contract created by the operator after an access check.
+-- ============================================================================
+
+module Dualis.Privacy.AuditLog where
+
+import Dualis.Privacy.Config (DataScope)
+
+-- ─── Audit Entry Template ────────────────────────────────────────────────
+
+-- | Records a single privacy access check result on-chain.
+-- Immutable — no consuming choices. Created by operator after each
+-- checkAccess invocation.
+template PrivacyAuditEntry
+  with
+    operator : Party
+    ownerParty : Text       -- Party whose data was requested
+    requesterParty : Text   -- Party requesting access
+    dataScope : DataScope
+    granted : Bool
+    reason : Text
+    timestamp : Text        -- ISO-8601
+  where
+    signatory operator

@@ -12,15 +12,26 @@ interface AssetIconProps {
 
 const sizePx: Record<string, number> = { sm: 20, md: 28, lg: 36 };
 
-/** CDN logo URLs for known crypto assets (high-quality official logos) */
+/** CDN logo URLs for known assets (high-quality official logos) */
 const cdnLogoMap: Record<string, string> = {
+  // Stablecoins
   USDC: 'https://assets.coingecko.com/coins/images/6319/standard/usdc.png',
+  USDT: 'https://assets.coingecko.com/coins/images/325/standard/Tether.png',
+  DAI: 'https://assets.coingecko.com/coins/images/9956/standard/Badge_Dai.png',
+  // Major Crypto
   ETH: 'https://assets.coingecko.com/coins/images/279/standard/ethereum.png',
   wBTC: 'https://assets.coingecko.com/coins/images/7598/standard/wrapped_bitcoin_wbtc.png',
   BTC: 'https://assets.coingecko.com/coins/images/1/standard/bitcoin.png',
   WETH: 'https://assets.coingecko.com/coins/images/2518/standard/weth.png',
-  DAI: 'https://assets.coingecko.com/coins/images/9956/standard/Badge_Dai.png',
-  USDT: 'https://assets.coingecko.com/coins/images/325/standard/Tether.png',
+  SOL: 'https://assets.coingecko.com/coins/images/4128/standard/solana.png',
+  AVAX: 'https://assets.coingecko.com/coins/images/12559/standard/Avalanche_Circle_RedWhite_Trans.png',
+  LINK: 'https://assets.coingecko.com/coins/images/877/standard/chainlink-new-logo.png',
+  UNI: 'https://assets.coingecko.com/coins/images/12504/standard/uni.jpg',
+  AAVE: 'https://assets.coingecko.com/coins/images/12645/standard/aave-token-round.png',
+  stETH: 'https://assets.coingecko.com/coins/images/13442/standard/steth_logo.png',
+  // RWA
+  PAXG: 'https://assets.coingecko.com/coins/images/9519/standard/paxgold.png',
+  // Canton
   CC: 'https://coin-images.coingecko.com/coins/images/70468/small/Canton-Ticker_%281%29.png?1762826299',
 };
 
@@ -29,8 +40,21 @@ const svgFallbackMap: Record<string, React.ComponentType<{ size?: number | undef
   DUAL: DualIcon,
   'T-BILL-2026': TBillIcon,
   'T-BILL': TBillIcon,
+  'T-BILL-3M': TBillIcon,
+  'T-BILL-6M': TBillIcon,
+  'T-NOTE-2Y': TBillIcon,
+  'T-NOTE-5Y': TBillIcon,
+  'T-NOTE-10Y': TBillIcon,
+  'US-T10Y': TBillIcon,
+  'T-BOND-30Y': TBillIcon,
+  'TIPS-10Y': TBillIcon,
   'SPY-2026': SpyIcon,
   SPY: SpyIcon,
+  QQQ: SpyIcon,
+  IWM: SpyIcon,
+  DIA: SpyIcon,
+  VTI: SpyIcon,
+  EFA: SpyIcon,
 };
 
 function hashStringToColor(str: string): string {

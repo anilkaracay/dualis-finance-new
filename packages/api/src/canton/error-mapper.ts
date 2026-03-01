@@ -141,6 +141,17 @@ export function mapCantonError(err: unknown): CantonErrorInfo {
     };
   }
 
+  // --- Privacy-specific ---
+  if (lower.includes('privacy') && (lower.includes('not_found') || lower.includes('no active contract'))) {
+    return {
+      code: 'PRIVACY_CONFIG_NOT_FOUND',
+      userMessage: 'Privacy configuration not found. A new one will be created automatically.',
+      technicalDetail: raw,
+      retryable: true,
+      httpStatus: 404,
+    };
+  }
+
   // --- Catch-all ---
   return {
     code: 'CANTON_ERROR',

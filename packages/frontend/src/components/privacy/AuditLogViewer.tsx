@@ -16,7 +16,7 @@ interface AuditLogViewerProps {
 type GrantedFilter = 'all' | 'granted' | 'denied';
 
 const DATA_SCOPE_OPTIONS: { value: DataScope | 'all'; label: string }[] = [
-  { value: 'all', label: 'Tüm Kapsamlar' },
+  { value: 'all', label: 'All Scopes' },
   { value: 'Positions', label: 'Positions' },
   { value: 'Transactions', label: 'Transactions' },
   { value: 'CreditScore', label: 'Credit Score' },
@@ -25,9 +25,9 @@ const DATA_SCOPE_OPTIONS: { value: DataScope | 'all'; label: string }[] = [
 ];
 
 const GRANTED_OPTIONS: { value: GrantedFilter; label: string }[] = [
-  { value: 'all', label: 'Tümü' },
-  { value: 'granted', label: 'Onaylanan' },
-  { value: 'denied', label: 'Reddedilen' },
+  { value: 'all', label: 'All' },
+  { value: 'granted', label: 'Granted' },
+  { value: 'denied', label: 'Denied' },
 ];
 
 const SCOPE_BADGE_VARIANT: Record<DataScope, 'default' | 'info' | 'warning' | 'success' | 'danger'> = {
@@ -40,7 +40,7 @@ const SCOPE_BADGE_VARIANT: Record<DataScope, 'default' | 'info' | 'warning' | 's
 
 function formatTimestamp(timestamp: string): string {
   try {
-    return new Intl.DateTimeFormat('tr-TR', {
+    return new Intl.DateTimeFormat('en-US', {
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',
@@ -113,7 +113,7 @@ function AuditLogViewer({ entries, loading = false }: AuditLogViewerProps) {
         <table className="w-full border-collapse">
           <thead className="sticky top-0 z-10">
             <tr className="bg-transparent backdrop-blur-sm bg-bg-primary/80">
-              {['Zaman', 'Talep Eden', 'Kapsam', 'Sonuç', 'Açıklama'].map((header) => (
+              {['Time', 'Requester', 'Scope', 'Result', 'Reason'].map((header) => (
                 <th
                   key={header}
                   className={cn(
@@ -140,7 +140,7 @@ function AuditLogViewer({ entries, loading = false }: AuditLogViewerProps) {
             ) : filteredEntries.length === 0 ? (
               <tr>
                 <td colSpan={5} className="py-12 text-center">
-                  <p className="text-sm text-text-tertiary">Denetim kaydı bulunmuyor.</p>
+                  <p className="text-sm text-text-tertiary">No audit log entries found.</p>
                 </td>
               </tr>
             ) : (
@@ -171,7 +171,7 @@ function AuditLogViewer({ entries, loading = false }: AuditLogViewerProps) {
                   </td>
                   <td className="px-4">
                     <Badge variant={entry.granted ? 'success' : 'danger'} size="sm">
-                      {entry.granted ? 'Onaylandı' : 'Reddedildi'}
+                      {entry.granted ? 'Granted' : 'Denied'}
                     </Badge>
                   </td>
                   <td className="px-4">

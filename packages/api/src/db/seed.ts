@@ -230,7 +230,7 @@ async function seed(): Promise<void> {
         offerId: `offer-${crypto.randomUUID().slice(0, 8)}`,
         lender: PARTY_IDS[i % PARTY_IDS.length]!,
         borrower: PARTY_IDS[(i + 1) % PARTY_IDS.length]!,
-        security: { symbol: randomElement(['SPY-2026', 'T-BILL-2026', 'T-NOTE-10Y']), amount: randomBetween(10, 500).toFixed(2), type: 'TokenizedEquity' },
+        security: { symbol: randomElement(['AAPL', 'TSLA', 'MSFT', 'NVDA', 'SPY', 'QQQ', 'US-T10Y', 'T-BILL-3M', 'SOL', 'PAXG']), amount: randomBetween(10, 500).toFixed(2), type: 'TokenizedEquity' },
         status,
         feeAccrued: randomBetween(50, 5000).toFixed(8),
         startDate: daysAgo(startDay),
@@ -630,9 +630,9 @@ async function seed(): Promise<void> {
     // 15. Fractional Offers — 3 entries
     // -----------------------------------------------------------------------
     log('Inserting fractional offers...');
-    const fracSecurities = ['AAPL', 'TSLA', 'SPY'] as const;
+    const fracSecurities = ['AAPL', 'TSLA', 'SPY', 'NVDA', 'MSFT', 'QQQ', 'SOL', 'GOOGL'] as const;
     const fracOfferRows: (typeof schema.fractionalOffers.$inferInsert)[] = [];
-    for (let i = 0; i < 3; i++) {
+    for (let i = 0; i < fracSecurities.length; i++) {
       const total = randomBetween(10_000, 100_000);
       const remaining = total * randomBetween(0.2, 0.8);
       fracOfferRows.push({
@@ -672,8 +672,11 @@ async function seed(): Promise<void> {
     await db.insert(schema.corporateActions).values([
       { actionId: 'ca-001', dealId: 'deal-001', actionType: 'Dividend', security: 'AAPL', recordDate: daysAgo(5), paymentDate: daysAgo(2), amount: '2500.00000000', status: 'processed', processedAt: daysAgo(2) },
       { actionId: 'ca-002', dealId: 'deal-003', actionType: 'CouponPayment', security: 'US-T10Y', recordDate: daysAgo(1), paymentDate: daysAgo(-5), amount: '12500.00000000', status: 'pending' },
+      { actionId: 'ca-003', dealId: 'deal-004', actionType: 'Dividend', security: 'NVDA', recordDate: daysAgo(-9), paymentDate: daysAgo(-14), amount: '320.00000000', status: 'pending' },
+      { actionId: 'ca-004', dealId: 'deal-005', actionType: 'CouponPayment', security: 'T-BILL-3M', recordDate: daysAgo(0), paymentDate: daysAgo(-4), amount: '8200.00000000', status: 'pending' },
+      { actionId: 'ca-005', dealId: 'deal-008', actionType: 'CouponPayment', security: 'MSFT-BOND-2028', recordDate: daysAgo(-14), paymentDate: daysAgo(-19), amount: '15000.00000000', status: 'pending' },
     ]);
-    log('  Inserted 2 corporate actions');
+    log('  Inserted 5 corporate actions');
 
     // -----------------------------------------------------------------------
     // 18. Verified Institutions — 3 entries

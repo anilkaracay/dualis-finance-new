@@ -17,6 +17,10 @@ import {
   ChevronLeft,
   Bell,
   ShieldCheck,
+  Factory,
+  Building2,
+  Fingerprint,
+  EyeOff,
 } from 'lucide-react';
 import * as Tooltip from '@radix-ui/react-tooltip';
 
@@ -53,6 +57,15 @@ const navSections: readonly NavSection[] = [
     items: [
       { href: '/governance', icon: Vote, label: 'Governance' },
       { href: '/staking', icon: Coins, label: 'Staking' },
+    ],
+  },
+  {
+    label: 'INNOVATIONS',
+    items: [
+      { href: '/productive', icon: Factory, label: 'Productive Lending' },
+      { href: '/institutional', icon: Building2, label: 'Institutional' },
+      { href: '/credit/attestations', icon: Fingerprint, label: 'ZK Attestations' },
+      { href: '/settings/privacy', icon: EyeOff, label: 'Privacy' },
     ],
   },
   {

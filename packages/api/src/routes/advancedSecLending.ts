@@ -53,6 +53,7 @@ interface CorporateAction {
 }
 
 const MOCK_FRACTIONAL_OFFERS: FractionalOffer[] = [
+  // Equities
   {
     offerId: 'frac-offer-001',
     lender: 'party::institutional-lender-1',
@@ -93,6 +94,77 @@ const MOCK_FRACTIONAL_OFFERS: FractionalOffer[] = [
     isActive: true,
     createdAt: '2026-02-12T11:00:00.000Z',
   },
+  {
+    offerId: 'frac-offer-004',
+    lender: 'party::institutional-lender-1',
+    security: { symbol: 'NVDA', amount: 15_000, type: 'TokenizedEquity' },
+    totalAmount: 15_000,
+    remainingAmount: 12_000,
+    minFillAmount: 500,
+    feeRate: 0.48,
+    fills: [
+      { filledBy: 'party::hedge-fund-delta', amount: 3_000, filledAt: '2026-02-20T11:00:00.000Z' },
+    ],
+    isActive: true,
+    createdAt: '2026-02-19T09:00:00.000Z',
+  },
+  {
+    offerId: 'frac-offer-005',
+    lender: 'party::pension-fund-alpha',
+    security: { symbol: 'QQQ', amount: 80_000, type: 'TokenizedEquity' },
+    totalAmount: 80_000,
+    remainingAmount: 80_000,
+    minFillAmount: 5_000,
+    feeRate: 0.22,
+    fills: [],
+    isActive: true,
+    createdAt: '2026-02-21T08:00:00.000Z',
+  },
+  // Treasuries
+  {
+    offerId: 'frac-offer-006',
+    lender: 'party::sovereign-fund-beta',
+    security: { symbol: 'T-BILL-3M', amount: 50_000_000, type: 'TokenizedTreasury' },
+    totalAmount: 50_000_000,
+    remainingAmount: 30_000_000,
+    minFillAmount: 1_000_000,
+    feeRate: 0.06,
+    fills: [
+      { filledBy: 'party::institutional-lender-1', amount: 20_000_000, filledAt: '2026-02-18T10:00:00.000Z' },
+    ],
+    isActive: true,
+    createdAt: '2026-02-15T09:00:00.000Z',
+  },
+  // Crypto
+  {
+    offerId: 'frac-offer-007',
+    lender: 'party::market-maker-gamma',
+    security: { symbol: 'SOL', amount: 100_000, type: 'CryptoCurrency' },
+    totalAmount: 100_000,
+    remainingAmount: 70_000,
+    minFillAmount: 1_000,
+    feeRate: 0.58,
+    fills: [
+      { filledBy: 'party::hedge-fund-delta', amount: 30_000, filledAt: '2026-02-20T15:00:00.000Z' },
+    ],
+    isActive: true,
+    createdAt: '2026-02-19T12:00:00.000Z',
+  },
+  // RWA
+  {
+    offerId: 'frac-offer-008',
+    lender: 'party::sovereign-fund-beta',
+    security: { symbol: 'PAXG', amount: 2_000, type: 'TokenizedCommodity' },
+    totalAmount: 2_000,
+    remainingAmount: 1_500,
+    minFillAmount: 50,
+    feeRate: 0.15,
+    fills: [
+      { filledBy: 'party::pension-fund-alpha', amount: 500, filledAt: '2026-02-17T14:00:00.000Z' },
+    ],
+    isActive: true,
+    createdAt: '2026-02-14T10:00:00.000Z',
+  },
 ];
 
 const MOCK_NETTING_AGREEMENTS: NettingAgreement[] = [
@@ -127,6 +199,36 @@ const MOCK_CORPORATE_ACTIONS: CorporateAction[] = [
     recordDate: '2026-02-21T00:00:00.000Z',
     paymentDate: '2026-02-27T00:00:00.000Z',
     amount: 12500,
+    status: 'pending',
+  },
+  {
+    actionId: 'ca-003',
+    dealId: 'deal-004',
+    actionType: 'Dividend',
+    security: 'NVDA',
+    recordDate: '2026-03-10T00:00:00.000Z',
+    paymentDate: '2026-03-15T00:00:00.000Z',
+    amount: 320,
+    status: 'pending',
+  },
+  {
+    actionId: 'ca-004',
+    dealId: 'deal-005',
+    actionType: 'CouponPayment',
+    security: 'T-BILL-3M',
+    recordDate: '2026-03-01T00:00:00.000Z',
+    paymentDate: '2026-03-05T00:00:00.000Z',
+    amount: 8200,
+    status: 'pending',
+  },
+  {
+    actionId: 'ca-005',
+    dealId: 'deal-008',
+    actionType: 'CouponPayment',
+    security: 'MSFT-BOND-2028',
+    recordDate: '2026-03-15T00:00:00.000Z',
+    paymentDate: '2026-03-20T00:00:00.000Z',
+    amount: 15000,
     status: 'pending',
   },
 ];

@@ -24,6 +24,8 @@ export interface PrivacyConfig {
   disclosureRules: DisclosureRule[];
   auditTrailEnabled: boolean;
   updatedAt: string;
+  /** Canton contract ID — used for exercising choices on this config */
+  contractId?: string;
 }
 
 export interface PrivacyAuditEntry {

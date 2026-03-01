@@ -19,6 +19,7 @@ import type {
   ProductivePool,
   VerifiedInstitution,
   PrivacyConfig,
+  PrivacyAuditEntry,
 } from '@dualis/shared';
 import { CantonClient } from './client.js';
 import type { CantonContract } from './types.js';
@@ -44,6 +45,7 @@ const TEMPLATES = {
   productivePool: 'Dualis.Productive.Core:ProductiveLendingPool',
   verifiedInstitution: 'Dualis.Institutional.Core:VerifiedInstitution',
   privacyConfig: 'Dualis.Privacy.Config:PrivacyConfig',
+  privacyAuditEntry: 'Dualis.Privacy.AuditLog:PrivacyAuditEntry',
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -223,4 +225,10 @@ export async function getVerifiedInstitution(partyId: string): Promise<CantonCon
 export async function getPrivacyConfig(partyId: string): Promise<CantonContract<PrivacyConfig> | null> {
   const client = CantonClient.getInstance();
   return client.queryContractByKey<PrivacyConfig>(TEMPLATES.privacyConfig, { user: partyId });
+}
+
+/** Fetch privacy audit entries for a given party (owner). */
+export async function getPrivacyAuditEntries(partyId: string): Promise<CantonContract<PrivacyAuditEntry>[]> {
+  const client = CantonClient.getInstance();
+  return client.queryContracts<PrivacyAuditEntry>(TEMPLATES.privacyAuditEntry, { ownerParty: partyId });
 }

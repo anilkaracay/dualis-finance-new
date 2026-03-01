@@ -11,7 +11,6 @@ import { HealthFactorGauge } from '@/components/data-display/HealthFactorGauge';
 import { CreditTierBadge } from '@/components/data-display/CreditTierBadge';
 import { DonutChart } from '@/components/charts/DonutChart';
 import type { DonutSegment } from '@/components/charts/DonutChart';
-import { Factory, Building2, ShieldCheck, Fingerprint, ArrowRight } from 'lucide-react';
 import { useWalletStore } from '@/stores/useWalletStore';
 import { usePositionStore } from '@/stores/usePositionStore';
 import { useProtocolStore } from '@/stores/useProtocolStore';
@@ -660,63 +659,6 @@ export default function OverviewPage() {
         />
       </section>
 
-      {/* 5. Quick Access — Innovation Shortcuts */}
-      <section>
-        <h2 className="text-label mb-4">Explore Innovations</h2>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 mt-1">
-          <Link
-            href="/productive"
-            className="group relative flex items-center gap-3 rounded-xl border border-border-default bg-bg-tertiary p-4 transition-all duration-200 hover:border-border-medium hover-lift card-highlight-strong shadow-card animate-stagger-in"
-            style={{ animationDelay: '0ms' }}
-          >
-            <Factory className="h-5 w-5 text-accent-teal" />
-            <div className="flex-1">
-              <p className="text-sm font-medium text-text-primary">Productive Lending</p>
-              <p className="text-xs text-text-tertiary">RWA-backed project finance</p>
-            </div>
-            <ArrowRight className="h-4 w-4 text-text-tertiary group-hover:text-accent-teal transition-colors" />
-          </Link>
-
-          <Link
-            href="/institutional"
-            className="group relative flex items-center gap-3 rounded-xl border border-border-default bg-bg-tertiary p-4 transition-all duration-200 hover:border-border-medium hover-lift card-highlight-strong shadow-card animate-stagger-in"
-            style={{ animationDelay: '100ms' }}
-          >
-            <Building2 className="h-5 w-5 text-accent-teal" />
-            <div className="flex-1">
-              <p className="text-sm font-medium text-text-primary">Institutional</p>
-              <p className="text-xs text-text-tertiary">KYB, API keys &amp; bulk ops</p>
-            </div>
-            <ArrowRight className="h-4 w-4 text-text-tertiary group-hover:text-accent-teal transition-colors" />
-          </Link>
-
-          <Link
-            href="/credit/attestations"
-            className="group relative flex items-center gap-3 rounded-xl border border-border-default bg-bg-tertiary p-4 transition-all duration-200 hover:border-border-medium hover-lift card-highlight-strong shadow-card animate-stagger-in"
-            style={{ animationDelay: '200ms' }}
-          >
-            <Fingerprint className="h-5 w-5 text-accent-teal" />
-            <div className="flex-1">
-              <p className="text-sm font-medium text-text-primary">ZK Attestations</p>
-              <p className="text-xs text-text-tertiary">Composite credit scoring</p>
-            </div>
-            <ArrowRight className="h-4 w-4 text-text-tertiary group-hover:text-accent-teal transition-colors" />
-          </Link>
-
-          <Link
-            href="/settings/privacy"
-            className="group relative flex items-center gap-3 rounded-xl border border-border-default bg-bg-tertiary p-4 transition-all duration-200 hover:border-border-medium hover-lift card-highlight-strong shadow-card animate-stagger-in"
-            style={{ animationDelay: '300ms' }}
-          >
-            <ShieldCheck className="h-5 w-5 text-accent-teal" />
-            <div className="flex-1">
-              <p className="text-sm font-medium text-text-primary">Privacy Toggle</p>
-              <p className="text-xs text-text-tertiary">Selective disclosure controls</p>
-            </div>
-            <ArrowRight className="h-4 w-4 text-text-tertiary group-hover:text-accent-teal transition-colors" />
-          </Link>
-        </div>
-      </section>
     </div>
   );
 }

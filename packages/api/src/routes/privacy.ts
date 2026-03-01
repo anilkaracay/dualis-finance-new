@@ -29,7 +29,7 @@ export async function privacyRoutes(fastify: FastifyInstance): Promise<void> {
     { preHandler: [authMiddleware] },
     async (request, reply) => {
       const partyId = request.user!.partyId;
-      const config = privacyService.getPrivacyConfig(partyId);
+      const config = await privacyService.getPrivacyConfig(partyId);
 
       const response: ApiResponse<PrivacyConfig> = { data: config };
       return reply.status(200).send(response);
@@ -47,7 +47,7 @@ export async function privacyRoutes(fastify: FastifyInstance): Promise<void> {
       }
 
       const partyId = request.user!.partyId;
-      const result = privacyService.setPrivacyLevel(partyId, parsed.data.level);
+      const result = await privacyService.setPrivacyLevel(partyId, parsed.data.level);
 
       const response: ApiResponse<PrivacyConfig> = {
         data: result.data,
@@ -57,7 +57,29 @@ export async function privacyRoutes(fastify: FastifyInstance): Promise<void> {
     },
   );
 
-  // POST /privacy/disclosure-rules (auth) — add disclosure rule
+  // POST /privacy/disclosures (auth) — add disclosure rule
+  // Also accepts /privacy/disclosure-rules for backward compat
+  fastify.post(
+    '/privacy/disclosures',
+    { preHandler: [authMiddleware] },
+    async (request, reply) => {
+      const parsed = addDisclosureRuleSchema.safeParse(request.body);
+      if (!parsed.success) {
+        throw new AppError('VALIDATION_ERROR', 'Invalid disclosure rule', 400, parsed.error.flatten());
+      }
+
+      const partyId = request.user!.partyId;
+      const result = await privacyService.addDisclosureRule(partyId, parsed.data);
+
+      const response: ApiResponse<DisclosureRule> = {
+        data: result.data,
+        transaction: result.transaction,
+      };
+      return reply.status(201).send(response);
+    },
+  );
+
+  // Legacy path alias for backward compatibility
   fastify.post(
     '/privacy/disclosure-rules',
     { preHandler: [authMiddleware] },
@@ -68,7 +90,7 @@ export async function privacyRoutes(fastify: FastifyInstance): Promise<void> {
       }
 
       const partyId = request.user!.partyId;
-      const result = privacyService.addDisclosureRule(partyId, parsed.data);
+      const result = await privacyService.addDisclosureRule(partyId, parsed.data);
 
       const response: ApiResponse<DisclosureRule> = {
         data: result.data,
@@ -78,7 +100,24 @@ export async function privacyRoutes(fastify: FastifyInstance): Promise<void> {
     },
   );
 
-  // DELETE /privacy/disclosure-rules/:ruleId (auth) — remove disclosure rule
+  // DELETE /privacy/disclosures/:ruleId (auth) — remove disclosure rule
+  fastify.delete(
+    '/privacy/disclosures/:ruleId',
+    { preHandler: [authMiddleware] },
+    async (request, reply) => {
+      const partyId = request.user!.partyId;
+      const { ruleId } = request.params as { ruleId: string };
+
+      const result = await privacyService.removeDisclosureRule(partyId, ruleId);
+      const response: ApiResponse<typeof result.data> = {
+        data: result.data,
+        transaction: result.transaction,
+      };
+      return reply.status(200).send(response);
+    },
+  );
+
+  // Legacy path alias
   fastify.delete(
     '/privacy/disclosure-rules/:ruleId',
     { preHandler: [authMiddleware] },
@@ -86,7 +125,7 @@ export async function privacyRoutes(fastify: FastifyInstance): Promise<void> {
       const partyId = request.user!.partyId;
       const { ruleId } = request.params as { ruleId: string };
 
-      const result = privacyService.removeDisclosureRule(partyId, ruleId);
+      const result = await privacyService.removeDisclosureRule(partyId, ruleId);
       const response: ApiResponse<typeof result.data> = {
         data: result.data,
         transaction: result.transaction,
@@ -106,7 +145,7 @@ export async function privacyRoutes(fastify: FastifyInstance): Promise<void> {
       }
 
       const partyId = request.user!.partyId;
-      const result = privacyService.checkAccess(partyId, parsed.data.requesterParty, parsed.data.scope);
+      const result = await privacyService.checkAccess(partyId, parsed.data.requesterParty, parsed.data.scope);
 
       const response: ApiResponse<typeof result> = { data: result };
       return reply.status(200).send(response);
@@ -125,7 +164,7 @@ export async function privacyRoutes(fastify: FastifyInstance): Promise<void> {
       if (scope) filters.scope = scope;
       if (granted !== undefined) filters.granted = granted === 'true';
 
-      const entries = privacyService.getAuditLog(partyId, filters as Parameters<typeof privacyService.getAuditLog>[1]);
+      const entries = await privacyService.getAuditLog(partyId, filters as Parameters<typeof privacyService.getAuditLog>[1]);
 
       const response: ApiResponse<PrivacyAuditEntry[]> = { data: entries };
       return reply.status(200).send(response);

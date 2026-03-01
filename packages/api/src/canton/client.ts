@@ -328,12 +328,23 @@ function mockPrivacyConfig(
     contractId: '#canton-mock-privacy-config',
     templateId: 'Dualis.Privacy.Config:PrivacyConfig',
     payload: {
+      operator: signatories[0] ?? 'party::operator::0',
       user: 'party::operator::0',
-      privacyLevel: 'Standard',
+      privacyLevel: 'PLPublic',
       disclosureRules: [
-        { ruleId: 'rule-01', counterparty: 'party::auditor::0', scope: 'CreditScore', expiresAt: new Date(Date.now() + 86400000 * 90).toISOString() },
+        {
+          ruleId: 'rule-01',
+          discloseTo: 'party::auditor::0',
+          displayName: 'Auditor Access',
+          dataScope: 'CreditScore',
+          purpose: 'Annual audit',
+          expiresAt: new Date(Date.now() + 86400000 * 90).toISOString(),
+          isActive: true,
+          createdAt: new Date().toISOString(),
+        },
       ],
-      lastUpdated: new Date().toISOString(),
+      auditTrailEnabled: true,
+      updatedAt: new Date().toISOString(),
     },
     signatories,
     observers: [],
@@ -962,12 +973,26 @@ export class CantonClient {
   // Privacy convenience methods
   // -------------------------------------------------------------------------
 
+  /** Map TS PrivacyLevel → DAML PrivacyLevel enum constructor */
+  private toDamlPrivacyLevel(level: string): string {
+    const MAP: Record<string, string> = { Public: 'PLPublic', Selective: 'PLSelective', Maximum: 'PLMaximum' };
+    return MAP[level] ?? 'PLPublic';
+  }
+
+  /** Map TS DataScope → DAML DataScope enum constructor */
+  private toDamlDataScope(scope: string): string {
+    return scope === 'All' ? 'AllData' : scope;
+  }
+
   async createPrivacyConfig(user: string): Promise<CreateResult> {
+    const config = cantonConfig();
     return this.createContract('Dualis.Privacy.Config:PrivacyConfig', {
+      operator: config.parties.operator,
       user,
-      privacyLevel: 'Standard',
+      privacyLevel: 'PLPublic',
       disclosureRules: [],
-      lastUpdated: new Date().toISOString(),
+      auditTrailEnabled: true,
+      updatedAt: new Date().toISOString(),
     });
   }
 
@@ -976,7 +1001,7 @@ export class CantonClient {
       'Dualis.Privacy.Config:PrivacyConfig',
       configId,
       'SetPrivacyLevel',
-      { newLevel: level, updateTime: new Date().toISOString() },
+      { newLevel: this.toDamlPrivacyLevel(level), updateTime: new Date().toISOString() },
     );
   }
 
@@ -985,16 +1010,16 @@ export class CantonClient {
       'Dualis.Privacy.Config:PrivacyConfig',
       configId,
       'AddDisclosure',
-      { rule, updateTime: new Date().toISOString() },
+      { newRule: rule, updateTime: new Date().toISOString() },
     );
   }
 
-  async removeDisclosure(configId: string, party: string): Promise<ExerciseResult> {
+  async removeDisclosure(configId: string, ruleId: string): Promise<ExerciseResult> {
     return this.exerciseChoice(
       'Dualis.Privacy.Config:PrivacyConfig',
       configId,
       'RemoveDisclosure',
-      { ruleId: party, updateTime: new Date().toISOString() },
+      { ruleId, updateTime: new Date().toISOString() },
     );
   }
 
@@ -1008,8 +1033,8 @@ export class CantonClient {
       'Dualis.Privacy.Config:PrivacyConfig',
       configId,
       'CheckAccess',
-      { requester, scope },
+      { requester, scope: this.toDamlDataScope(scope) },
     );
-    return (result.exerciseResult as { hasAccess?: boolean })?.hasAccess ?? false;
+    return result.exerciseResult === true;
   }
 }

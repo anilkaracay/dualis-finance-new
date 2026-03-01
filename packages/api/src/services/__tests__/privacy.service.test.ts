@@ -10,6 +10,25 @@ vi.mock('../../config/logger.js', () => ({
   }),
 }));
 
+// Mock canton env — ensure CANTON_MOCK is true so we use mock path
+vi.mock('../../config/env.js', () => ({
+  env: {
+    CANTON_MOCK: true,
+  },
+}));
+
+vi.mock('../../config/canton-env.js', () => ({
+  cantonConfig: () => ({
+    parties: { operator: 'party::operator::1' },
+  }),
+}));
+
+vi.mock('../../canton/client.js', () => ({
+  CantonClient: { getInstance: () => ({}) },
+}));
+
+vi.mock('../../canton/queries.js', () => ({}));
+
 import {
   setPrivacyLevel,
   getPrivacyConfig,
@@ -20,10 +39,10 @@ import {
 } from '../privacy.service';
 
 describe('setPrivacyLevel', () => {
-  it('updates config level', () => {
+  it('updates config level', async () => {
     const partyId = 'party::test-privacy-level::1';
 
-    const result = setPrivacyLevel(partyId, 'Maximum');
+    const result = await setPrivacyLevel(partyId, 'Maximum');
 
     expect(result.data.partyId).toBe(partyId);
     expect(result.data.privacyLevel).toBe('Maximum');
@@ -32,14 +51,14 @@ describe('setPrivacyLevel', () => {
     expect(result.transaction.status).toBe('confirmed');
 
     // Verify the config was persisted
-    const config = getPrivacyConfig(partyId);
+    const config = await getPrivacyConfig(partyId);
     expect(config.privacyLevel).toBe('Maximum');
   });
 });
 
 describe('getPrivacyConfig', () => {
-  it('returns default config for new user', () => {
-    const config = getPrivacyConfig('party::brand-new-user::999');
+  it('returns default config for new user', async () => {
+    const config = await getPrivacyConfig('party::brand-new-user::999');
 
     expect(config.partyId).toBe('party::brand-new-user::999');
     expect(config.privacyLevel).toBe('Public');
@@ -50,10 +69,10 @@ describe('getPrivacyConfig', () => {
 });
 
 describe('addDisclosure', () => {
-  it('creates disclosure rule', () => {
+  it('creates disclosure rule', async () => {
     const partyId = 'party::test-disclosure-add::1';
 
-    const result = addDisclosureRule(partyId, {
+    const result = await addDisclosureRule(partyId, {
       discloseTo: 'party::regulator::test',
       displayName: 'Test Regulator',
       dataScope: 'Positions',
@@ -73,18 +92,18 @@ describe('addDisclosure', () => {
     expect(result.transaction.status).toBe('confirmed');
 
     // Verify the rule was added to the config
-    const config = getPrivacyConfig(partyId);
+    const config = await getPrivacyConfig(partyId);
     const found = config.disclosureRules.find((r) => r.id === result.data.id);
     expect(found).toBeDefined();
   });
 });
 
 describe('removeDisclosure', () => {
-  it('removes disclosure rule', () => {
+  it('removes disclosure rule', async () => {
     const partyId = 'party::test-disclosure-remove::1';
 
     // Add a rule first
-    const added = addDisclosureRule(partyId, {
+    const added = await addDisclosureRule(partyId, {
       discloseTo: 'party::auditor::test',
       displayName: 'Test Auditor',
       dataScope: 'All',
@@ -94,53 +113,53 @@ describe('removeDisclosure', () => {
     const ruleId = added.data.id;
 
     // Verify the rule exists
-    let config = getPrivacyConfig(partyId);
+    let config = await getPrivacyConfig(partyId);
     expect(config.disclosureRules.some((r) => r.id === ruleId)).toBe(true);
 
     // Remove the rule
-    const result = removeDisclosureRule(partyId, ruleId);
+    const result = await removeDisclosureRule(partyId, ruleId);
     expect(result.data.removed).toBe(true);
     expect(result.transaction).toHaveProperty('id');
     expect(result.transaction.status).toBe('confirmed');
 
     // Verify the rule was removed
-    config = getPrivacyConfig(partyId);
+    config = await getPrivacyConfig(partyId);
     expect(config.disclosureRules.some((r) => r.id === ruleId)).toBe(false);
   });
 });
 
 describe('checkAccess', () => {
-  it('user always has access to own data', () => {
+  it('user always has access to own data', async () => {
     // A new user defaults to Public privacy level, so self-access is always granted
     const partyId = 'party::self-access-test::1';
-    const result = checkAccess(partyId, partyId, 'All');
+    const result = await checkAccess(partyId, partyId, 'All');
 
     expect(result.granted).toBe(true);
   });
 
-  it('Public level grants all access', () => {
+  it('Public level grants all access', async () => {
     // party::bob::2 has Public privacy level
-    const result = checkAccess('party::bob::2', 'party::random-requester::1', 'Positions');
+    const result = await checkAccess('party::bob::2', 'party::random-requester::1', 'Positions');
 
     expect(result.granted).toBe(true);
     expect(result.reason).toBe('Public privacy level');
   });
 
-  it('Selective level checks disclosure rules', () => {
+  it('Selective level checks disclosure rules', async () => {
     // party::alice::1 has Selective level with a disclosure rule for party::regulator::sec (All scope)
-    const grantedResult = checkAccess('party::alice::1', 'party::regulator::sec', 'Positions');
+    const grantedResult = await checkAccess('party::alice::1', 'party::regulator::sec', 'Positions');
     expect(grantedResult.granted).toBe(true);
     expect(grantedResult.reason).toContain('SEC Reporting');
 
     // A requester not in alice's disclosure rules should be denied
-    const deniedResult = checkAccess('party::alice::1', 'party::unknown::1', 'Positions');
+    const deniedResult = await checkAccess('party::alice::1', 'party::unknown::1', 'Positions');
     expect(deniedResult.granted).toBe(false);
     expect(deniedResult.reason).toContain('no disclosure rules match');
   });
 
-  it('Maximum level requires explicit disclosure', () => {
+  it('Maximum level requires explicit disclosure', async () => {
     // party::carol::3 has Maximum privacy level with no disclosure rules
-    const result = checkAccess('party::carol::3', 'party::auditor::deloitte', 'Positions');
+    const result = await checkAccess('party::carol::3', 'party::auditor::deloitte', 'Positions');
 
     expect(result.granted).toBe(false);
     expect(result.reason).toContain('Maximum privacy');
@@ -149,9 +168,9 @@ describe('checkAccess', () => {
 });
 
 describe('getAuditLog', () => {
-  it('returns audit entries', () => {
+  it('returns audit entries', async () => {
     // The pre-populated audit log has entries for party::alice::1
-    const entries = getAuditLog('party::alice::1');
+    const entries = await getAuditLog('party::alice::1');
 
     expect(Array.isArray(entries)).toBe(true);
     expect(entries.length).toBeGreaterThan(0);

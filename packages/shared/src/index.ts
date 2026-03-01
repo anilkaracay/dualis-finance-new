@@ -152,6 +152,17 @@ export type {
   PrivacyAuditEntry,
 } from './types/privacy';
 
+// Privacy DAML ↔ TS mappers
+export {
+  toDamlPrivacyLevel,
+  fromDamlPrivacyLevel,
+  toDamlDataScope,
+  fromDamlDataScope,
+  toDamlDisclosureRule,
+  fromDamlDisclosureRule,
+  fromDamlPrivacyConfig,
+} from './utils/privacyMapper';
+
 // Auth & Onboarding types
 export type {
   UserRole,

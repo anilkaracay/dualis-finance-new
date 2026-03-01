@@ -1,0 +1,1703 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dualis Finance — Technical Whitepaper v1.0</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&family=Crimson+Pro:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.21/dist/katex.min.css">
+<style>
+/* ═══════════════════════════════════════════════════════
+   DUALIS FINANCE — WHITEPAPER PDF STYLESHEET
+   Dark cover + Light content theme
+   ═══════════════════════════════════════════════════════ */
+
+:root {
+  /* Cover (dark) */
+  --cover-bg: #09090B;
+  --cover-text: #FAFAFA;
+  --cover-muted: #71717A;
+  --cover-faint: #3F3F46;
+
+  /* Content (light) */
+  --bg: #FFFFFF;
+  --bg-elevated: #F8FAFC;
+  --bg-card: #F1F5F9;
+  --bg-subtle: #E2E8F0;
+  --text: #0F172A;
+  --text-secondary: #334155;
+  --text-muted: #64748B;
+  --text-faint: #94A3B8;
+  --accent: #0D9488;
+  --accent-light: #14B8A6;
+  --accent-dim: rgba(13, 148, 136, 0.06);
+  --accent-border: rgba(13, 148, 136, 0.20);
+  --border: #E2E8F0;
+  --border-strong: #CBD5E1;
+  --font: 'Plus Jakarta Sans', -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+  --font-serif: 'Crimson Pro', Georgia, serif;
+}
+
+@page {
+  size: A4;
+  margin: 24mm 24mm 30mm 24mm;
+}
+
+@page :first { margin: 0; }
+
+* { box-sizing: border-box; }
+
+body {
+  font-family: var(--font);
+  font-size: 11pt;
+  line-height: 1.85;
+  color: var(--text-secondary);
+  background: var(--bg);
+  margin: 0;
+  padding: 0;
+  -webkit-font-smoothing: antialiased;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+/* ─── COVER PAGE (DARK) ─── */
+.cover {
+  width: 210mm;
+  height: 297mm;
+  background: var(--cover-bg);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: 64px 56px;
+  overflow: hidden;
+  page-break-after: always;
+}
+
+/* Gradient orb — top-right */
+.cover::before {
+  content: '';
+  position: absolute;
+  width: 700px;
+  height: 700px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(45,212,191,0.20) 0%, rgba(45,212,191,0.06) 35%, transparent 65%);
+  top: -180px;
+  right: -200px;
+  filter: blur(80px);
+}
+
+/* Secondary orb — bottom-left */
+.cover::after {
+  content: '';
+  position: absolute;
+  width: 400px;
+  height: 400px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(94,234,212,0.10) 0%, transparent 60%);
+  bottom: 80px;
+  left: -120px;
+  filter: blur(60px);
+}
+
+/* Grid overlay */
+.cover-grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(45,212,191,0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(45,212,191,0.025) 1px, transparent 1px);
+  background-size: 32px 32px;
+  mask-image: linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.3) 30%, rgba(0,0,0,0.3) 70%, transparent 100%);
+  -webkit-mask-image: linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.3) 30%, rgba(0,0,0,0.3) 70%, transparent 100%);
+}
+
+.cover-content {
+  position: relative;
+  z-index: 1;
+}
+
+.cover-logo {
+  font-family: var(--font);
+  font-size: 13pt;
+  font-weight: 800;
+  letter-spacing: 0.3em;
+  margin-bottom: 80px;
+}
+.cover-logo span:first-child { color: #2DD4BF; }
+.cover-logo span:last-child { color: var(--cover-text); }
+
+.cover-badge {
+  display: inline-block;
+  padding: 5px 14px;
+  border: 1px solid rgba(45, 212, 191, 0.15);
+  border-radius: 20px;
+  font-size: 8pt;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #2DD4BF;
+  margin-bottom: 28px;
+}
+
+.cover-title {
+  font-family: var(--font);
+  font-size: 52pt;
+  font-weight: 800;
+  line-height: 1.04;
+  letter-spacing: -0.035em;
+  color: var(--cover-text);
+  margin: 0 0 16px 0;
+}
+
+.cover-subtitle {
+  font-family: var(--font);
+  font-size: 16pt;
+  font-weight: 400;
+  line-height: 1.45;
+  color: var(--cover-muted);
+  margin: 0 0 48px 0;
+  max-width: 85%;
+}
+
+.cover-line {
+  width: 56px;
+  height: 2px;
+  background: linear-gradient(90deg, #2DD4BF, #5EEAD4);
+  border-radius: 1px;
+  margin-bottom: 28px;
+}
+
+.cover-meta {
+  display: flex;
+  gap: 40px;
+  font-size: 9pt;
+  color: var(--cover-muted);
+}
+
+.cover-meta-item {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.cover-meta-label {
+  font-size: 7pt;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: var(--cover-faint);
+}
+
+.cover-meta-value {
+  font-weight: 500;
+  color: #B4B4BC;
+}
+
+.cover-footer {
+  position: absolute;
+  bottom: 32px;
+  left: 56px;
+  right: 56px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  font-size: 7.5pt;
+  color: var(--cover-faint);
+  letter-spacing: 0.05em;
+  z-index: 1;
+}
+
+/* ─── ABSTRACT PAGE (LIGHT) ─── */
+.abstract-page {
+  page-break-after: always;
+  padding-top: 24px;
+}
+
+.abstract-label {
+  font-size: 8pt;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: var(--accent);
+  margin-bottom: 20px;
+}
+
+.abstract-text {
+  font-family: var(--font-serif);
+  font-size: 11.5pt;
+  line-height: 1.78;
+  color: var(--text-secondary);
+  text-align: justify;
+  hyphens: auto;
+  max-width: 100%;
+}
+
+.abstract-text::first-letter {
+  font-size: 34pt;
+  font-weight: 700;
+  color: var(--accent);
+  float: left;
+  line-height: 0.85;
+  margin-right: 6px;
+  margin-top: 4px;
+}
+
+/* ─── TABLE OF CONTENTS (LIGHT) ─── */
+.toc-page {
+  page-break-after: always;
+  padding-top: 24px;
+}
+
+.toc-title {
+  font-size: 8pt;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: var(--accent);
+  margin-bottom: 32px;
+}
+
+.toc-section {
+  display: flex;
+  align-items: baseline;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--border);
+  text-decoration: none;
+}
+
+.toc-num {
+  font-weight: 700;
+  color: var(--accent);
+  min-width: 28px;
+  font-size: 9pt;
+  font-variant-numeric: tabular-nums;
+}
+
+.toc-label {
+  flex: 1;
+  font-weight: 600;
+  color: var(--text);
+  font-size: 10.5pt;
+}
+
+.toc-dots {
+  flex: 1;
+  border-bottom: 1px dotted var(--text-faint);
+  margin: 0 8px;
+  min-width: 20px;
+}
+
+.toc-sub {
+  padding-left: 28px;
+}
+.toc-sub .toc-label {
+  font-weight: 400;
+  color: var(--text-secondary);
+  font-size: 9.5pt;
+}
+.toc-sub .toc-num {
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.toc-appendix {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-strong);
+}
+.toc-appendix .toc-num { color: var(--text-muted); }
+
+/* ─── MAIN CONTENT TYPOGRAPHY (LIGHT) ─── */
+.content {
+  max-width: 100%;
+}
+
+h1 {
+  font-family: var(--font);
+  font-size: 24pt;
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  color: var(--text);
+  margin: 0 0 12px 0;
+  page-break-after: avoid;
+}
+
+h2 {
+  font-family: var(--font);
+  font-size: 18pt;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  margin-top: 40px;
+  margin-bottom: 14px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid var(--accent);
+  page-break-after: avoid;
+  page-break-before: always;
+}
+
+.content > h2:first-child {
+  page-break-before: avoid;
+}
+
+h3 {
+  font-family: var(--font);
+  font-size: 12.5pt;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--text);
+  margin-top: 24px;
+  margin-bottom: 10px;
+  page-break-after: avoid;
+}
+
+h4 {
+  font-family: var(--font);
+  font-size: 10pt;
+  font-weight: 700;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-top: 16px;
+  margin-bottom: 6px;
+  page-break-after: avoid;
+}
+
+p {
+  margin: 0 0 12px 0;
+  text-align: justify;
+  hyphens: auto;
+}
+
+strong {
+  font-weight: 600;
+  color: var(--text);
+}
+
+em {
+  font-style: italic;
+  color: var(--text-secondary);
+}
+
+a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+/* ─── LISTS ─── */
+ul, ol {
+  margin: 0 0 10px 0;
+  padding-left: 20px;
+}
+
+li {
+  margin-bottom: 5px;
+  line-height: 1.7;
+}
+
+li::marker {
+  color: var(--accent);
+}
+
+/* ─── TABLES ─── */
+table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  margin: 18px 0 22px;
+  font-size: 8.5pt;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid var(--border-strong);
+  page-break-inside: avoid;
+}
+
+thead th {
+  padding: 8px 10px;
+  font-weight: 700;
+  font-size: 7pt;
+  color: #FFFFFF;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  text-align: left;
+  background: #0F172A;
+  border-bottom: 2px solid var(--accent);
+}
+
+tbody td {
+  padding: 6px 10px;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+
+tbody tr:last-child td {
+  border-bottom: none;
+}
+
+tbody tr:nth-child(even) {
+  background: var(--bg-elevated);
+}
+
+tbody td:first-child {
+  font-weight: 500;
+  color: var(--text);
+}
+
+/* ─── CODE ─── */
+code {
+  font-family: var(--font-mono);
+  font-size: 8pt;
+  background: var(--accent-dim);
+  border: 1px solid var(--accent-border);
+  padding: 1px 4px;
+  border-radius: 3px;
+  color: var(--accent);
+}
+
+pre {
+  background: #0F172A;
+  border: 1px solid #1E293B;
+  border-left: 3px solid var(--accent);
+  border-radius: 0 6px 6px 0;
+  padding: 12px 14px;
+  overflow-x: auto;
+  font-family: var(--font-mono);
+  font-size: 7.5pt;
+  line-height: 1.55;
+  color: #E2E8F0;
+  margin: 10px 0 14px;
+  page-break-inside: avoid;
+}
+
+pre code {
+  background: none;
+  border: none;
+  padding: 0;
+  color: inherit;
+  font-size: inherit;
+}
+
+/* ─── BLOCKQUOTES ─── */
+blockquote {
+  border-left: 3px solid var(--accent);
+  padding: 12px 18px;
+  margin: 14px 0;
+  background: var(--accent-dim);
+  border-radius: 0 6px 6px 0;
+  page-break-inside: avoid;
+}
+
+blockquote p {
+  color: var(--text-secondary);
+  font-style: italic;
+  margin-bottom: 0;
+  font-size: 9.5pt;
+}
+
+/* ─── HORIZONTAL RULES ─── */
+hr {
+  border: none;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--border) 15%,
+    var(--border-strong) 50%,
+    var(--border) 85%,
+    transparent 100%
+  );
+  margin: 24px 0;
+}
+
+/* ─── SECTION LABEL ─── */
+h2::before {
+  display: block;
+  font-size: 7.5pt;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: var(--accent);
+  margin-bottom: 6px;
+}
+
+/* ─── MATH/FORMULA DISPLAY ─── */
+.math-display {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: 0 6px 6px 0;
+  padding: 14px 18px;
+  margin: 14px 0;
+  text-align: center;
+  color: var(--text);
+  overflow-x: auto;
+  page-break-inside: avoid;
+}
+
+.math-display .katex { font-size: 1.05em; }
+.katex { font-size: 0.95em; color: var(--text); }
+
+/* ─── PRINT UTILITIES ─── */
+.page-break { page-break-before: always; break-before: page; }
+.no-break { page-break-inside: avoid; break-inside: avoid; }
+
+</style>
+</head>
+<body>
+
+<!-- ═══════ COVER PAGE (DARK) ═══════ -->
+<div class="cover">
+  <div class="cover-grid"></div>
+  <div class="cover-content">
+    <div class="cover-logo">
+      <span>D</span><span>UALIS</span>
+    </div>
+    <div class="cover-badge">Technical Whitepaper v1.0</div>
+    <h1 class="cover-title">Dualis<br>Finance</h1>
+    <p class="cover-subtitle">Institutional-Grade Hybrid Lending Infrastructure<br>for the Tokenized Economy</p>
+    <div class="cover-line"></div>
+    <div class="cover-meta">
+      <div class="cover-meta-item">
+        <span class="cover-meta-label">Organization</span>
+        <span class="cover-meta-value">Cayvox Labs</span>
+      </div>
+      <div class="cover-meta-item">
+        <span class="cover-meta-label">Date</span>
+        <span class="cover-meta-value">March 2026</span>
+      </div>
+      <div class="cover-meta-item">
+        <span class="cover-meta-label">Contact</span>
+        <span class="cover-meta-value">info@dualis.finance</span>
+      </div>
+    </div>
+  </div>
+  <div class="cover-footer">
+    <span>Confidential — Cayvox Labs © 2026</span>
+    <span>dualis.finance</span>
+  </div>
+</div>
+
+<!-- ═══════ ABSTRACT PAGE ═══════ -->
+<div class="abstract-page">
+  <div class="abstract-label">Abstract</div>
+  <div class="abstract-text">Dualis Finance introduces the first hybrid lending protocol purpose-built for Canton Network -- the enterprise blockchain infrastructure selected by DTCC, Euroclear, and the world's largest financial institutions for real-asset tokenization. Traditional securities lending, representing $2.8 trillion in outstanding loans (ISLA, 2024), operates on T+2 settlement cycles, opaque pricing models, and prime broker intermediation that excludes smaller institutions. Existing decentralized lending protocols have demonstrated the viability of on-chain lending but remain unsuitable for institutional adoption due to the absence of transaction privacy, compliance frameworks, and credit risk differentiation.  Dualis bridges this divide through five architectural innovations: (1) a hybrid credit scoring system combining on-chain behavioral analytics, zero-knowledge off-chain credential verification, and ecosystem reputation into a five-tier classification enabling differentiated lending terms; (2) productive real-world lending deploying capital into verified physical and digital economy projects; (3) an advanced securities lending protocol reducing fees by approximately 90% versus prime brokers through atomic Canton settlement; (4) a dual-track architecture serving institutional participants via KYB-verified dedicated pools and retail users via standard shared pools; and (5) privacy-by-design leveraging Canton's sub-transaction privacy to ensure position confidentiality while maintaining regulatory auditability. The protocol comprises 101,000+ lines of code, 38 DAML smart contract templates across 25 modules, 262 API endpoints, and is deployed on Canton devnet with all core DeFi operations functional.</div>
+</div>
+
+<!-- ═══════ TABLE OF CONTENTS ═══════ -->
+<div class="toc-page">
+  <div class="toc-title">Contents</div>
+
+  <div class="toc-section"><span class="toc-num">01</span><span class="toc-label">Introduction</span></div>
+  <div class="toc-section toc-sub"><span class="toc-num">1.1</span><span class="toc-label">The Structural Gap</span></div>
+  <div class="toc-section toc-sub"><span class="toc-num">1.2</span><span class="toc-label">The Tokenization Catalyst</span></div>
+  <div class="toc-section toc-sub"><span class="toc-num">1.3</span><span class="toc-label">Thesis Statement</span></div>
+
+  <div class="toc-section"><span class="toc-num">02</span><span class="toc-label">Protocol Architecture</span></div>
+  <div class="toc-section toc-sub"><span class="toc-num">2.1</span><span class="toc-label">System Overview</span></div>
+  <div class="toc-section toc-sub"><span class="toc-num">2.2</span><span class="toc-label">Hybrid On-Chain / Off-Chain Design</span></div>
+  <div class="toc-section toc-sub"><span class="toc-num">2.3</span><span class="toc-label">Canton Network Integration</span></div>
+  <div class="toc-section toc-sub"><span class="toc-num">2.4</span><span class="toc-label">Technology Stack</span></div>
+
+  <div class="toc-section"><span class="toc-num">03</span><span class="toc-label">Hybrid Lending Protocol</span></div>
+  <div class="toc-section toc-sub"><span class="toc-num">3.1</span><span class="toc-label">Supply and Borrow Mechanics</span></div>
+  <div class="toc-section toc-sub"><span class="toc-num">3.2</span><span class="toc-label">Interest Rate Model</span></div>
+  <div class="toc-section toc-sub"><span class="toc-num">3.3</span><span class="toc-label">Index-Based Interest Accrual</span></div>
+  <div class="toc-section toc-sub"><span class="toc-num">3.4</span><span class="toc-label">Health Factor and Liquidation</span></div>
+  <div class="toc-section toc-sub"><span class="toc-num">3.5</span><span class="toc-label">Flash Loans</span></div>
+
+  <div class="toc-section"><span class="toc-num">04</span><span class="toc-label">Asset-Agnostic Collateral Framework</span></div>
+  <div class="toc-section"><span class="toc-num">05</span><span class="toc-label">Hybrid Credit Scoring System</span></div>
+  <div class="toc-section"><span class="toc-num">06</span><span class="toc-label">Liquidation Engine</span></div>
+  <div class="toc-section"><span class="toc-num">07</span><span class="toc-label">Securities Lending Protocol</span></div>
+  <div class="toc-section"><span class="toc-num">08</span><span class="toc-label">Governance and Tokenomics</span></div>
+  <div class="toc-section"><span class="toc-num">09</span><span class="toc-label">Privacy and Dual-Track Architecture</span></div>
+  <div class="toc-section"><span class="toc-num">10</span><span class="toc-label">Oracle and Price Feed System</span></div>
+  <div class="toc-section"><span class="toc-num">11</span><span class="toc-label">Security Considerations</span></div>
+  <div class="toc-section"><span class="toc-num">12</span><span class="toc-label">Canton Network and Ecosystem</span></div>
+  <div class="toc-section"><span class="toc-num">13</span><span class="toc-label">Roadmap and Conclusion</span></div>
+
+  <div class="toc-section toc-appendix"><span class="toc-num">A</span><span class="toc-label">DAML Smart Contract Templates</span></div>
+  <div class="toc-section toc-appendix"><span class="toc-num">—</span><span class="toc-label">References</span></div>
+</div>
+
+<!-- ═══════ MAIN CONTENT ═══════ -->
+<div class="content">
+<h2>1. Introduction</h2>
+<h3>1.1 The Structural Gap</h3>
+<p>The global lending ecosystem operates along two disconnected tracks. Traditional securities lending (<span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord">2.8</span><span class="mord mathnormal">t</span><span class="mord mathnormal" style="margin-right:0.02778em;">r</span><span class="mord mathnormal">i</span><span class="mord mathnormal" style="margin-right:0.01968em;">l</span><span class="mord mathnormal" style="margin-right:0.01968em;">l</span><span class="mord mathnormal">i</span><span class="mord mathnormal">o</span><span class="mord mathnormal">n</span><span class="mord mathnormal">o</span><span class="mord mathnormal">u</span><span class="mord mathnormal">t</span><span class="mord mathnormal">s</span><span class="mord mathnormal">t</span><span class="mord mathnormal">an</span><span class="mord mathnormal">d</span><span class="mord mathnormal">in</span><span class="mord mathnormal" style="margin-right:0.03588em;">g</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal" style="margin-right:0.07847em;">I</span><span class="mord mathnormal" style="margin-right:0.05764em;">S</span><span class="mord mathnormal">L</span><span class="mord mathnormal">A</span><span class="mord">2024</span><span class="mclose">)</span><span class="mord mathnormal">i</span><span class="mord mathnormal">sco</span><span class="mord mathnormal">n</span><span class="mord mathnormal">s</span><span class="mord mathnormal">t</span><span class="mord mathnormal" style="margin-right:0.02778em;">r</span><span class="mord mathnormal">ain</span><span class="mord mathnormal">e</span><span class="mord mathnormal">d</span><span class="mord mathnormal">b</span><span class="mord mathnormal" style="margin-right:0.03588em;">y</span><span class="mord mathnormal" style="margin-right:0.13889em;">T</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:0.8889em;vertical-align:-0.1944em;"></span><span class="mord">2</span><span class="mord mathnormal">se</span><span class="mord mathnormal" style="margin-right:0.01968em;">ttl</span><span class="mord mathnormal">e</span><span class="mord mathnormal">m</span><span class="mord mathnormal">e</span><span class="mord mathnormal">n</span><span class="mord mathnormal">t</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal">man</span><span class="mord mathnormal">u</span><span class="mord mathnormal">a</span><span class="mord mathnormal" style="margin-right:0.01968em;">l</span><span class="mord mathnormal" style="margin-right:0.02778em;">r</span><span class="mord mathnormal">eco</span><span class="mord mathnormal">n</span><span class="mord mathnormal">c</span><span class="mord mathnormal">i</span><span class="mord mathnormal" style="margin-right:0.01968em;">l</span><span class="mord mathnormal">ia</span><span class="mord mathnormal">t</span><span class="mord mathnormal">i</span><span class="mord mathnormal">o</span><span class="mord mathnormal">n</span><span class="mord mathnormal">co</span><span class="mord mathnormal">n</span><span class="mord mathnormal">s</span><span class="mord mathnormal">u</span><span class="mord mathnormal">min</span><span class="mord mathnormal" style="margin-right:0.03588em;">g</span><span class="mord">15</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord">20</span></span></span></span>69B TVL), Compound, Maple Finance -- have proven on-chain lending viable at scale, but suffer from three structural deficiencies preventing institutional adoption: fully transparent positions visible to all participants, absence of credit risk differentiation where all borrowers pay identical rates, and a circular crypto economy generating no productive economic value.</p>
+<p>No protocol in production combines institutional-grade privacy, hybrid credit scoring, asset-agnostic collateral frameworks accepting tokenized real-world assets, productive lending, and regulatory compliance sufficient for bank participation. This gap is a structural impediment to the tokenized economy&#39;s growth.</p>
+<h3>1.2 The Tokenization Catalyst</h3>
+<p>The convergence of regulatory clarity and institutional commitment has created an unprecedented opportunity. Tokenized real-world assets have grown from <span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord">5</span><span class="mord mathnormal">bi</span><span class="mord mathnormal" style="margin-right:0.01968em;">l</span><span class="mord mathnormal" style="margin-right:0.01968em;">l</span><span class="mord mathnormal">i</span><span class="mord mathnormal">o</span><span class="mord mathnormal">n</span><span class="mopen">(</span><span class="mord">2022</span><span class="mclose">)</span><span class="mord mathnormal">t</span><span class="mord mathnormal">oo</span><span class="mord mathnormal" style="margin-right:0.03588em;">v</span><span class="mord mathnormal" style="margin-right:0.02778em;">er</span></span></span></span>36 billion (2025), with projections of <span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.7278em;vertical-align:-0.0833em;"></span><span class="mord">16</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord">30</span><span class="mord mathnormal">t</span><span class="mord mathnormal" style="margin-right:0.02778em;">r</span><span class="mord mathnormal">i</span><span class="mord mathnormal" style="margin-right:0.01968em;">l</span><span class="mord mathnormal" style="margin-right:0.01968em;">l</span><span class="mord mathnormal">i</span><span class="mord mathnormal">o</span><span class="mord mathnormal">nb</span><span class="mord mathnormal" style="margin-right:0.03588em;">y</span><span class="mord">2030</span><span class="mopen">(</span><span class="mord mathnormal" style="margin-right:0.05017em;">B</span><span class="mord mathnormal" style="margin-right:0.07153em;">C</span><span class="mord mathnormal">G</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal" style="margin-right:0.05764em;">S</span><span class="mord mathnormal">t</span><span class="mord mathnormal">an</span><span class="mord mathnormal">d</span><span class="mord mathnormal">a</span><span class="mord mathnormal" style="margin-right:0.02778em;">r</span><span class="mord mathnormal">d</span><span class="mord mathnormal" style="margin-right:0.07153em;">C</span><span class="mord mathnormal">ha</span><span class="mord mathnormal" style="margin-right:0.02778em;">r</span><span class="mord mathnormal">t</span><span class="mord mathnormal" style="margin-right:0.02778em;">er</span><span class="mord mathnormal">e</span><span class="mord mathnormal">d</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal" style="margin-right:0.07153em;">C</span><span class="mord mathnormal">i</span><span class="mord mathnormal">t</span><span class="mord mathnormal">i</span><span class="mord mathnormal" style="margin-right:0.03588em;">g</span><span class="mord mathnormal" style="margin-right:0.02778em;">r</span><span class="mord mathnormal">o</span><span class="mord mathnormal">u</span><span class="mord mathnormal">p</span><span class="mclose">)</span><span class="mord">.</span><span class="mord mathnormal" style="margin-right:0.02778em;">D</span><span class="mord mathnormal" style="margin-right:0.13889em;">T</span><span class="mord mathnormal" style="margin-right:0.07153em;">C</span><span class="mord mathnormal" style="margin-right:0.07153em;">C</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:0.8889em;vertical-align:-0.1944em;"></span><span class="mord">−</span><span class="mord mathnormal">c</span><span class="mord mathnormal">u</span><span class="mord mathnormal">s</span><span class="mord mathnormal">t</span><span class="mord mathnormal">o</span><span class="mord mathnormal">d</span><span class="mord mathnormal">ian</span><span class="mord mathnormal">o</span><span class="mord mathnormal" style="margin-right:0.10764em;">f</span></span></span></span>99 trillion in securities -- has selected Canton Network for its digital asset initiatives. BlackRock&#39;s BUIDL fund has accumulated $2.85 billion in tokenized Treasury bills. In February 2026, Canton&#39;s expanded institutional working group -- comprising LSEG, Euroclear, Citadel Securities, Tradeweb, Goldman Sachs -- convened to develop standards for interoperable financial applications, including lending and collateral management.</p>
+<h3>1.3 Thesis Statement</h3>
+<blockquote>
+<p><em>Dualis Finance is the lending infrastructure layer for Canton Network -- the blockchain where the world&#39;s largest financial institutions tokenize real assets. We do not tokenize assets; we build the lending markets those assets need.</em></p>
+</blockquote>
+<p>Dualis delivers on this thesis through five core innovations:</p>
+<ol>
+<li><p><strong>Hybrid Credit Scoring.</strong> A three-layer composite system combining on-chain behavioral analytics (40%), zero-knowledge off-chain credentials (35%), and ecosystem reputation (25%) to classify borrowers into five tiers -- Diamond, Gold, Silver, Bronze, Unrated -- each with differentiated terms.</p>
+</li>
+<li><p><strong>Productive Real-World Lending.</strong> Borrowed capital deployed into verified physical and digital economy projects -- trade finance, equipment leasing, renewable energy -- generating yield from real economic activity.</p>
+</li>
+<li><p><strong>Institutional Securities Lending.</strong> On-chain securities lending leveraging Canton&#39;s atomic settlement to reduce fees by ~90% versus prime brokers, from 50-200 bps to 5-20 bps.</p>
+</li>
+<li><p><strong>Dual-Track Architecture.</strong> Institutional participants access KYB-verified dedicated pools; retail users access standard shared pools; both draw from a unified liquidity layer.</p>
+</li>
+<li><p><strong>Privacy-by-Design.</strong> Canton&#39;s sub-transaction privacy ensures position confidentiality visible only to transaction participants and authorized regulators.</p>
+</li>
+</ol>
+<hr>
+<h2>2. Protocol Architecture</h2>
+<h3>2.1 System Overview</h3>
+<p>Dualis Finance is a monorepo comprising five packages -- shared utilities, backend API, frontend application, configuration, and Canton smart contracts -- orchestrated by pnpm workspaces and Turborepo.</p>
+<pre><code>+-------------------------------------------------------------+
+|                    Users (Institutional / Retail)             |
++-------------------------------------------------------------+
+        |                                            |
+        v                                            v
++-------------------+                    +--------------------+
+| PartyLayer SDK    |                    | External Wallets   |
+| (CIP-0103 wallet  |                    | (Console, Loop,    |
+|  abstraction)     |                    |  Cantor8, Nightly)  |
++-------------------+                    +--------------------+
+        |                                            |
+        +--------------------+  +--------------------+
+                             |  |
+                             v  v
++-------------------------------------------------------------+
+|           Frontend (Next.js 14.2 App Router)                 |
+|           89 pages | 116 components | Zustand state          |
++-------------------------------------------------------------+
+        |                         |
+        v                         v
++---------------------------+  +---------------------------+
+| REST API (262 endpoints)  |  | WebSocket (real-time)     |
+| Fastify 5.7 + Node.js    |  | Position updates, prices  |
++---------------------------+  +---------------------------+
+        |           |           |            |
+        v           v           v            v
++----------+  +-----------+  +----------+  +--------+
+| PostgreSQL|  | Canton    |  | Oracle   |  | Redis  |
+| (63 tables|  | Ledger    |  | Service  |  | (cache,|
+| Drizzle   |  | (38 DAML  |  | (11 feeds|  |  rate  |
+| ORM)      |  |  templates|  |  4 sources| |  limit)|
++----------+  |  25 modules|  +----------+  +--------+
+              +-----------+
+</code></pre>
+<p>The architecture separates concerns along three axes: <em>confidentiality</em> (Canton), <em>performance</em> (Redis + PostgreSQL), and <em>correctness</em> (DAML smart contracts).</p>
+<h3>2.2 Hybrid On-Chain / Off-Chain Design</h3>
+<p><strong>On-Chain State (Canton DAML).</strong> All financial state requiring cryptographic integrity resides on-ledger: position contracts, atomic settlement transactions, collateral locks, and governance votes. Canton provides sub-transaction privacy (only participants see data), atomic settlement (all-or-nothing execution), and regulatory auditability.</p>
+<p><strong>Off-Chain State (PostgreSQL).</strong> Derived and non-financial state resides in PostgreSQL via Drizzle ORM: analytics aggregations, user preferences, credit score components, and oracle price cache. Synchronization operates through Canton&#39;s gRPC transaction stream subscription with sub-second propagation delay.</p>
+<p>This hybrid approach enables sub-100ms page loads while preserving Canton&#39;s guarantees for all financial state modifications.</p>
+<h3>2.3 Canton Network Integration</h3>
+<p><strong>Command Submission</strong> via Canton JSON API v2 for all write operations with built-in command deduplication. <strong>Transaction Stream</strong> via gRPC Ledger API for real-time state synchronization.</p>
+<p><strong>DAML Smart Contracts.</strong> 38 templates across 25 modules, compiled to Daml-LF 2.1. Key design decisions: no contract keys (LF 2.1 constraint -- lookups via contract IDs with off-chain mapping), signatory/observer authorization replacing role-based access control, and atomic multi-party transactions eliminating reentrancy risks.</p>
+<h3>2.4 Technology Stack</h3>
+<table>
+<thead>
+<tr>
+<th>Layer</th>
+<th>Technology</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Smart Contracts</td>
+<td>DAML 3.4.11 (LF 2.1)</td>
+<td>On-chain financial logic, atomic settlement</td>
+</tr>
+<tr>
+<td>API Framework</td>
+<td>Fastify 5.7</td>
+<td>High-performance REST API (262 endpoints)</td>
+</tr>
+<tr>
+<td>ORM</td>
+<td>Drizzle</td>
+<td>Type-safe PostgreSQL query builder</td>
+</tr>
+<tr>
+<td>Database</td>
+<td>PostgreSQL 16</td>
+<td>Persistent storage (63 tables)</td>
+</tr>
+<tr>
+<td>Cache</td>
+<td>Redis (ioredis)</td>
+<td>Sessions, rate limiting, caching</td>
+</tr>
+<tr>
+<td>Job Queue</td>
+<td>BullMQ</td>
+<td>Interest accrual, oracle sync</td>
+</tr>
+<tr>
+<td>Frontend</td>
+<td>Next.js 14.2</td>
+<td>React SSR (89 pages, 116 components)</td>
+</tr>
+<tr>
+<td>Client State</td>
+<td>Zustand</td>
+<td>Lightweight state management</td>
+</tr>
+<tr>
+<td>UI</td>
+<td>Radix UI + Tailwind CSS</td>
+<td>Accessible components</td>
+</tr>
+<tr>
+<td>Wallet</td>
+<td>PartyLayer SDK</td>
+<td>CIP-0103 Canton wallet abstraction</td>
+</tr>
+<tr>
+<td>Identity</td>
+<td>Sumsub</td>
+<td>KYB/KYC verification</td>
+</tr>
+<tr>
+<td>Compliance</td>
+<td>Chainalysis</td>
+<td>Transaction screening, AML</td>
+</tr>
+<tr>
+<td>Build</td>
+<td>Turborepo + pnpm</td>
+<td>Monorepo orchestration</td>
+</tr>
+<tr>
+<td>Testing</td>
+<td>Vitest</td>
+<td>230+ unit/integration tests</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>3. Hybrid Lending Protocol</h2>
+<h3>3.1 Supply and Borrow Mechanics</h3>
+<p><strong>Supply.</strong> Liquidity providers deposit assets into lending pools. The protocol records a supply position with principal <span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6833em;"></span><span class="mord mathnormal">A</span></span></span></span> and captures the current supply index <span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.07847em;">I</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.1514em;"><span style="top:-2.55em;margin-left:-0.0785em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">s</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mopen">(</span><span class="mord"><span class="mord mathnormal">t</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3011em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">0</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mclose">)</span></span></span></span>. No receipt token is minted -- the Canton contract itself serves as the authoritative record. At any time <span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6151em;"></span><span class="mord mathnormal">t</span></span></span></span>:</p>
+<div class="math-display"><span class="katex-display"><span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord text"><span class="mord">Balance</span></span><span class="mopen">(</span><span class="mord mathnormal">t</span><span class="mclose">)</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.7667em;vertical-align:-0.0833em;"></span><span class="mord mathnormal">A</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">×</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:2.363em;vertical-align:-0.936em;"></span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.427em;"><span style="top:-2.314em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord"><span class="mord mathnormal" style="margin-right:0.07847em;">I</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.1514em;"><span style="top:-2.55em;margin-left:-0.0785em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">s</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mopen">(</span><span class="mord"><span class="mord mathnormal">t</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3011em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">0</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mclose">)</span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.677em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord"><span class="mord mathnormal" style="margin-right:0.07847em;">I</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.1514em;"><span style="top:-2.55em;margin-left:-0.0785em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">s</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mopen">(</span><span class="mord mathnormal">t</span><span class="mclose">)</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.936em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span></span></span></span></span></div>
+
+<p><strong>Borrow.</strong> Borrowers post collateral and draw loans up to their borrowing capacity:</p>
+<div class="math-display"><span class="katex-display"><span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8778em;vertical-align:-0.1944em;"></span><span class="mord text"><span class="mord">BorrowingCapacity</span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:2.9291em;vertical-align:-1.2777em;"></span><span class="mop op-limits"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.6514em;"><span style="top:-1.8723em;margin-left:0em;"><span class="pstrut" style="height:3.05em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">i</span><span class="mrel mtight">=</span><span class="mord mtight">1</span></span></span></span><span style="top:-3.05em;"><span class="pstrut" style="height:3.05em;"></span><span><span class="mop op-symbol large-op">∑</span></span></span><span style="top:-4.3em;margin-left:0em;"><span class="pstrut" style="height:3.05em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">n</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:1.2777em;"><span></span></span></span></span></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="minner"><span class="mopen delimcenter" style="top:0em;">(</span><span class="mord"><span class="mord text"><span class="mord">Collateral</span></span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3117em;"><span style="top:-2.55em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">i</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">×</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mord"><span class="mord text"><span class="mord">Price</span></span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3117em;"><span style="top:-2.55em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">i</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">×</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mord"><span class="mord text"><span class="mord">LTV</span></span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3117em;"><span style="top:-2.55em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">i</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">×</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mord"><span class="mord text"><span class="mord">TierHaircut</span></span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3117em;"><span style="top:-2.55em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">i</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mclose delimcenter" style="top:0em;">)</span></span></span></span></span></span></div>
+
+<p>Outstanding debt at time <span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6151em;"></span><span class="mord mathnormal">t</span></span></span></span>: <span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord text"><span class="mord">Debt</span></span><span class="mopen">(</span><span class="mord mathnormal">t</span><span class="mclose">)</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.8889em;vertical-align:-0.1944em;"></span><span class="mord text"><span class="mord">Principal</span></span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">×</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.07847em;">I</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:-0.0785em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">b</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mopen">(</span><span class="mord mathnormal">t</span><span class="mclose">)</span><span class="mord">/</span><span class="mord"><span class="mord mathnormal" style="margin-right:0.07847em;">I</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:-0.0785em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">b</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mopen">(</span><span class="mord"><span class="mord mathnormal">t</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3011em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">0</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mclose">)</span></span></span></span></p>
+<h3>3.2 Interest Rate Model -- Jump Rate Model</h3>
+<p>Dualis employs a Jump Rate Model with a utilization kink that provides predictable rates at normal levels and sharply escalating rates as utilization approaches 100%.</p>
+<div class="math-display"><span class="katex-display"><span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.00773em;">R</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:-0.0077em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">b</span><span class="mord mathnormal mtight" style="margin-right:0.02778em;">or</span><span class="mord mathnormal mtight" style="margin-right:0.02778em;">r</span><span class="mord mathnormal mtight">o</span><span class="mord mathnormal mtight" style="margin-right:0.02691em;">w</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mopen">(</span><span class="mord mathnormal" style="margin-right:0.10903em;">U</span><span class="mclose">)</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:3em;vertical-align:-1.25em;"></span><span class="minner"><span class="mopen delimcenter" style="top:0em;"><span class="delimsizing size4">{</span></span><span class="mord"><span class="mtable"><span class="col-align-l"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.69em;"><span style="top:-3.69em;"><span class="pstrut" style="height:3.008em;"></span><span class="mord"><span class="mord"><span class="mord mathnormal" style="margin-right:0.00773em;">R</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:-0.0077em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">ba</span><span class="mord mathnormal mtight">se</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mord mathnormal" style="margin-right:0.10903em;">U</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">×</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.00773em;">R</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:-0.0077em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">s</span><span class="mord mathnormal mtight" style="margin-right:0.01968em;">l</span><span class="mord mathnormal mtight">o</span><span class="mord mathnormal mtight">p</span><span class="mord mathnormal mtight">e</span><span class="mord mtight">1</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.2861em;"><span></span></span></span></span></span></span></span></span><span style="top:-2.25em;"><span class="pstrut" style="height:3.008em;"></span><span class="mord"><span class="mord"><span class="mord mathnormal" style="margin-right:0.00773em;">R</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:-0.0077em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">ba</span><span class="mord mathnormal mtight">se</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.10903em;">U</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:-0.109em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">o</span><span class="mord mathnormal mtight">pt</span><span class="mord mathnormal mtight">ima</span><span class="mord mathnormal mtight" style="margin-right:0.01968em;">l</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.2861em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">×</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.00773em;">R</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:-0.0077em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">s</span><span class="mord mathnormal mtight" style="margin-right:0.01968em;">l</span><span class="mord mathnormal mtight">o</span><span class="mord mathnormal mtight">p</span><span class="mord mathnormal mtight">e</span><span class="mord mtight">1</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.2861em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mopen">(</span><span class="mord mathnormal" style="margin-right:0.10903em;">U</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.10903em;">U</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:-0.109em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">o</span><span class="mord mathnormal mtight">pt</span><span class="mord mathnormal mtight">ima</span><span class="mord mathnormal mtight" style="margin-right:0.01968em;">l</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.2861em;"><span></span></span></span></span></span></span><span class="mclose">)</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">×</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.00773em;">R</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:-0.0077em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">s</span><span class="mord mathnormal mtight" style="margin-right:0.01968em;">l</span><span class="mord mathnormal mtight">o</span><span class="mord mathnormal mtight">p</span><span class="mord mathnormal mtight">e</span><span class="mord mtight">2</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.2861em;"><span></span></span></span></span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:1.19em;"><span></span></span></span></span></span><span class="arraycolsep" style="width:1em;"></span><span class="col-align-l"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.69em;"><span style="top:-3.69em;"><span class="pstrut" style="height:3.008em;"></span><span class="mord"><span class="mord text"><span class="mord">if </span></span><span class="mord mathnormal" style="margin-right:0.10903em;">U</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">≤</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.10903em;">U</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:-0.109em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">o</span><span class="mord mathnormal mtight">pt</span><span class="mord mathnormal mtight">ima</span><span class="mord mathnormal mtight" style="margin-right:0.01968em;">l</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.2861em;"><span></span></span></span></span></span></span></span></span><span style="top:-2.25em;"><span class="pstrut" style="height:3.008em;"></span><span class="mord"><span class="mord text"><span class="mord">if </span></span><span class="mord mathnormal" style="margin-right:0.10903em;">U</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">&gt;</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.10903em;">U</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:-0.109em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">o</span><span class="mord mathnormal mtight">pt</span><span class="mord mathnormal mtight">ima</span><span class="mord mathnormal mtight" style="margin-right:0.01968em;">l</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.2861em;"><span></span></span></span></span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:1.19em;"><span></span></span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span></span></span></span></span></div>
+
+<div class="math-display"><span class="katex-display"><span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1.0361em;vertical-align:-0.2861em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.00773em;">R</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:-0.0077em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">s</span><span class="mord mathnormal mtight">u</span><span class="mord mathnormal mtight" style="margin-right:0.01968em;">ppl</span><span class="mord mathnormal mtight" style="margin-right:0.03588em;">y</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.2861em;"><span></span></span></span></span></span></span><span class="mopen">(</span><span class="mord mathnormal" style="margin-right:0.10903em;">U</span><span class="mclose">)</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.00773em;">R</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:-0.0077em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">b</span><span class="mord mathnormal mtight" style="margin-right:0.02778em;">or</span><span class="mord mathnormal mtight" style="margin-right:0.02778em;">r</span><span class="mord mathnormal mtight">o</span><span class="mord mathnormal mtight" style="margin-right:0.02691em;">w</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mopen">(</span><span class="mord mathnormal" style="margin-right:0.10903em;">U</span><span class="mclose">)</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">×</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:0.7667em;vertical-align:-0.0833em;"></span><span class="mord mathnormal" style="margin-right:0.10903em;">U</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">×</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mopen">(</span><span class="mord">1</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord text"><span class="mord">ReserveFactor</span></span><span class="mclose">)</span></span></span></span></span></div>
+
+<p><strong>Per-Asset Rate Parameters:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Asset</th>
+<th><span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8333em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.00773em;">R</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:-0.0077em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">ba</span><span class="mord mathnormal mtight">se</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span></th>
+<th><span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.9694em;vertical-align:-0.2861em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.00773em;">R</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:-0.0077em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">s</span><span class="mord mathnormal mtight" style="margin-right:0.01968em;">l</span><span class="mord mathnormal mtight">o</span><span class="mord mathnormal mtight">p</span><span class="mord mathnormal mtight">e</span><span class="mord mtight">1</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.2861em;"><span></span></span></span></span></span></span></span></span></span></th>
+<th><span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.9694em;vertical-align:-0.2861em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.10903em;">U</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:-0.109em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">o</span><span class="mord mathnormal mtight">pt</span><span class="mord mathnormal mtight">ima</span><span class="mord mathnormal mtight" style="margin-right:0.01968em;">l</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.2861em;"><span></span></span></span></span></span></span></span></span></span></th>
+<th><span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.9694em;vertical-align:-0.2861em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.00773em;">R</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:-0.0077em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">s</span><span class="mord mathnormal mtight" style="margin-right:0.01968em;">l</span><span class="mord mathnormal mtight">o</span><span class="mord mathnormal mtight">p</span><span class="mord mathnormal mtight">e</span><span class="mord mtight">2</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.2861em;"><span></span></span></span></span></span></span></span></span></span></th>
+<th>Reserve Factor</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>USDC / USDT</td>
+<td>2.0%</td>
+<td>7.0%</td>
+<td>80%</td>
+<td>30.0%</td>
+<td>10%</td>
+</tr>
+<tr>
+<td>wBTC / wETH / ETH</td>
+<td>1.0%</td>
+<td>4.0%</td>
+<td>65%</td>
+<td>50.0%</td>
+<td>15%</td>
+</tr>
+<tr>
+<td>CC (Canton Coin)</td>
+<td>3.0%</td>
+<td>10.0%</td>
+<td>60%</td>
+<td>80.0%</td>
+<td>20%</td>
+</tr>
+<tr>
+<td>RWA T-Bills</td>
+<td>4.0%</td>
+<td>3.0%</td>
+<td>90%</td>
+<td>15.0%</td>
+<td>5%</td>
+</tr>
+<tr>
+<td>TIFA Receivables</td>
+<td>8.0%</td>
+<td>12.0%</td>
+<td>70%</td>
+<td>60.0%</td>
+<td>15%</td>
+</tr>
+<tr>
+<td>Tokenized Equity</td>
+<td>2.0%</td>
+<td>5.0%</td>
+<td>75%</td>
+<td>18.0%</td>
+<td>10%</td>
+</tr>
+</tbody></table>
+<h3>3.3 Index-Based Interest Accrual</h3>
+<p>Each pool maintains supply and borrow indices (initialized to 1.0), updated at each accrual event:</p>
+<div class="math-display"><span class="katex-display"><span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.07847em;">I</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:-0.0785em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">b</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mopen">(</span><span class="mord mathnormal">t</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord">Δ</span><span class="mord mathnormal">t</span><span class="mclose">)</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.07847em;">I</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:-0.0785em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">b</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mopen">(</span><span class="mord mathnormal">t</span><span class="mclose">)</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">×</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="minner"><span class="mopen delimcenter" style="top:0em;">(</span><span class="mord">1</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.02778em;">r</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:-0.0278em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">b</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">×</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mord">Δ</span><span class="mord mathnormal">t</span><span class="mclose delimcenter" style="top:0em;">)</span></span></span></span></span></span></div>
+
+<p>where <span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.5806em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.02778em;">r</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:-0.0278em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">b</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.00773em;">R</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:-0.0077em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">b</span><span class="mord mathnormal mtight" style="margin-right:0.02778em;">or</span><span class="mord mathnormal mtight" style="margin-right:0.02778em;">r</span><span class="mord mathnormal mtight">o</span><span class="mord mathnormal mtight" style="margin-right:0.02691em;">w</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mopen">(</span><span class="mord mathnormal" style="margin-right:0.10903em;">U</span><span class="mclose">)</span><span class="mord">/31</span><span class="mord"><span class="mpunct">,</span></span><span class="mord">557</span><span class="mord"><span class="mpunct">,</span></span><span class="mord">600</span></span></span></span>. Any user&#39;s balance is computed as <span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.7667em;vertical-align:-0.0833em;"></span><span class="mord mathnormal" style="margin-right:0.13889em;">P</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">×</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal" style="margin-right:0.07847em;">I</span><span class="mopen">(</span><span class="mord mathnormal">t</span><span class="mclose">)</span><span class="mord">/</span><span class="mord mathnormal" style="margin-right:0.07847em;">I</span><span class="mopen">(</span><span class="mord"><span class="mord mathnormal">t</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3011em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">0</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mclose">)</span></span></span></span> -- capturing all accrued interest in O(1) computation regardless of position count. This mechanism is validated against 230+ unit tests covering edge cases including zero-time deltas and multi-year compounding.</p>
+<h3>3.4 Health Factor and Liquidation</h3>
+<div class="math-display"><span class="katex-display"><span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6833em;"></span><span class="mord mathnormal" style="margin-right:0.08125em;">H</span><span class="mord mathnormal" style="margin-right:0.13889em;">F</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:2.1257em;vertical-align:-0.686em;"></span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.4397em;"><span style="top:-2.314em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord text"><span class="mord">TotalBorrowsUSD</span></span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.6897em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mop"><span class="mop op-symbol small-op" style="position:relative;top:0em;">∑</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.162em;"><span style="top:-2.4003em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">i</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.2997em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="minner"><span class="mopen delimcenter" style="top:0em;">(</span><span class="mord"><span class="mord text"><span class="mord">Collateral</span></span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3117em;"><span style="top:-2.55em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">i</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">×</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mord"><span class="mord text"><span class="mord">Price</span></span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3117em;"><span style="top:-2.55em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">i</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">×</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mord"><span class="mord text"><span class="mord">LiqThreshold</span></span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.2175em;"><span style="top:-2.4559em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">i</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.2441em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">×</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mord"><span class="mord text"><span class="mord">TierHaircut</span></span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3117em;"><span style="top:-2.55em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">i</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mclose delimcenter" style="top:0em;">)</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.686em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span></span></span></span></span></div>
+
+<table>
+<thead>
+<tr>
+<th>Status</th>
+<th>HF Range</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Safe</strong></td>
+<td>HF &gt; 2.0</td>
+<td>Well over-collateralized</td>
+</tr>
+<tr>
+<td><strong>Healthy</strong></td>
+<td>1.5 &lt; HF ≤ 2.0</td>
+<td>Adequate margin</td>
+</tr>
+<tr>
+<td><strong>Caution</strong></td>
+<td>1.2 &lt; HF ≤ 1.5</td>
+<td>Reduced margin, warnings issued</td>
+</tr>
+<tr>
+<td><strong>Danger</strong></td>
+<td>1.0 &lt; HF ≤ 1.2</td>
+<td>Approaching liquidation</td>
+</tr>
+<tr>
+<td><strong>Liquidatable</strong></td>
+<td>HF ≤ 1.0</td>
+<td>Eligible for third-party liquidation</td>
+</tr>
+</tbody></table>
+<p>When HF ≤ 1.0, liquidators repay up to 50% of debt (<span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8444em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord text"><span class="mord">CloseFactor</span></span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">n</span><span class="mord mathnormal mtight" style="margin-right:0.02778em;">or</span><span class="mord mathnormal mtight">ma</span><span class="mord mathnormal mtight" style="margin-right:0.01968em;">l</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord">0.50</span></span></span></span>; for HF &lt; 0.50, full liquidation at <span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8444em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord text"><span class="mord">CloseFactor</span></span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.02778em;">cr</span><span class="mord mathnormal mtight">i</span><span class="mord mathnormal mtight">t</span><span class="mord mathnormal mtight">i</span><span class="mord mathnormal mtight">c</span><span class="mord mathnormal mtight">a</span><span class="mord mathnormal mtight" style="margin-right:0.01968em;">l</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord">1.00</span></span></span></span>). Collateral seized: <span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8889em;vertical-align:-0.1944em;"></span><span class="mord text"><span class="mord">DebtRepaid</span></span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">×</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mopen">(</span><span class="mord">1</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord text"><span class="mord">LiqPenalty</span></span><span class="mclose">)</span><span class="mord">/</span><span class="mord text"><span class="mord">CollateralPrice</span></span></span></span></span>. Of the penalty, 90% goes to the liquidator and 10% to the protocol treasury.</p>
+<h3>3.5 Flash Loans</h3>
+<p>Atomic, single-transaction uncollateralized loans that must be repaid within the same Canton transaction. Fee: 0.09% (9 bps). Use cases include arbitrage, collateral swaps, self-liquidation (avoiding 3-10% penalty), and debt refinancing. Canton&#39;s atomic multi-party transactions guarantee the lending pool is never exposed to credit risk.</p>
+<hr>
+<h2>4. Asset-Agnostic Collateral Framework</h2>
+<h3>4.1 Three-Tier Classification</h3>
+<p>The protocol classifies collateral into three tiers based on liquidity, volatility, and settlement risk:</p>
+<table>
+<thead>
+<tr>
+<th>Tier</th>
+<th>Asset Class</th>
+<th>Haircut</th>
+<th>Effective Value</th>
+<th>Rationale</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>crypto</strong></td>
+<td>USDC, wBTC, wETH, ETH, CC</td>
+<td>0%</td>
+<td>100%</td>
+<td>Deep 24/7 liquidity, instant settlement</td>
+</tr>
+<tr>
+<td><strong>rwa</strong></td>
+<td>T-Bills, bonds, structured products</td>
+<td>5%</td>
+<td>95%</td>
+<td>Settlement risk, oracle latency, transfer restrictions</td>
+</tr>
+<tr>
+<td><strong>tifa</strong></td>
+<td>Trade receivables and invoices</td>
+<td>20%</td>
+<td>80%</td>
+<td>Illiquid secondary markets, counterparty risk</td>
+</tr>
+</tbody></table>
+<h3>4.2 Per-Asset Risk Parameters</h3>
+<table>
+<thead>
+<tr>
+<th>Asset</th>
+<th>LTV</th>
+<th>Liq. Threshold</th>
+<th>Liq. Penalty</th>
+<th>Borrow Cap</th>
+<th>Supply Cap</th>
+<th>Tier</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>USDC</td>
+<td>80%</td>
+<td>85%</td>
+<td>4%</td>
+<td><span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord">500</span><span class="mord mathnormal" style="margin-right:0.10903em;">M</span><span class="mord">∣</span></span></span></span>1B</td>
+<td>crypto</td>
+<td></td>
+</tr>
+<tr>
+<td>wBTC</td>
+<td>73%</td>
+<td>80%</td>
+<td>6%</td>
+<td><span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord">50</span><span class="mord mathnormal" style="margin-right:0.10903em;">M</span><span class="mord">∣</span></span></span></span>100M</td>
+<td>crypto</td>
+<td></td>
+</tr>
+<tr>
+<td>wETH</td>
+<td>75%</td>
+<td>82%</td>
+<td>5%</td>
+<td><span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord">100</span><span class="mord mathnormal" style="margin-right:0.10903em;">M</span><span class="mord">∣</span></span></span></span>200M</td>
+<td>crypto</td>
+<td></td>
+</tr>
+<tr>
+<td>ETH</td>
+<td>75%</td>
+<td>82%</td>
+<td>5%</td>
+<td><span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord">100</span><span class="mord mathnormal" style="margin-right:0.10903em;">M</span><span class="mord">∣</span></span></span></span>200M</td>
+<td>crypto</td>
+<td></td>
+</tr>
+<tr>
+<td>CC</td>
+<td>55%</td>
+<td>65%</td>
+<td>8%</td>
+<td><span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord">20</span><span class="mord mathnormal" style="margin-right:0.10903em;">M</span><span class="mord">∣</span></span></span></span>50M</td>
+<td>crypto</td>
+<td></td>
+</tr>
+<tr>
+<td>RWA-TBILL</td>
+<td>85%</td>
+<td>90%</td>
+<td>3%</td>
+<td><span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord">200</span><span class="mord mathnormal" style="margin-right:0.10903em;">M</span><span class="mord">∣</span></span></span></span>500M</td>
+<td>rwa</td>
+<td></td>
+</tr>
+<tr>
+<td>TIFA-REC</td>
+<td>50%</td>
+<td>60%</td>
+<td>10%</td>
+<td>--</td>
+<td>$100M</td>
+<td>tifa</td>
+</tr>
+<tr>
+<td>SPY (Equity)</td>
+<td>65%</td>
+<td>75%</td>
+<td>6%</td>
+<td><span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord">50</span><span class="mord mathnormal" style="margin-right:0.10903em;">M</span><span class="mord">∣</span></span></span></span>100M</td>
+<td>crypto</td>
+<td></td>
+</tr>
+</tbody></table>
+<p>The LTV-to-Liquidation Threshold gap creates a buffer zone (5-10 percentage points per asset). TIFA-REC is collateral-only (<code>isBorrowEnabled: false</code>). Cross-collateralization allows multiple asset types simultaneously, with the Health Factor calculation independently weighting each asset&#39;s contribution.</p>
+<h3>4.3 Governance-Driven Asset Onboarding</h3>
+<p>New collateral assets are onboarded through a four-phase governance process: (1) Proposal submission with oracle, liquidity, and risk analysis; (2) Risk assessment covering oracle reliability, liquidity depth, regulatory status, and smart contract review; (3) Supermajority governance vote (67% with 10% quorum); (4) Staged activation with conservative initial parameters progressively relaxed as usage data validates behavior.</p>
+<hr>
+<h2>5. Hybrid Credit Scoring System</h2>
+<h3>5.1 Composite Architecture</h3>
+<p>The Dualis credit score combines three independent dimensions:</p>
+<div class="math-display"><span class="katex-display"><span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8333em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.05764em;">S</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:-0.0576em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.02778em;">cr</span><span class="mord mathnormal mtight">e</span><span class="mord mathnormal mtight">d</span><span class="mord mathnormal mtight">i</span><span class="mord mathnormal mtight">t</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.7278em;vertical-align:-0.0833em;"></span><span class="mord">0.40</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">×</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:0.8333em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.05764em;">S</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:-0.0576em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">o</span><span class="mord mathnormal mtight">n</span><span class="mord mathnormal mtight">c</span><span class="mord mathnormal mtight">hain</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:0.7278em;vertical-align:-0.0833em;"></span><span class="mord">0.35</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">×</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:0.9694em;vertical-align:-0.2861em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.05764em;">S</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:-0.0576em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">o</span><span class="mord mathnormal mtight" style="margin-right:0.10764em;">f</span><span class="mord mathnormal mtight" style="margin-right:0.10764em;">f</span><span class="mord mathnormal mtight">c</span><span class="mord mathnormal mtight">hain</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.2861em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:0.7278em;vertical-align:-0.0833em;"></span><span class="mord">0.25</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">×</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:0.9694em;vertical-align:-0.2861em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.05764em;">S</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.2806em;"><span style="top:-2.55em;margin-left:-0.0576em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.03588em;">ecosy</span><span class="mord mathnormal mtight">s</span><span class="mord mathnormal mtight">t</span><span class="mord mathnormal mtight">e</span><span class="mord mathnormal mtight">m</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.2861em;"><span></span></span></span></span></span></span></span></span></span></span></div>
+
+<p><strong>Layer 1: On-Chain History (40%).</strong> Analyzes verifiable protocol behavior across four sub-factors: repayment ratio (<span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.5806em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0037em;">α</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3011em;"><span style="top:-2.55em;margin-left:-0.0037em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">1</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord">0.35</span></span></span></span>, max 300 pts), utilization volume on logarithmic scale (<span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.5806em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0037em;">α</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3011em;"><span style="top:-2.55em;margin-left:-0.0037em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">2</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord">0.25</span></span></span></span>, max 200 pts), risk management discipline via lowest-ever HF (<span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.5806em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0037em;">α</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3011em;"><span style="top:-2.55em;margin-left:-0.0037em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">3</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord">0.25</span></span></span></span>, max 150 pts), and tenure via securities lending activity (<span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.5806em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0037em;">α</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3011em;"><span style="top:-2.55em;margin-left:-0.0037em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">4</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord">0.15</span></span></span></span>, max 100 pts).</p>
+<p><strong>Layer 2: Off-Chain ZK Credentials (35%).</strong> Borrowers submit zero-knowledge proofs of real-world credentials -- credit score ranges, employment verification, asset thresholds -- without revealing underlying data. ZK circuits produce boolean attestations as public output while keeping credentials private.</p>
+<p><strong>Layer 3: Ecosystem Reputation (25%).</strong> Measures Canton Network participation: governance activity, validator staking, multi-protocol interactions. Anti-sybil measures include time-weighted scoring, diminishing marginal returns, and cross-correlation analysis.</p>
+<h3>5.2 Credit Tiers and Benefits</h3>
+<table>
+<thead>
+<tr>
+<th>Tier</th>
+<th>Score</th>
+<th>Max LTV</th>
+<th>Rate Discount</th>
+<th>Min Collateral</th>
+<th>Liq. Buffer</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Diamond</strong></td>
+<td>850-1000</td>
+<td>85%</td>
+<td>25%</td>
+<td>1.15x</td>
+<td>5%</td>
+</tr>
+<tr>
+<td><strong>Gold</strong></td>
+<td>700-849</td>
+<td>78%</td>
+<td>15%</td>
+<td>1.25x</td>
+<td>8%</td>
+</tr>
+<tr>
+<td><strong>Silver</strong></td>
+<td>500-699</td>
+<td>70%</td>
+<td>8%</td>
+<td>1.35x</td>
+<td>10%</td>
+</tr>
+<tr>
+<td><strong>Bronze</strong></td>
+<td>300-499</td>
+<td>60%</td>
+<td>0%</td>
+<td>1.50x</td>
+<td>12%</td>
+</tr>
+<tr>
+<td><strong>Unrated</strong></td>
+<td>0-299</td>
+<td>50%</td>
+<td>0%</td>
+<td>1.75x</td>
+<td>15%</td>
+</tr>
+</tbody></table>
+<p>The effective LTV is always <span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mop">min</span><span class="mopen">(</span><span class="mord text"><span class="mord">AssetLTV</span></span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord text"><span class="mord">TierMaxLTV</span></span><span class="mclose">)</span></span></span></span>. A Diamond borrower using wETH (LTV 75%) borrows at <span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8333em;vertical-align:-0.0833em;"></span><span class="mord">7.60%</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">×</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord">0.75</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.8056em;vertical-align:-0.0556em;"></span><span class="mord">5.70%</span></span></span></span> -- saving <span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord">19</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord">000/</span><span class="mord mathnormal" style="margin-right:0.03588em;">y</span><span class="mord mathnormal">e</span><span class="mord mathnormal">a</span><span class="mord mathnormal" style="margin-right:0.02778em;">r</span><span class="mord mathnormal">o</span><span class="mord mathnormal">na</span></span></span></span>1M loan versus an Unrated borrower.</p>
+<h3>5.3 Pre-Liquidation Alerts and Credit Oracle</h3>
+<p>Tiered alerts calibrated per credit tier: Diamond receives first warning at HF 1.30, Unrated at HF 1.80. The <strong>Credit Oracle API</strong> exposes composite scores and tier information to third-party Canton applications, with volume-tiered pricing (<span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.7278em;vertical-align:-0.0833em;"></span><span class="mord">5</span><span class="mord">−</span></span></span></span>50/query) and explicit user consent enforced through Canton&#39;s authorization model.</p>
+<hr>
+<h2>6. Liquidation Engine</h2>
+<h3>6.1 Four-Tier Liquidation Cascade</h3>
+<p>Unlike binary liquidation models, Dualis implements a graduated cascade mirroring institutional risk management:</p>
+<table>
+<thead>
+<tr>
+<th>Tier</th>
+<th>Health Factor</th>
+<th>Max Liquidation %</th>
+<th>Behavior</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Margin Call</td>
+<td>0.95 ≤ HF &lt; 1.00</td>
+<td>0%</td>
+<td>Warning only; no forced action</td>
+</tr>
+<tr>
+<td>Soft Liquidation</td>
+<td>0.90 ≤ HF &lt; 0.95</td>
+<td>25%</td>
+<td>Partial liquidation to restore solvency</td>
+</tr>
+<tr>
+<td>Forced Liquidation</td>
+<td>0.85 ≤ HF &lt; 0.90</td>
+<td>50%</td>
+<td>Standard half-debt liquidation</td>
+</tr>
+<tr>
+<td>Full Liquidation</td>
+<td>HF &lt; 0.85</td>
+<td>100%</td>
+<td>Emergency full position closure</td>
+</tr>
+</tbody></table>
+<p>The Margin Call tier provides an institutional grace period for internal approval workflows. Soft Liquidation&#39;s 25% cap preserves borrower capital while often restoring HF above 1.0. The entire liquidation sequence executes atomically within a single Canton transaction.</p>
+<h3>6.2 Protective Mechanisms</h3>
+<ul>
+<li><strong>Circuit Breaker</strong>: 20%+ price movement within 5 minutes pauses all liquidation</li>
+<li><strong>Institutional Grace Period</strong>: Margin Call zone extensible via governance</li>
+<li><strong>Emergency Admin Pause</strong>: Global liquidation halt for black-swan events</li>
+<li><strong>Per-asset penalties</strong>: 3% (T-Bills) to 10% (TIFA), split 90/10 between liquidator and treasury</li>
+</ul>
+<hr>
+<h2>7. Securities Lending Protocol</h2>
+<h3>7.1 Market Structure</h3>
+<p>Securities lending on Dualis operates as a peer-to-peer marketplace for tokenized securities with five lifecycle steps: offer creation (<code>FractionalOffer</code>), offer matching with collateral lock, atomic asset transfer, continuous fee accrual, and return with settlement.</p>
+<div class="math-display"><span class="katex-display"><span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8889em;vertical-align:-0.1944em;"></span><span class="mord text"><span class="mord">LendingFee</span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.7778em;vertical-align:-0.0833em;"></span><span class="mord text"><span class="mord">Notional</span></span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">×</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:0.7333em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.02778em;">r</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:-0.0278em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord text mtight"><span class="mord mtight">annual</span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">×</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:1.9781em;vertical-align:-0.686em;"></span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.2921em;"><span style="top:-2.314em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord">365</span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.677em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord"><span class="mord mathnormal">t</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord text mtight"><span class="mord mtight">duration</span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.686em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span></span></span></span></span></div>
+
+<p>Expected rates of 5-20 bps annually versus 50-200 bps from prime brokers -- a ~90% fee reduction. The protocol extracts 10% of the lending fee for the treasury.</p>
+<h3>7.2 Structural Advantages</h3>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Traditional</th>
+<th>Dualis Finance</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Settlement</td>
+<td>T+2 (2 business days)</td>
+<td>Atomic (sub-second)</td>
+</tr>
+<tr>
+<td>Fee Range</td>
+<td>50-200 bps</td>
+<td>5-20 bps</td>
+</tr>
+<tr>
+<td>Market Access</td>
+<td>Top-tier only</td>
+<td>Any verified participant</td>
+</tr>
+<tr>
+<td>Operating Hours</td>
+<td>Market hours (M-F)</td>
+<td>24/7/365</td>
+</tr>
+<tr>
+<td>Counterparty Risk</td>
+<td>Credit limits + ISDA</td>
+<td>Eliminated via collateral lock</td>
+</tr>
+</tbody></table>
+<p>Additional features: automated multilateral netting via <code>NettingAgreement</code> (reducing settlement operations from O(n) to O(1) per counterparty pair), and automated corporate action handling via <code>CorporateActionHandler</code> for dividends, coupons, and splits during active loans.</p>
+<hr>
+<h2>8. Governance and Tokenomics</h2>
+<h3>8.1 The DUAL Token</h3>
+<p>Canton-native governance token (CIP-56) with 1 billion fixed supply:</p>
+<table>
+<thead>
+<tr>
+<th>Allocation</th>
+<th>%</th>
+<th>Vesting</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Protocol Development</td>
+<td>25%</td>
+<td>4-year linear, 12-month cliff</td>
+</tr>
+<tr>
+<td>Community Rewards</td>
+<td>25%</td>
+<td>Per-epoch, usage-based</td>
+</tr>
+<tr>
+<td>Ecosystem Growth</td>
+<td>20%</td>
+<td>3-year linear, 6-month cliff</td>
+</tr>
+<tr>
+<td>Treasury</td>
+<td>15%</td>
+<td>DAO-controlled</td>
+</tr>
+<tr>
+<td>Investors</td>
+<td>10%</td>
+<td>2-year linear, 6-month cliff</td>
+</tr>
+<tr>
+<td>Advisors</td>
+<td>5%</td>
+<td>2-year linear, 12-month cliff</td>
+</tr>
+</tbody></table>
+<p>Each token confers one governance vote, with delegation via <code>VoteDelegation</code> template.</p>
+<h3>8.2 Governance Process</h3>
+<p>Proposals require 100,000 DUAL (0.01%) to create. <strong>Lifecycle:</strong> Draft → Active (5-day voting) → Succeeded/Failed (10% quorum, simple majority) → Queued (48h timelock) → Executed. Emergency proposals: 24h voting + 6h timelock. Governance controls all protocol parameters: rate models, collateral parameters, reserve factors, asset onboarding, and fee structures.</p>
+<h3>8.3 Economic Model</h3>
+<table>
+<thead>
+<tr>
+<th>Action</th>
+<th>Fee</th>
+<th>Revenue Destination</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Borrow Interest</td>
+<td>5-20% reserve factor</td>
+<td>Treasury</td>
+</tr>
+<tr>
+<td>Flash Loan</td>
+<td>0.09% of principal</td>
+<td>Treasury</td>
+</tr>
+<tr>
+<td>Liquidation</td>
+<td>3-10% penalty</td>
+<td>90% Liquidator / 10% Treasury</td>
+</tr>
+<tr>
+<td>Securities Lending</td>
+<td>10% of fee</td>
+<td>Treasury</td>
+</tr>
+<tr>
+<td>Credit Oracle Query</td>
+<td><span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.7278em;vertical-align:-0.0833em;"></span><span class="mord">5</span><span class="mord">−</span></span></span></span>50/query</td>
+<td>Treasury</td>
+</tr>
+<tr>
+<td>Supply / Withdraw</td>
+<td>Free</td>
+<td>--</td>
+</tr>
+</tbody></table>
+<p>Revenue projections: Year 1 (<span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8778em;vertical-align:-0.1944em;"></span><span class="mord">10</span><span class="mord mathnormal" style="margin-right:0.10903em;">M</span><span class="mord mathnormal" style="margin-right:0.13889em;">T</span><span class="mord mathnormal" style="margin-right:0.22222em;">V</span><span class="mord mathnormal">L</span><span class="mpunct">,</span></span></span></span>410K revenue), Year 2 (<span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8778em;vertical-align:-0.1944em;"></span><span class="mord">100</span><span class="mord mathnormal" style="margin-right:0.10903em;">M</span><span class="mord mathnormal" style="margin-right:0.13889em;">T</span><span class="mord mathnormal" style="margin-right:0.22222em;">V</span><span class="mord mathnormal">L</span><span class="mpunct">,</span></span></span></span>4.1M revenue, 35% margin), Year 3 (<span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8778em;vertical-align:-0.1944em;"></span><span class="mord">500</span><span class="mord mathnormal" style="margin-right:0.10903em;">M</span><span class="mord mathnormal" style="margin-right:0.13889em;">T</span><span class="mord mathnormal" style="margin-right:0.22222em;">V</span><span class="mord mathnormal">L</span><span class="mpunct">,</span></span></span></span>20.5M revenue, 84% margin). Break-even at ~$50M TVL (months 14-16).</p>
+<p>Value accrual: governance rights, staking rewards from protocol revenue, fee discounts for staked DUAL, and planned buyback-and-distribute mechanism from Year 2.</p>
+<hr>
+<h2>9. Privacy and Dual-Track Architecture</h2>
+<h3>9.1 Canton Sub-Transaction Privacy</h3>
+<p>Canton&#39;s privacy model provides four guarantees:</p>
+<ul>
+<li><strong>Need-to-Know Visibility</strong>: Only transaction signatories and designated observers see data</li>
+<li><strong>Encrypted Commitments</strong>: Validators verify transaction validity without accessing plaintext</li>
+<li><strong>GDPR Compatibility</strong>: Data exists only on participant nodes, not globally replicated</li>
+<li><strong>MEV Immunity</strong>: No public mempool, no fee-based sequencing -- front-running and sandwich attacks are architecturally impossible</li>
+</ul>
+<h3>9.2 Three Privacy Levels</h3>
+<table>
+<thead>
+<tr>
+<th>Level</th>
+<th>Visible To</th>
+<th>Use Case</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Standard</td>
+<td>Counterparty only</td>
+<td>Default for all operations</td>
+</tr>
+<tr>
+<td>Enhanced</td>
+<td>Counterparty + auditor</td>
+<td>Internal compliance</td>
+</tr>
+<tr>
+<td>Full Disclosure</td>
+<td>Counterparty + auditor + regulator</td>
+<td>Regulated securities</td>
+</tr>
+</tbody></table>
+<p>These levels are composable: a single user may operate with different privacy levels for different transaction types simultaneously.</p>
+<h3>9.3 Dual-Track Design</h3>
+<p><strong>Institutional Track.</strong> KYB-verified entities (banks, asset managers, hedge funds) receive dedicated pools (<code>InstitutionalPool</code>), full API integration (262 endpoints), elevated limits, and credit tier acceleration via off-chain credential attestation.</p>
+<p><strong>Retail Track.</strong> Permissionless wallet-based access via PartyLayer SDK. Self-custody, shared pool access, frontend-optimized experience. New users begin at Bronze tier and progress through on-chain behavioral history.</p>
+<p><strong>Shared Liquidity.</strong> Both tracks draw from unified pools -- institutional deposits increase retail borrowing liquidity and vice versa, creating deeper markets, better rates, and network effects.</p>
+<hr>
+<h2>10. Oracle and Price Feed System</h2>
+<p>The <code>OracleAggregator</code> collects data from four independent sources (Chainlink Data Streams, Proof of Reserve, NAVLink/DTCC feeds, TIFA Oracle). The aggregated price is the <strong>median</strong> with outlier detection:</p>
+<div class="math-display"><span class="katex-display"><span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.9694em;vertical-align:-0.2861em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.13889em;">P</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.1514em;"><span style="top:-2.55em;margin-left:-0.1389em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord text mtight"><span class="mord mtight">agg</span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.2861em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord text"><span class="mord">Median</span></span><span class="mopen">(</span><span class="mord"><span class="mord mathnormal" style="margin-right:0.05764em;">S</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3011em;"><span style="top:-2.55em;margin-left:-0.0576em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">1</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.05764em;">S</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3011em;"><span style="top:-2.55em;margin-left:-0.0576em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">2</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.05764em;">S</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3011em;"><span style="top:-2.55em;margin-left:-0.0576em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">3</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.05764em;">S</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3011em;"><span style="top:-2.55em;margin-left:-0.0576em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">4</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mclose">)</span><span class="mspace" style="margin-right:1em;"></span><span class="mord text"><span class="mord">excluding </span></span><span class="mord">∣</span><span class="mord"><span class="mord mathnormal" style="margin-right:0.05764em;">S</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3117em;"><span style="top:-2.55em;margin-left:-0.0576em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">i</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord text"><span class="mord">Median</span></span><span class="mord">∣</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">&gt;</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord">2</span><span class="mord mathnormal" style="margin-right:0.03588em;">σ</span></span></span></span></span></div>
+
+<p><strong>Staleness Detection.</strong> Maximum oracle staleness: 300 seconds. Affected pool operations pause until fresh price is received.</p>
+<p><strong>Circuit Breakers.</strong> Price movement exceeding 20% within 5 minutes pauses all lending, borrowing, and liquidation for the affected asset until manual review confirms the movement is genuine.</p>
+<hr>
+<h2>11. Security Considerations</h2>
+<h3>11.1 Smart Contract Security</h3>
+<p>DAML provides foundational advantages: purely functional language eliminating reentrancy attacks, built-in integer overflow protection via <code>Decimal</code> types, cryptographic signatory/observer authorization, and strong type system with compile-time correctness assurance. The 38 DAML templates are validated through 8 dedicated test suites.</p>
+<h3>11.2 Infrastructure Security</h3>
+<p>Role-based access control with JWT + 2FA, Redis-backed rate limiting, Zod schema input validation, parameterized queries via Drizzle ORM (eliminating SQL injection), TLS 1.3 with Helmet.js security headers.</p>
+<h3>11.3 Economic Security</h3>
+<p>Multi-source median oracle aggregation requires compromising 3+ sources. Canton&#39;s lack of public mempool eliminates flash-loan-based governance attacks. The four-tier liquidation cascade prevents cascading sell spirals.</p>
+<h3>11.4 Audit Plan</h3>
+<p>Internal security hardening (completed) → External smart contract audit (pre-mainnet) → Economic stress simulation → Bug bounty program (post-mainnet).</p>
+<hr>
+<h2>12. Canton Network and Ecosystem</h2>
+<h3>12.1 Why Canton</h3>
+<p>Five requirements no other platform satisfies simultaneously: sub-transaction privacy, institutional credibility (DTCC, Euroclear, LSEG), atomic multi-party transactions, DAML&#39;s formal guarantees, and regulatory compliance by design.</p>
+<h3>12.2 Ecosystem Position</h3>
+<table>
+<thead>
+<tr>
+<th>Layer</th>
+<th>Participants</th>
+<th>Relationship</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Settlement</td>
+<td>LSEG, Euroclear, Tradeweb</td>
+<td>Working Group co-members</td>
+</tr>
+<tr>
+<td>Custody</td>
+<td>Fireblocks, BitGo, Copper.co</td>
+<td>Wallet integration</td>
+</tr>
+<tr>
+<td>Asset Issuers</td>
+<td>DTCC, BlackRock, Franklin Templeton</td>
+<td>Collateral sources</td>
+</tr>
+<tr>
+<td>Wallet Providers</td>
+<td>Console, Loop, Helvault, Lace, Begin</td>
+<td>PartyLayer SDK</td>
+</tr>
+</tbody></table>
+<h3>12.3 Cayvox Labs Product Stack</h3>
+<table>
+<thead>
+<tr>
+<th>Product</th>
+<th>Function</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>PartyLayer (Wallet SDK)</td>
+<td>Wallet-agnostic Canton connectivity</td>
+<td>Production</td>
+</tr>
+<tr>
+<td>Dualis Finance</td>
+<td>Institutional lending protocol</td>
+<td>Devnet live</td>
+</tr>
+<tr>
+<td>TIFA Finance</td>
+<td>Receivables tokenization</td>
+<td>Devnet live</td>
+</tr>
+</tbody></table>
+<p>PartyLayer provides wallet abstraction; TIFA Finance creates tokenized receivables serving as TIFA-REC collateral in Dualis -- a vertically integrated ecosystem.</p>
+<hr>
+<h2>13. Roadmap and Conclusion</h2>
+<h3>13.1 Development Roadmap</h3>
+<table>
+<thead>
+<tr>
+<th>Phase</th>
+<th>Timeline</th>
+<th>Status</th>
+<th>Key Milestones</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Foundation</td>
+<td>Q4 2025</td>
+<td>Complete</td>
+<td>Architecture, DAML spec, devnet setup</td>
+</tr>
+<tr>
+<td>Development</td>
+<td>Q4 2025-Q1 2026</td>
+<td>Complete</td>
+<td>101K+ LOC, 38 DAML templates, 262 endpoints</td>
+</tr>
+<tr>
+<td>Audit</td>
+<td>Q1-Q2 2026</td>
+<td>Active</td>
+<td>External audit, stress testing, mainnet prep</td>
+</tr>
+<tr>
+<td>Mainnet Launch</td>
+<td>Q2-Q3 2026</td>
+<td>Planned</td>
+<td>Canton mainnet, initial pools, institutional onboarding</td>
+</tr>
+<tr>
+<td>Growth</td>
+<td>H2 2026</td>
+<td>Planned</td>
+<td>Securities lending, Credit Oracle API</td>
+</tr>
+<tr>
+<td>Scale</td>
+<td>2027+</td>
+<td>Planned</td>
+<td>Multi-domain deployment, cross-chain bridging</td>
+</tr>
+</tbody></table>
+<h3>13.2 Conclusion</h3>
+<p>When DTCC tokenizes the first US Treasury on Canton, that token will need a lending market. When Euroclear enables cross-border settlement of tokenized European government bonds, those securities will need borrowing infrastructure that institutional counterparties can trust with their balance sheet data.</p>
+<p>Dualis Finance is building that market -- combining a five-tier hybrid credit system, four-tier liquidation cascade, Canton sub-transaction privacy, on-chain securities lending, and dual-track architecture. The infrastructure for a $16 trillion tokenized asset economy is being built now. The institutions building it have chosen Canton. Dualis Finance transforms that settlement layer into a capital-efficient lending market.</p>
+<hr>
+<h2>References</h2>
+<p>[1] ISLA, &quot;Securities Lending Market Report,&quot; 2024.
+[2] BCG and Standard Chartered, &quot;On-Chain Asset Tokenization in Financial Markets,&quot; 2024.
+[3] DTCC, &quot;Annual Report,&quot; 2024.
+[4] E. Frangella, L. Herskind, &quot;Aave V3 Technical Paper,&quot; 2022.
+[5] R. Leshner, G. Hayes, &quot;Compound: The Money Market Protocol,&quot; 2019.
+[6] Digital Asset, &quot;Canton Network Technical Documentation,&quot; 2025.
+[7] Digital Asset, &quot;DAML Language Reference,&quot; v3.4, 2025.
+[8] S. Kulechov, &quot;Abundance Assets: The Future of Tokenized Finance,&quot; 2026.
+[9] DeFiLlama, &quot;Aave V3 TVL,&quot; accessed February 2026.
+[10] BlackRock, &quot;BUIDL Fund Documentation,&quot; 2025.
+[11] M. Gontier Delaunay, P. Frambot, &quot;Morpho Blue Whitepaper,&quot; 2023.
+[12] Maple Finance, &quot;Orthogonal Trading Default Post-Mortem,&quot; 2022.
+[13] Canton Network Foundation, &quot;Working Group Results,&quot; 2026.
+[14] Aave Protocol, &quot;Aave Horizon: Institutional DeFi,&quot; 2025.</p>
+<hr>
+<h2>Appendix A: DAML Smart Contract Templates</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Template</th>
+<th>Module</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>1</td>
+<td>LendingPool</td>
+<td>Lending.Pool</td>
+<td>Pool state: supply, borrows, reserves, indices</td>
+</tr>
+<tr>
+<td>2</td>
+<td>SupplyPosition</td>
+<td>Lending.Pool</td>
+<td>Supplier position with entry index</td>
+</tr>
+<tr>
+<td>3</td>
+<td>BorrowPosition</td>
+<td>Lending.Borrow</td>
+<td>Borrower debt with entry index</td>
+</tr>
+<tr>
+<td>4</td>
+<td>CollateralVault</td>
+<td>Lending.Collateral</td>
+<td>Locked collateral with tier classification</td>
+</tr>
+<tr>
+<td>5</td>
+<td>PriceOracle</td>
+<td>Oracle.PriceFeed</td>
+<td>Authoritative price state per asset</td>
+</tr>
+<tr>
+<td>6</td>
+<td>PriceFeed</td>
+<td>Oracle.PriceFeed</td>
+<td>Individual price source submission</td>
+</tr>
+<tr>
+<td>7</td>
+<td>OracleAggregator</td>
+<td>Trigger.OracleAggregator</td>
+<td>Multi-source median + outlier filtering</td>
+</tr>
+<tr>
+<td>8</td>
+<td>StalenessChecker</td>
+<td>Trigger.StalenessChecker</td>
+<td>300s freshness monitoring</td>
+</tr>
+<tr>
+<td>9</td>
+<td>LiquidationTrigger</td>
+<td>Liquidation.Engine</td>
+<td>Initiate liquidation for eligible positions</td>
+</tr>
+<tr>
+<td>10</td>
+<td>LiquidationScanner</td>
+<td>Trigger.LiquidationScanner</td>
+<td>Periodic position scanning</td>
+</tr>
+<tr>
+<td>11</td>
+<td>LiquidationResult</td>
+<td>Liquidation.Engine</td>
+<td>Immutable liquidation record</td>
+</tr>
+<tr>
+<td>12</td>
+<td>InterestAccrualTrigger</td>
+<td>Trigger.InterestAccrual</td>
+<td>Periodic index updates</td>
+</tr>
+<tr>
+<td>13</td>
+<td>FlashLiquidation</td>
+<td>Liquidation.Engine</td>
+<td>Flash-loan-funded liquidation</td>
+</tr>
+<tr>
+<td>14</td>
+<td>BatchLiquidation</td>
+<td>Liquidation.Engine</td>
+<td>Multi-liquidation batch processing</td>
+</tr>
+<tr>
+<td>15</td>
+<td>Proposal</td>
+<td>Governance.Proposal</td>
+<td>Governance proposal + voting state</td>
+</tr>
+<tr>
+<td>16</td>
+<td>VoteRecord</td>
+<td>Governance.Vote</td>
+<td>Individual vote record</td>
+</tr>
+<tr>
+<td>17</td>
+<td>VoteDelegation</td>
+<td>Governance.Delegation</td>
+<td>Voting power delegation</td>
+</tr>
+<tr>
+<td>18</td>
+<td>GovernanceConfig</td>
+<td>Governance.Config</td>
+<td>Quorum, periods, thresholds</td>
+</tr>
+<tr>
+<td>19</td>
+<td>TimelockExecution</td>
+<td>Governance.Timelock</td>
+<td>Execution delay enforcement</td>
+</tr>
+<tr>
+<td>20</td>
+<td>ProtocolConfig</td>
+<td>Core.Config</td>
+<td>Global protocol configuration</td>
+</tr>
+<tr>
+<td>21</td>
+<td>DUALToken</td>
+<td>Governance.Token</td>
+<td>Token with transfer + delegation</td>
+</tr>
+<tr>
+<td>22</td>
+<td>DualTokenBalance</td>
+<td>Token.DUAL</td>
+<td>Per-party balance + staking metadata</td>
+</tr>
+<tr>
+<td>23</td>
+<td>DualMintFactory</td>
+<td>Token.DUAL</td>
+<td>Authorized minting</td>
+</tr>
+<tr>
+<td>24</td>
+<td>TokenVesting</td>
+<td>Token.DUAL</td>
+<td>Vesting schedule enforcement</td>
+</tr>
+<tr>
+<td>25</td>
+<td>StakingPosition</td>
+<td>Token.DUAL</td>
+<td>Staking state + reward accumulator</td>
+</tr>
+<tr>
+<td>26</td>
+<td>CompositeCredit</td>
+<td>Credit.CompositeScore</td>
+<td>Combined credit score</td>
+</tr>
+<tr>
+<td>27</td>
+<td>CreditAttestationBundle</td>
+<td>Credit.Attestation</td>
+<td>ZK credential bundle</td>
+</tr>
+<tr>
+<td>28</td>
+<td>InstitutionalPool</td>
+<td>Institutional.Core</td>
+<td>Dedicated institutional pool</td>
+</tr>
+<tr>
+<td>29</td>
+<td>VerifiedInstitution</td>
+<td>Institutional.Core</td>
+<td>KYB-verified institution record</td>
+</tr>
+<tr>
+<td>30</td>
+<td>NettingAgreement</td>
+<td>SecLending.Advanced</td>
+<td>Multilateral netting</td>
+</tr>
+<tr>
+<td>31</td>
+<td>FractionalOffer</td>
+<td>SecLending.Advanced</td>
+<td>Securities lending offer</td>
+</tr>
+<tr>
+<td>32</td>
+<td>CorporateActionHandler</td>
+<td>SecLending.Advanced</td>
+<td>Dividend/coupon automation</td>
+</tr>
+<tr>
+<td>33</td>
+<td>ProductiveProject</td>
+<td>Productive.Core</td>
+<td>Project definition + cashflow</td>
+</tr>
+<tr>
+<td>34</td>
+<td>ProductiveBorrow</td>
+<td>Productive.Core</td>
+<td>Active productive loan</td>
+</tr>
+<tr>
+<td>35</td>
+<td>ProductiveLendingPool</td>
+<td>Productive.Core</td>
+<td>Project-based underwriting pool</td>
+</tr>
+<tr>
+<td>36</td>
+<td>PrivacyConfig</td>
+<td>Privacy.Config</td>
+<td>Per-party privacy levels</td>
+</tr>
+<tr>
+<td>37</td>
+<td>BulkOperation</td>
+<td>Core.Config</td>
+<td>Batch operation wrapper</td>
+</tr>
+<tr>
+<td>38</td>
+<td>BalanceSnapshot</td>
+<td>Core.Config</td>
+<td>Point-in-time balance snapshot</td>
+</tr>
+</tbody></table>
+<hr>
+<p><em>Copyright 2026 Cayvox Labs. All rights reserved.</em></p>
+
+</div>
+
+</body>
+</html>

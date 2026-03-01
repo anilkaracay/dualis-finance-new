@@ -53,7 +53,7 @@ const SCOPE_BADGE_VARIANT: Record<DataScope, 'default' | 'info' | 'warning' | 's
 function formatDate(dateStr: string | null): string {
   if (!dateStr) return '-';
   try {
-    return new Intl.DateTimeFormat('tr-TR', {
+    return new Intl.DateTimeFormat('en-US', {
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',
@@ -96,7 +96,7 @@ function DisclosureManager({ rules, onAdd, onRemove, loading = false }: Disclosu
 
   const handleRemove = (ruleId: string, ruleName: string) => {
     const confirmed = window.confirm(
-      `"${ruleName}" kuralını silmek istediğinize emin misiniz?`
+      `Are you sure you want to delete the "${ruleName}" rule?`
     );
     if (confirmed) {
       onRemove(ruleId);
@@ -106,21 +106,21 @@ function DisclosureManager({ rules, onAdd, onRemove, loading = false }: Disclosu
   const columns: Column<DisclosureRule>[] = [
     {
       key: 'displayName',
-      header: 'Ad',
+      header: 'Name',
       cell: (row) => (
         <span className="text-sm font-medium text-text-primary">{row.displayName}</span>
       ),
     },
     {
       key: 'discloseTo',
-      header: 'Taraf',
+      header: 'Party',
       cell: (row) => (
         <span className="text-sm text-text-secondary font-mono text-xs">{row.discloseTo}</span>
       ),
     },
     {
       key: 'dataScope',
-      header: 'Kapsam',
+      header: 'Scope',
       cell: (row) => (
         <Badge variant={SCOPE_BADGE_VARIANT[row.dataScope]} size="sm">
           {row.dataScope}
@@ -129,7 +129,7 @@ function DisclosureManager({ rules, onAdd, onRemove, loading = false }: Disclosu
     },
     {
       key: 'purpose',
-      header: 'Amaç',
+      header: 'Purpose',
       cell: (row) => (
         <span className="text-sm text-text-secondary truncate max-w-[200px] block">
           {row.purpose}
@@ -138,17 +138,17 @@ function DisclosureManager({ rules, onAdd, onRemove, loading = false }: Disclosu
     },
     {
       key: 'expiresAt',
-      header: 'Bitiş',
+      header: 'Expires',
       cell: (row) => (
         <span className="text-xs text-text-tertiary">{formatDate(row.expiresAt)}</span>
       ),
     },
     {
       key: 'isActive',
-      header: 'Durum',
+      header: 'Status',
       cell: (row) => (
         <Badge variant={row.isActive ? 'success' : 'default'} size="sm">
-          {row.isActive ? 'Aktif' : 'Pasif'}
+          {row.isActive ? 'Active' : 'Inactive'}
         </Badge>
       ),
     },
@@ -178,7 +178,7 @@ function DisclosureManager({ rules, onAdd, onRemove, loading = false }: Disclosu
       {/* Header with Add button */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <h3 className="text-lg font-semibold text-text-primary">Disclosure Kuralları</h3>
+          <h3 className="text-lg font-semibold text-text-primary">Disclosure Rules</h3>
           <span className="text-xs text-text-tertiary">({rules.length})</span>
         </div>
 
@@ -195,27 +195,27 @@ function DisclosureManager({ rules, onAdd, onRemove, loading = false }: Disclosu
 
           <DialogContent size="md">
             <DialogHeader>
-              <DialogTitle>Yeni Disclosure Kuralı</DialogTitle>
+              <DialogTitle>New Disclosure Rule</DialogTitle>
             </DialogHeader>
 
             <div className="flex flex-col gap-4">
               <Input
-                label="Taraf ID (Party ID)"
-                placeholder="Örn: party-abc-123"
+                label="Party ID"
+                placeholder="e.g., party-abc-123"
                 value={partyId}
                 onChange={(e) => setPartyId(e.target.value)}
               />
 
               <Input
-                label="Görünen Ad"
-                placeholder="Örn: SEC Reporting"
+                label="Display Name"
+                placeholder="e.g., SEC Reporting"
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
               />
 
               <div className="flex flex-col gap-1.5">
                 <label className="text-sm font-medium text-text-secondary text-label">
-                  Veri Kapsamı (Data Scope)
+                  Data Scope
                 </label>
                 <select
                   value={dataScope}
@@ -234,14 +234,14 @@ function DisclosureManager({ rules, onAdd, onRemove, loading = false }: Disclosu
               </div>
 
               <Input
-                label="Amaç"
-                placeholder="Örn: Regulatory compliance"
+                label="Purpose"
+                placeholder="e.g., Regulatory compliance"
                 value={purpose}
                 onChange={(e) => setPurpose(e.target.value)}
               />
 
               <Input
-                label="Bitiş Tarihi (Opsiyonel)"
+                label="Expiration Date (Optional)"
                 type="date"
                 value={expiresAt}
                 onChange={(e) => setExpiresAt(e.target.value)}
@@ -257,7 +257,7 @@ function DisclosureManager({ rules, onAdd, onRemove, loading = false }: Disclosu
                   setOpen(false);
                 }}
               >
-                İptal
+                Cancel
               </Button>
               <Button
                 variant="primary"
@@ -265,7 +265,7 @@ function DisclosureManager({ rules, onAdd, onRemove, loading = false }: Disclosu
                 disabled={!isFormValid}
                 onClick={handleSubmit}
               >
-                Ekle
+                Add
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -281,7 +281,7 @@ function DisclosureManager({ rules, onAdd, onRemove, loading = false }: Disclosu
         loadingRows={3}
         compact
         emptyState={
-          <p className="text-sm text-text-tertiary">Henüz disclosure kuralı bulunmuyor.</p>
+          <p className="text-sm text-text-tertiary">No disclosure rules configured yet.</p>
         }
       />
     </div>

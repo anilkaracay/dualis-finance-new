@@ -85,7 +85,8 @@ export type ApiErrorCode =
   | 'MAX_SESSIONS_REACHED'
   | 'KYC_ALREADY_APPROVED'
   | 'KYC_MAX_ATTEMPTS'
-  | 'COMPLIANCE_BLOCKED';
+  | 'COMPLIANCE_BLOCKED'
+  | 'PRIVACY_CONFIG_NOT_FOUND';
 
 /** Health check response */
 export interface HealthResponse {

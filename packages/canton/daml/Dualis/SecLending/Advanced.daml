@@ -45,9 +45,13 @@ template FractionalOffer
         return (newOffer, dealId)
 
 -- Template: CorporateActionHandler
+-- Deal parties (lender/borrower) are observers — they can see corporate
+-- actions affecting their securities lending deals.
 template CorporateActionHandler
   with
     operator : Party
+    lender : Party          -- From the associated SecLending deal
+    borrower : Party        -- From the associated SecLending deal
     handlerId : Text
     dealId : Text
     actionType : Text -- Dividend, CouponPayment, StockSplit, VotingRight, MandatoryAction
@@ -57,6 +61,7 @@ template CorporateActionHandler
     compensated : Bool
   where
     signatory operator
+    observer lender, borrower
 
     -- Process the corporate action
     choice ProcessCorporateAction : ContractId CorporateActionHandler
