@@ -334,9 +334,12 @@ export const useProductiveStore = create<ProductiveState & ProductiveActions>()(
     set({ isLoading: true });
     try {
       const { apiClient } = await import('@/lib/api/client');
-      const res = await apiClient.get<ProductiveProject>(`/productive/projects/${projectId}`);
-      if (res.data) {
-        set({ selectedProject: res.data, isLoading: false });
+      const res = await apiClient.get(`/productive/projects/${projectId}`);
+      // API returns { project, iotReadings } — extract the project
+      const body = res.data as Record<string, unknown>;
+      const project = (body?.project ?? body) as ProductiveProject;
+      if (project?.projectId) {
+        set({ selectedProject: project, isLoading: false });
         return;
       }
       throw new Error('Invalid response');
