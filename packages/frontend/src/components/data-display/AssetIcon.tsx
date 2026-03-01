@@ -1,5 +1,8 @@
+'use client';
+
+import { useState } from 'react';
 import { cn } from '@/lib/utils/cn';
-import { UsdcIcon, WbtcIcon, EthIcon, CantonIcon, DualIcon, TBillIcon, SpyIcon } from '@/components/ui/icons/assets';
+import { DualIcon, TBillIcon, SpyIcon } from '@/components/ui/icons/assets';
 
 interface AssetIconProps {
   symbol: string;
@@ -9,12 +12,20 @@ interface AssetIconProps {
 
 const sizePx: Record<string, number> = { sm: 20, md: 28, lg: 36 };
 
-const iconMap: Record<string, React.ComponentType<{ size?: number | undefined; className?: string | undefined }>> = {
-  USDC: UsdcIcon,
-  wBTC: WbtcIcon,
-  BTC: WbtcIcon,
-  ETH: EthIcon,
-  CC: CantonIcon,
+/** CDN logo URLs for known crypto assets (high-quality official logos) */
+const cdnLogoMap: Record<string, string> = {
+  USDC: 'https://assets.coingecko.com/coins/images/6319/standard/usdc.png',
+  ETH: 'https://assets.coingecko.com/coins/images/279/standard/ethereum.png',
+  wBTC: 'https://assets.coingecko.com/coins/images/7598/standard/wrapped_bitcoin_wbtc.png',
+  BTC: 'https://assets.coingecko.com/coins/images/1/standard/bitcoin.png',
+  WETH: 'https://assets.coingecko.com/coins/images/2518/standard/weth.png',
+  DAI: 'https://assets.coingecko.com/coins/images/9956/standard/Badge_Dai.png',
+  USDT: 'https://assets.coingecko.com/coins/images/325/standard/Tether.png',
+  CC: 'https://coin-images.coingecko.com/coins/images/70468/small/Canton-Ticker_%281%29.png?1762826299',
+};
+
+/** SVG fallback icons for assets without CDN logos */
+const svgFallbackMap: Record<string, React.ComponentType<{ size?: number | undefined; className?: string | undefined }>> = {
   DUAL: DualIcon,
   'T-BILL-2026': TBillIcon,
   'T-BILL': TBillIcon,
@@ -33,13 +44,30 @@ function hashStringToColor(str: string): string {
 
 function AssetIcon({ symbol, size = 'md', className }: AssetIconProps) {
   const px = sizePx[size] ?? 28;
-  const IconComponent = iconMap[symbol];
+  const [imgError, setImgError] = useState(false);
 
-  if (IconComponent) {
-    return <IconComponent size={px} className={className} />;
+  // 1. Try CDN logo first
+  const cdnUrl = cdnLogoMap[symbol];
+  if (cdnUrl && !imgError) {
+    return (
+      <img
+        src={cdnUrl}
+        alt={symbol}
+        width={px}
+        height={px}
+        className={cn('rounded-full shrink-0 object-cover', className)}
+        onError={() => setImgError(true)}
+      />
+    );
   }
 
-  // Fallback: generated colored circle
+  // 2. SVG fallback for non-CDN assets (CC, DUAL, T-BILL, SPY)
+  const SvgIcon = svgFallbackMap[symbol];
+  if (SvgIcon) {
+    return <SvgIcon size={px} className={className} />;
+  }
+
+  // 3. Generated colored circle for unknown assets
   const bg = hashStringToColor(symbol);
   const letter = symbol.charAt(0).toUpperCase();
   const fontSize = px * 0.4;

@@ -12,6 +12,7 @@ import { useWalletStore } from '@/stores/useWalletStore';
 import { authApi } from '@/lib/api/auth';
 import { useConnect, useWallets } from '@partylayer/react';
 import type { WalletId } from '@partylayer/sdk';
+import { getWalletIcon } from '@/lib/wallet-logos';
 
 export default function LoginPage() {
   const searchParams = useSearchParams();
@@ -309,11 +310,14 @@ export default function LoginPage() {
                     >
                       {/* Wallet icon */}
                       <div className="w-10 h-10 rounded-lg bg-bg-tertiary border border-border-default flex items-center justify-center overflow-hidden flex-shrink-0">
-                        {w.icons?.sm ? (
-                          <img src={w.icons.sm} alt={w.name} className="w-6 h-6 object-contain" />
-                        ) : (
-                          <Wallet className="w-5 h-5 text-accent-teal" />
-                        )}
+                        {(() => {
+                          const iconUrl = getWalletIcon(String(w.walletId), w.icons?.sm);
+                          return iconUrl ? (
+                            <img src={iconUrl} alt={w.name} className="w-6 h-6 object-contain" />
+                          ) : (
+                            <Wallet className="w-5 h-5 text-accent-teal" />
+                          );
+                        })()}
                       </div>
                       <div className="flex-1 text-left">
                         <p className="text-sm font-jakarta font-medium text-text-primary group-hover:text-accent-teal transition-colors">
